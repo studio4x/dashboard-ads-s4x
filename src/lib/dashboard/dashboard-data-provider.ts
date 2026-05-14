@@ -11,6 +11,21 @@ import * as mockInsights from "@/data/mock-sheet-insights";
 export async function getDashboardData(dashboardId: string) {
   const useMocks = process.env.GOOGLE_SHEETS_USE_MOCKS === "true";
 
+  // 1. Tenta buscar snapshot no Banco de Dados (Supabase) primeiro
+  try {
+    const snapshot = await DashboardService.getLatestSnapshot(dashboardId);
+    if (snapshot && snapshot.payload_json) {
+      return {
+        ...snapshot.payload_json,
+        source: snapshot.source_type || "google_sheets",
+        lastUpdated: new Date(snapshot.imported_at).toLocaleString("pt-BR")
+      };
+    }
+  } catch (dbError) {
+    console.error("Erro ao buscar snapshot no banco:", dbError);
+  }
+
+  // 2. Se não houver snapshot, verifica se deve usar mocks
   if (useMocks) {
     return {
       overview: mockOverview.mockOverviewRows,
@@ -27,20 +42,6 @@ export async function getDashboardData(dashboardId: string) {
       insights: mockInsights.mockInsights,
       source: "mock"
     };
-  }
-
-  // 1. Tenta buscar snapshot no Banco de Dados (Supabase)
-  try {
-    const snapshot = await DashboardService.getLatestSnapshot(dashboardId);
-    if (snapshot && snapshot.payload_json) {
-      return {
-        ...snapshot.payload_json,
-        source: snapshot.source_type || "google_sheets",
-        lastUpdated: new Date(snapshot.imported_at).toLocaleString("pt-BR")
-      };
-    }
-  } catch (dbError) {
-    console.error("Erro ao buscar snapshot no banco:", dbError);
   }
 
   // 2. Fallback para Cache em memória (DashboardStore) - apenas se GOOGLE_SHEETS_USE_MOCKS for true ou para testes rápidos

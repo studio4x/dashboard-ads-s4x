@@ -23,6 +23,20 @@ A primeira etapa da Fase 4 foi concluída com sucesso, focando na segurança e i
 7.  **Documentação**:
     *   Criado `docs/AUTH_AND_PERMISSIONS.md` com o guia completo do sistema de permissões.
 
+## 🚀 Fase 4.3 — Onboarding Real (Concluída)
+*   **Data do Teste**: 14/05/2026
+*   **Segurança**: Auditada e confirmada. Nenhum segredo exposto.
+*   **Resultados**:
+    *   Cliente e Dashboard de teste criados dinamicamente no Supabase.
+    *   Listagem de dashboards refatorada para multi-tenancy real (Server Component).
+    *   Importação real via Google Sheets API (Conta de Serviço) validada com 4.8x ROAS.
+    *   Ajustados filtros de importação para ignorar linhas de template ("Sim", "Enum").
+    *   DataProvider priorizando Snapshots reais sobre dados de mock.
+    *   Usuário `client` restrito ao próprio dashboard e bloqueado no `/admin`.
+    *   Resiliência da UI aumentada contra tipos de dados desconhecidos em Insights.
+
+---
+
 ## 🛠️ Como Testar
 
 1.  **Acesso Admin**:

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export const DataSourceService = {
   /**
@@ -74,7 +74,7 @@ export const DataSourceService = {
    * Salva um log de importação.
    */
   async saveImportLog(log: any) {
-    const supabase = await createClient()
+    const supabase = await createAdminClient()
     const { data, error } = await supabase
       .from('import_logs')
       .insert([log])

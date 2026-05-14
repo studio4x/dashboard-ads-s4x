@@ -41,7 +41,7 @@ const typeConfig = {
 };
 
 export function InsightCard({ insight, className }: InsightCardProps) {
-  const config = typeConfig[insight.insight_type];
+  const config = typeConfig[insight.insight_type] || typeConfig.info;
   const Icon = config.icon;
 
   return (

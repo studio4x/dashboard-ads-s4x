@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export const DashboardService = {
   /**
@@ -50,7 +50,7 @@ export const DashboardService = {
    * Cria um snapshot de dados para um dashboard.
    */
   async saveSnapshot(snapshot: any) {
-    const supabase = await createClient()
+    const supabase = await createAdminClient()
     const { data, error } = await supabase
       .from('dashboard_data_snapshots')
       .insert([snapshot])
@@ -73,6 +73,34 @@ export const DashboardService = {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
+    
+    if (error) throw error
+    return data
+  },
+
+  /**
+   * Lista dashboards acessíveis para o usuário atual.
+   */
+  async getDashboardsForUser() {
+    const supabase = await createClient()
+    
+    // 1. Busca os IDs dos clientes aos quais o usuário pertence
+    const { data: userClients, error: clientError } = await supabase
+      .from('client_users')
+      .select('client_id')
+    
+    if (clientError) throw clientError
+    if (!userClients || userClients.length === 0) return []
+
+    const clientIds = userClients.map(uc => uc.client_id)
+
+    // 2. Busca os dashboards desses clientes
+    const { data, error } = await supabase
+      .from('dashboards')
+      .select('*, clients(name, primary_color)')
+      .in('client_id', clientIds)
+      .eq('status', 'active')
+      .order('name')
     
     if (error) throw error
     return data

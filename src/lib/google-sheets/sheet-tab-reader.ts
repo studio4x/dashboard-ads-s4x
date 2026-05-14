@@ -27,7 +27,9 @@ export const SheetTabReader = {
     const required = ["date", "total_spend", "total_revenue"];
     validator.validateHeaders(headers, required);
 
-    const data = rows.slice(1).map((row, index) => {
+    const data = rows.slice(1)
+      .filter(row => row[0] && row[0] !== "Sim" && !row[0].toString().includes("Date"))
+      .map((row, index) => {
       const rowIndex = index + 2;
       return mapRowToModel(headers, row, (raw) => ({
         date: SheetNormalizer.toDate(raw.date),
@@ -61,7 +63,9 @@ export const SheetTabReader = {
     const required = ["date", "cost", "conversions"];
     validator.validateHeaders(headers, required);
 
-    const data = rows.slice(1).map((row, index) => {
+    const data = rows.slice(1)
+      .filter(row => row[0] && row[0] !== "Sim" && !row[0].toString().includes("Date"))
+      .map((row, index) => {
       return mapRowToModel(headers, row, (raw) => ({
         date: SheetNormalizer.toDate(raw.date),
         value: SheetNormalizer.toNumber(raw.cost), // valor diário
@@ -88,7 +92,9 @@ export const SheetTabReader = {
     const required = ["campaign_name", "platform", "cost"];
     validator.validateHeaders(headers, required);
 
-    const data = rows.slice(1).map((row, index) => {
+    const data = rows.slice(1)
+      .filter(row => row[0] && row[0] !== "Sim" && !row[0].toString().includes("String"))
+      .map((row, index) => {
       return mapRowToModel(headers, row, (raw) => ({
         campaign_name: SheetNormalizer.toString(raw.campaign_name),
         platform: SheetNormalizer.toString(raw.platform),
@@ -116,7 +122,9 @@ export const SheetTabReader = {
     const validator = new SheetValidator(tabName);
     if (rows.length === 0) return { tabName, data: [], errors: [{ level: "error", message: "Aba vazia", tab: tabName }] };
     const headers = rows[0];
-    const data = rows.slice(1).map((row) => mapRowToModel(headers, row, (raw) => ({
+    const data = rows.slice(1)
+      .filter(row => row[0] && row[0] !== "Sim" && !row[0].toString().includes("Date"))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
       date: SheetNormalizer.toDate(raw.date),
       value: SheetNormalizer.toNumber(raw.cost),
       impressions: SheetNormalizer.toInteger(raw.impressions),
@@ -135,7 +143,9 @@ export const SheetTabReader = {
     const validator = new SheetValidator(tabName);
     if (rows.length === 0) return { tabName, data: [], errors: [] };
     const headers = rows[0];
-    const data = rows.slice(1).map((row) => mapRowToModel(headers, row, (raw) => ({
+    const data = rows.slice(1)
+      .filter(row => row[0] && row[0] !== "Sim" && !row[0].toString().includes("String"))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
       event_name: SheetNormalizer.toString(raw.event_name),
       event_count: SheetNormalizer.toInteger(raw.event_count),
       users: SheetNormalizer.toInteger(raw.users),
@@ -151,7 +161,9 @@ export const SheetTabReader = {
     const validator = new SheetValidator(tabName);
     if (rows.length === 0) return { tabName, data: [], errors: [] };
     const headers = rows[0];
-    const data = rows.slice(1).map((row) => mapRowToModel(headers, row, (raw) => ({
+    const data = rows.slice(1)
+      .filter(row => row[0] && row[0] !== "Sim" && !row[0].toString().includes("String"))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
       query: SheetNormalizer.toString(raw.query),
       clicks: SheetNormalizer.toInteger(raw.clicks),
       impressions: SheetNormalizer.toInteger(raw.impressions),
@@ -170,7 +182,9 @@ export const SheetTabReader = {
     const validator = new SheetValidator(tabName);
     if (rows.length === 0) return { tabName, data: [], errors: [] };
     const headers = rows[0];
-    const data = rows.slice(1).map((row) => mapRowToModel(headers, row, (raw) => ({
+    const data = rows.slice(1)
+      .filter(row => row[0] && row[0] !== "Sim" && !row[0].toString().includes("Enum"))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
       dimension: SheetNormalizer.toString(raw.dimension),
       dimension_value: SheetNormalizer.toString(raw.dimension_value),
       sessions: SheetNormalizer.toInteger(raw.sessions),
@@ -188,7 +202,9 @@ export const SheetTabReader = {
     const validator = new SheetValidator(tabName);
     if (rows.length === 0) return { tabName, data: [], errors: [] };
     const headers = rows[0];
-    const data = rows.slice(1).map((row) => mapRowToModel(headers, row, (raw) => ({
+    const data = rows.slice(1)
+      .filter(row => row[0] && row[0] !== "Sim" && !row[0].toString().includes("String"))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
       keyword: SheetNormalizer.toString(raw.keyword),
       match_type: SheetNormalizer.toString(raw.match_type),
       clicks: SheetNormalizer.toInteger(raw.clicks),
@@ -208,7 +224,9 @@ export const SheetTabReader = {
     const validator = new SheetValidator(tabName);
     if (rows.length === 0) return { tabName, data: [], errors: [] };
     const headers = rows[0];
-    const data = rows.slice(1).map((row) => mapRowToModel(headers, row, (raw) => ({
+    const data = rows.slice(1)
+      .filter(row => row[0] && row[0] !== "Sim" && !row[0].toString().includes("Enum:"))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
       insight_type: SheetNormalizer.toString(raw.insight_type) as any,
       title: SheetNormalizer.toString(raw.title),
       description: SheetNormalizer.toString(raw.description),
