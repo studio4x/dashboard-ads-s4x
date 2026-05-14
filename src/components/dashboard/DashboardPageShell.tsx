@@ -19,7 +19,7 @@ export function DashboardPageShell({
   children,
   className,
 }: DashboardPageShellProps) {
-  const { loading, error, needsImport, data } = useDashboard();
+  const { loading, error, needsImport, data, isShared } = useDashboard();
 
   // Loading State
   if (loading) {
@@ -36,16 +36,18 @@ export function DashboardPageShell({
         <div>
           <h2 className="text-xl font-bold text-slate-900">Nenhum dado importado</h2>
           <p className="text-slate-500 mt-2">
-            Este dashboard está configurado para usar dados reais do Google Sheets, mas nenhuma importação foi realizada ainda.
+            Este dashboard ainda não possui dados importados para visualização.
           </p>
         </div>
-        <Link 
-          href="/admin/google-sheets"
-          className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          Ir para Área Admin
-          <ExternalLink size={16} />
-        </Link>
+        {!isShared && (
+          <Link 
+            href="/admin/google-sheets"
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            Ir para Área Admin
+            <ExternalLink size={16} />
+          </Link>
+        )}
       </div>
     );
   }

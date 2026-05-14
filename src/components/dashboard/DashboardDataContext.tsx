@@ -31,6 +31,7 @@ interface DashboardDataContextType {
   rangePreset: DateRangePreset;
   updateRange: (preset: DateRangePreset) => void;
   refresh: () => Promise<void>;
+  isShared: boolean;
 }
 
 const DashboardDataContext = createContext<DashboardDataContextType | undefined>(undefined);
@@ -118,7 +119,8 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
       to, 
       rangePreset, 
       updateRange, 
-      refresh: fetchData 
+      refresh: fetchData,
+      isShared: !!shareToken
     }}>
       {children}
     </DashboardDataContext.Provider>

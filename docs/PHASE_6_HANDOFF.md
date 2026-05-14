@@ -58,6 +58,27 @@ Criar uma interface administrativa para gerenciar os links seguros de dashboard 
 - **Como revogar**: Na mesma interface, em frente ao link gerado, clique em "Revogar". O acesso daquele token `/share/...` será imediatamente interrompido.
 - **Expiração**: Automática. O Supabase avalia o campo `expires_at` em tempo real durante o carregamento de `/share/[token]`.
 
-### Pendências para Fase 6.3:
+### Pendências para Fase 6.4:
 - Configurações estéticas nos templates ou personalização de subdomínio, caso haja.
 - Integração da lógica de duplicação/criação a partir de templates que havia sido desenhada inicialmente para o Dashboard ADS S4X.
+
+## Fase 6.3 — Visualização Compartilhada do Cliente ✅
+
+### Objetivo
+Refinar a UX da página `/share/[token]`, implementando navegação entre páginas (abas) do dashboard e mensagens amigáveis de erros.
+
+### O que foi implementado:
+1. **Navegação (SharedDashboardTabs)**:
+   - Suporte completo às abas de navegação do dashboard compartilhado.
+   - Preservação do `period` através dos URLs das abas.
+   - Navegação gerida pelo parâmetro `?page=` na própria rota para manter simplicidade técnica e proteger a identidade visual.
+
+2. **Empty States & Tratamento de Erro**:
+   - Respostas de `token inválido`, `expirado` ou `revogado` possuem títulos limpos para orientar o cliente.
+   - Se um dashboard não tiver dados (`needsImport`), a `DashboardPageShell` exibe apenas a mensagem "Nenhum dado importado", ocultando o botão restrito "Ir para Área Admin" baseando-se na flag nativa `isShared`.
+
+3. **Identidade Visual e Isolamento (Header)**:
+   - Adicionada a marca **Studio 4x (S4X)** no cabeçalho compartilhado para transmitir confiança e autoridade.
+   - Remoção de qualquer traço administrativo (sem sidebar, sem breadcrumbs confusos).
+   - Somente as abas pertinentes aparecem e navegam via `query params`.
+   - Acesso seguro ao backend: Snapshot servido somente via autenticação com o hash correspondente na query string, validado internamente.
