@@ -152,6 +152,12 @@ export default function GoogleSheetsAdminPage() {
 
   // O carregamento inicial é tratado dentro do layout para manter o header visível
 
+  const [filterClient, setFilterClient] = useState("");
+
+  const filteredSources = sources.filter(s => 
+    !filterClient || s.clientId === filterClient
+  );
+
   return (
     <div style={{ padding: 32, maxWidth: 1000 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
@@ -174,15 +180,26 @@ export default function GoogleSheetsAdminPage() {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A", marginBottom: 4 }}>Planilhas Vinculadas</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A" }}>Planilhas Vinculadas</h2>
+          
+          <select 
+            value={filterClient}
+            onChange={(e) => setFilterClient(e.target.value)}
+            style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: 13, background: "white", color: "#475569" }}
+          >
+            <option value="">Todos os clientes</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
         
         {isLoading && sources.length === 0 ? (
           <AdminListSkeleton items={3} />
-        ) : sources.length === 0 ? (
+        ) : filteredSources.length === 0 ? (
           <EmptyState 
             icon={FileSpreadsheet}
-            title="Nenhuma planilha vinculada"
-            description="Conecte sua primeira planilha do Google Sheets para começar a alimentar os dashboards."
+            title={sources.length === 0 ? "Nenhuma planilha vinculada" : "Nenhuma planilha para este cliente"}
+            description={sources.length === 0 ? "Conecte sua primeira planilha do Google Sheets para começar a alimentar os dashboards." : "Este cliente não possui planilhas vinculadas."}
             action={{
               label: "Nova Planilha",
               onClick: () => setIsModalOpen(true),
@@ -190,11 +207,12 @@ export default function GoogleSheetsAdminPage() {
             }}
           />
         ) : (
-          sources.map((source) => (
+          filteredSources.map((source) => (
             <GoogleSheetSourceCard
               key={source.id}
               spreadsheetName={source.name}
               clientName={source.clients.name}
+              dashboardName={source.dashboards?.name}
               tabsCount={source.google_sheet_sources.last_import_status ? 10 : 0}
               lastSynced={source.google_sheet_sources.last_import_at ? new Date(source.google_sheet_sources.last_import_at).toLocaleString("pt-BR") : undefined}
               status={isSyncing === source.id ? "running" : (source.google_sheet_sources.last_import_status as any || "pending")}

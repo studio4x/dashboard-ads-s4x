@@ -121,16 +121,34 @@ export default function AdminDashboardsPage() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{d.name}</p>
-                <p style={{ fontSize: 13, color: "#94A3B8", marginTop: 2 }}>
-                  {d.clients?.name} · {d.description || "Sem descrição"}
-                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13, color: "#94A3B8" }}>{d.clients?.name}</span>
+                  <span style={{ fontSize: 12, color: "#94A3B8" }}>•</span>
+                  <span style={{ fontSize: 12, color: "#64748B", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4 }}>
+                    <strong>{d.pages_count}</strong> {d.pages_count === 1 ? "página" : "páginas"}
+                  </span>
+                  <span style={{ fontSize: 12, color: "#64748B", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4 }}>
+                    Snapshot: <strong>{d.latest_snapshot_date ? new Date(d.latest_snapshot_date).toLocaleDateString('pt-BR') : "Nenhum"}</strong>
+                  </span>
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
                 <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: d.status === "active" ? "#DCFCE7" : "#FEF3C7", color: d.status === "active" ? "#16A34A" : "#D97706", fontWeight: 500 }}>
                   {d.status === "active" ? "Ativo" : "Inativo"}
                 </span>
-                <Link href={`/app/dashboards/${d.id}/executive-summary`} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8, background: "#EFF6FF", fontSize: 13, color: "#2563EB", textDecoration: "none", fontWeight: 500 }}>
-                  Visualizar <ArrowRight size={13} />
+                
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/app/dashboards/${d.id}`);
+                    alert("Link copiado para a área de transferência!");
+                  }}
+                  style={{ display: "flex", alignItems: "center", padding: "6px 12px", borderRadius: 8, background: "#F1F5F9", fontSize: 13, color: "#475569", border: "none", cursor: "pointer", fontWeight: 500 }}
+                >
+                  Copiar Link
+                </button>
+                
+                <Link href={`/app/dashboards/${d.id}/executive-summary`} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "#EFF6FF", fontSize: 13, color: "#2563EB", textDecoration: "none", fontWeight: 500 }}>
+                  Visualizar
                 </Link>
               </div>
             </div>

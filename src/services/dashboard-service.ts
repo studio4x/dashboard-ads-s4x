@@ -2,6 +2,33 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export const DashboardService = {
   /**
+   * Lista todos os dashboards (Admin)
+   */
+  async getAllDashboards() {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('dashboards')
+      .select(`
+        *,
+        clients(name, primary_color),
+        dashboard_pages(count),
+        dashboard_data_snapshots(created_at, source_type)
+      `)
+      .order('name')
+    
+    if (error) throw error
+    
+    // Processamos os relacionamentos para retornar dados úteis e não arrays enormes
+    return data.map((d: any) => ({
+      ...d,
+      pages_count: d.dashboard_pages?.[0]?.count || 0,
+      latest_snapshot_date: d.dashboard_data_snapshots?.length > 0 
+        ? d.dashboard_data_snapshots.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at 
+        : null
+    }))
+  },
+
+  /**
    * Lista dashboards de um cliente.
    */
   async getDashboardsByClient(clientId: string) {

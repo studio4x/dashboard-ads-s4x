@@ -71,7 +71,7 @@ export default function ClientsPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Clientes</h1>
-          <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{clients.length} clientes cadastrados no banco</p>
+          <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{clients.length} clientes cadastrados na plataforma</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
@@ -105,19 +105,35 @@ export default function ClientsPage() {
                 {client.name.charAt(0)}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{client.name}</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 3 }}>
+                <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", display: "flex", alignItems: "center", gap: 8 }}>
+                  {client.name}
+                  <span style={{ fontSize: 11, color: client.status === "active" ? "#16A34A" : "#64748B", background: client.status === "active" ? "#DCFCE7" : "#F1F5F9", padding: "2px 8px", borderRadius: 99, fontWeight: 500 }}>
+                    {client.status === "active" ? "Ativo" : "Inativo"}
+                  </span>
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 13, color: "#64748B" }}>{client.company_name || "Empresa"}</span>
+                  <span style={{ fontSize: 12, color: "#94A3B8" }}>•</span>
+                  <span style={{ fontSize: 12, color: "#64748B", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4 }}>
+                    <strong>{client.dashboards_count}</strong> {client.dashboards_count === 1 ? "dashboard" : "dashboards"}
+                  </span>
+                  <span style={{ fontSize: 12, color: "#64748B", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4 }}>
+                    <strong>{client.sources_count}</strong> {client.sources_count === 1 ? "fonte conectada" : "fontes conectadas"}
+                  </span>
+                  
                   {client.website_url && (
-                    <a href={client.website_url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#2563EB", textDecoration: "none" }}>
-                      <Globe size={11} /> {client.website_url.replace("https://", "")}
-                    </a>
+                    <>
+                      <span style={{ fontSize: 12, color: "#94A3B8" }}>•</span>
+                      <a href={client.website_url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#2563EB", textDecoration: "none" }}>
+                        <Globe size={11} /> URL
+                      </a>
+                    </>
                   )}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                 <Link href={`/admin/clients/${client.id}`} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8, background: "#EFF6FF", fontSize: 13, color: "#2563EB", textDecoration: "none", fontWeight: 500 }}>
-                  Detalhes
+                  Abrir Cliente
                 </Link>
               </div>
             </div>

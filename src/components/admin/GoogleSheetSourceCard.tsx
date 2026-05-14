@@ -8,6 +8,7 @@ interface GoogleSheetSourceCardProps {
   spreadsheetName: string;
   spreadsheetUrl?: string;
   clientName: string;
+  dashboardName?: string;
   tabsCount: number;
   lastSynced?: string;
   status: ImportStatus;
@@ -18,6 +19,7 @@ export function GoogleSheetSourceCard({
   spreadsheetName,
   spreadsheetUrl,
   clientName,
+  dashboardName,
   tabsCount,
   lastSynced,
   status,
@@ -51,14 +53,16 @@ export function GoogleSheetSourceCard({
             </a>
           )}
         </div>
-        <p style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>
-          {clientName} · {tabsCount} {tabsCount === 1 ? "aba" : "abas"} monitoradas
+        <p style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>
+          {clientName} {dashboardName && `· ${dashboardName}`}
         </p>
-        {lastSynced && (
-          <p style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>
-            Última sync: {lastSynced}
-          </p>
-        )}
+        <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+          {lastSynced ? (
+            <p style={{ fontSize: 11, color: "#94A3B8" }}>Última sync: {lastSynced}</p>
+          ) : (
+            <p style={{ fontSize: 11, color: "#EF4444", fontWeight: 500 }}>Nunca importado</p>
+          )}
+        </div>
       </div>
 
       {/* Status + Action */}

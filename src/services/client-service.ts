@@ -6,13 +6,24 @@ export const ClientService = {
    */
   async getAllClients() {
     const supabase = await createClient()
+    // Traz o cliente com contagem de relacionamentos
     const { data, error } = await supabase
       .from('clients')
-      .select('*')
+      .select(`
+        *,
+        dashboards:dashboards(count),
+        data_sources:data_sources(count)
+      `)
       .order('name')
     
     if (error) throw error
-    return data
+    
+    // Formata o retorno para injetar o count na raiz para facilitar na UI
+    return data.map((client: any) => ({
+      ...client,
+      dashboards_count: client.dashboards?.[0]?.count || 0,
+      sources_count: client.data_sources?.[0]?.count || 0
+    }))
   },
 
   /**
