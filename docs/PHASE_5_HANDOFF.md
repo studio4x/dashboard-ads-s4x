@@ -24,7 +24,41 @@
 
 ---
 
-## Próximos Passos (Fase 5.2):
-- Implementação de Loading Skeletons nos Dashboards.
-- Melhoria dos Empty States.
-- Interface de feedback em tempo real para importações manuais.
+## Fase 5.2 — UX e Feedback Visual ✅
+
+### O que foi implementado:
+1. **Sistema de Skeletons:**
+   - Criados componentes base em `src/components/ui/Skeleton.tsx`.
+   - Criado `DashboardSkeleton.tsx` para carregamento realista do dashboard.
+   - Criado `AdminListSkeleton.tsx` para carregamento de listas no painel administrativo.
+
+2. **Sistema de Empty States:**
+   - Componente reutilizável `src/components/ui/EmptyState.tsx`.
+   - Aplicado em: Dashboards sem dados, Listas vazias no Admin, Logs inexistentes.
+
+3. **Sistema de Toasts (Feedback em Tempo Real):**
+   - Implementado `ToastProvider` em `src/components/ui/Toast.tsx` sem dependências externas.
+   - Fornece feedback visual para: Sucesso na criação de fontes, Erros de conexão, Conclusão de importação.
+
+4. **Melhorias no Admin:**
+   - `/admin/google-sheets`: Feedback claro de status com badges coloridos e toasts.
+   - `/admin/import-logs`: Padronização de status e inclusão de estados vazios informativos.
+
+5. **Melhorias no Dashboard:**
+   - Substituição de spinners genéricos por Skeletons que mantêm a estrutura visual durante o carregamento.
+   - Indicadores claros de fonte de dados (Dados Reais vs Mock).
+
+### Como usar:
+- **Toasts:** Use o hook `useToast()` dentro de componentes clientes.
+  ```tsx
+  const { toast } = useToast();
+  toast("Mensagem", "success");
+  ```
+- **Skeletons:** Importe e use durante estados de `loading`.
+
+---
+
+## Próximos Passos (Fase 5.3):
+- Filtros de Período funcionais no Dashboard.
+- Implementação de Comparação de Período (Atual vs Anterior).
+- Documentação de estrutura de data nas planilhas.

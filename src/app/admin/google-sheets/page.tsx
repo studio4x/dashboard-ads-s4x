@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { GoogleSheetSourceCard } from "@/components/admin/GoogleSheetSourceCard";
-import { Plus, RefreshCw, AlertTriangle, CheckCircle2, Info, X, Loader2, ExternalLink } from "lucide-react";
+import { Plus, RefreshCw, AlertTriangle, CheckCircle2, Info, X, Loader2, FileSpreadsheet, History } from "lucide-react";
+import { Skeleton, TableSkeleton } from "@/components/ui/Skeleton";
+import { AdminListSkeleton } from "@/components/admin/AdminListSkeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useToast } from "@/components/ui/Toast";
 
 interface SheetSource {
   id: string;
@@ -37,6 +41,7 @@ export default function GoogleSheetsAdminPage() {
   const [logs, setLogs] = useState<ImportLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState<string | null>(null);
+  const { toast } = useToast();
   
   // Estados para Modal de Nova Fonte
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -106,11 +111,12 @@ export default function GoogleSheetsAdminPage() {
         setIsModalOpen(false);
         setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "" });
         fetchData();
+        toast("Fonte criada com sucesso!", "success");
       } else {
-        alert("Erro: " + result.error);
+        toast("Erro: " + result.error, "error");
       }
     } catch (error) {
-      alert("Erro ao conectar com o servidor.");
+      toast("Erro ao conectar com o servidor.", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -132,25 +138,19 @@ export default function GoogleSheetsAdminPage() {
       const result = await response.json();
       if (result.success) {
         fetchData(); // Atualiza a lista e os logs
-        alert("Sincronização concluída com sucesso!");
+        toast("Sincronização concluída com sucesso!", "success");
       } else {
-        alert(`Erro na sincronização: ${result.error}`);
+        toast(`Erro na sincronização: ${result.error}`, "error");
       }
     } catch (error) {
       console.error(error);
-      alert("Erro ao conectar com o servidor.");
+      toast("Erro ao conectar com o servidor.", "error");
     } finally {
       setIsSyncing(null);
     }
   };
 
-  if (isLoading && sources.length === 0) {
-    return (
-      <div style={{ display: "flex", height: "50vh", alignItems: "center", justifyContent: "center" }}>
-        <Loader2 className="animate-spin" size={32} color="#2563EB" />
-      </div>
-    );
-  }
+  // O carregamento inicial é tratado dentro do layout para manter o header visível
 
   return (
     <div style={{ padding: 32, maxWidth: 1000 }}>
@@ -176,10 +176,19 @@ export default function GoogleSheetsAdminPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A", marginBottom: 4 }}>Planilhas Vinculadas</h2>
         
-        {sources.length === 0 ? (
-          <div className="card" style={{ padding: 40, textAlign: "center", borderStyle: "dashed" }}>
-            <p style={{ color: "#64748B", fontSize: 14 }}>Nenhuma planilha vinculada ainda.</p>
-          </div>
+        {isLoading && sources.length === 0 ? (
+          <AdminListSkeleton items={3} />
+        ) : sources.length === 0 ? (
+          <EmptyState 
+            icon={FileSpreadsheet}
+            title="Nenhuma planilha vinculada"
+            description="Conecte sua primeira planilha do Google Sheets para começar a alimentar os dashboards."
+            action={{
+              label: "Nova Planilha",
+              onClick: () => setIsModalOpen(true),
+              icon: Plus
+            }}
+          />
         ) : (
           sources.map((source) => (
             <GoogleSheetSourceCard
@@ -210,58 +219,67 @@ export default function GoogleSheetsAdminPage() {
         </div>
         
         <div className="card" style={{ overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ textAlign: "left", background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
-                <th style={{ padding: "12px 16px", fontWeight: 600, color: "#64748B" }}>Data/Hora</th>
-                <th style={{ padding: "12px 16px", fontWeight: 600, color: "#64748B" }}>Cliente / Dashboard</th>
-                <th style={{ padding: "12px 16px", fontWeight: 600, color: "#64748B" }}>Status</th>
-                <th style={{ padding: "12px 16px", fontWeight: 600, color: "#64748B" }}>Resultado</th>
-                <th style={{ padding: "12px 16px", fontWeight: 600, color: "#64748B" }}>Erros/Avisos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ padding: "32px", textAlign: "center", color: "#94A3B8" }}>
-                    Nenhuma importação realizada recentemente.
-                  </td>
+          {isLoading && logs.length === 0 ? (
+            <TableSkeleton rows={5} />
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ textAlign: "left", background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "#64748B" }}>Data/Hora</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "#64748B" }}>Cliente / Dashboard</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "#64748B" }}>Status</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "#64748B" }}>Resultado</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "#64748B" }}>Erros/Avisos</th>
                 </tr>
-              ) : (
-                logs.map((log) => (
-                  <tr key={log.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                    <td style={{ padding: "12px 16px", color: "#0F172A" }}>
-                      {new Date(log.started_at).toLocaleString("pt-BR")}
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <p style={{ fontWeight: 600, color: "#0F172A" }}>{log.clients.name}</p>
-                      <p style={{ fontSize: 11, color: "#64748B" }}>{log.dashboards.name}</p>
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <span style={{ 
-                        display: "inline-flex", alignItems: "center", gap: 4, 
-                        color: log.status === "failed" ? "#EF4444" : "#16A34A", 
-                        fontWeight: 500, fontSize: 12,
-                        padding: "2px 8px", borderRadius: 99,
-                        background: log.status === "failed" ? "#FEF2F2" : "#F0FDF4"
-                      }}>
-                        {log.status === "failed" ? <X size={12} /> : <CheckCircle2 size={12} />}
-                        {log.status === "failed" ? "Erro" : "Sucesso"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "12px 16px", color: "#64748B" }}>
-                      {log.tabs_read?.length || 0} abas / {log.rows_read || 0} linhas
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <span style={{ color: log.errors > 0 ? "#EF4444" : "#64748B" }}>{log.errors} erros</span>
-                      <span style={{ margin: "0 4px", color: "#CBD5E1" }}>|</span>
-                      <span style={{ color: log.warnings > 0 ? "#F59E0B" : "#64748B" }}>{log.warnings} avisos</span>
+              </thead>
+              <tbody>
+                {logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: 0 }}>
+                      <EmptyState 
+                        icon={History}
+                        title="Nenhum log encontrado"
+                        description="As atividades de importação aparecerão aqui assim que forem executadas."
+                        className="border-none shadow-none"
+                      />
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  logs.map((log) => (
+                    <tr key={log.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                      <td style={{ padding: "12px 16px", color: "#0F172A" }}>
+                        {new Date(log.started_at).toLocaleString("pt-BR")}
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <p style={{ fontWeight: 600, color: "#0F172A" }}>{log.clients?.name || "Desconhecido"}</p>
+                        <p style={{ fontSize: 11, color: "#64748B" }}>{log.dashboards?.name || "Dashboard Removido"}</p>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <span style={{ 
+                          display: "inline-flex", alignItems: "center", gap: 4, 
+                          color: log.status === "failed" ? "#EF4444" : log.status === "success_with_warnings" ? "#D97706" : "#16A34A", 
+                          fontWeight: 500, fontSize: 12,
+                          padding: "2px 8px", borderRadius: 99,
+                          background: log.status === "failed" ? "#FEF2F2" : log.status === "success_with_warnings" ? "#FFFBEB" : "#F0FDF4"
+                        }}>
+                          {log.status === "failed" ? <X size={12} /> : log.status === "success_with_warnings" ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
+                          {log.status === "failed" ? "Erro" : log.status === "success_with_warnings" ? "Avisos" : "Sucesso"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 16px", color: "#64748B" }}>
+                        {log.tabs_read?.length || 0} abas / {log.rows_read || 0} linhas
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <span style={{ color: log.errors > 0 ? "#EF4444" : "#64748B" }}>{log.errors} erros</span>
+                        <span style={{ margin: "0 4px", color: "#CBD5E1" }}>|</span>
+                        <span style={{ color: log.warnings > 0 ? "#F59E0B" : "#64748B" }}>{log.warnings} avisos</span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

@@ -2,8 +2,9 @@
 
 import { cn } from "@/lib/utils";
 import { useDashboard } from "./DashboardDataContext";
-import { RefreshCw, AlertCircle, FileSpreadsheet, ExternalLink } from "lucide-react";
+import { AlertCircle, FileSpreadsheet, ExternalLink } from "lucide-react";
 import Link from "next/link";
+import { DashboardSkeleton } from "./DashboardSkeleton";
 
 interface DashboardPageShellProps {
   title: string;
@@ -22,12 +23,7 @@ export function DashboardPageShell({
 
   // Loading State
   if (loading) {
-    return (
-      <div className="p-6 flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <RefreshCw className="animate-spin text-blue-600" size={32} />
-        <p className="text-slate-500 font-medium">Carregando dados do dashboard...</p>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   // Needs Import State (Real Mode, but no data yet)

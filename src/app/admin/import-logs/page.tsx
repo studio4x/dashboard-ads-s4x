@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { RefreshCw, CheckCircle2, AlertTriangle, XCircle, Clock } from "lucide-react";
 import { DataSourceService } from "@/services/data-source-service";
+import { ImportStatusBadge } from "@/components/admin/ImportStatusBadge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { History } from "lucide-react";
 
 export const metadata: Metadata = { title: "Logs de Importação | Admin" };
 
@@ -31,8 +33,13 @@ export default async function ImportLogsPage() {
           <tbody>
             {logs.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "#94A3B8" }}>
-                  Nenhum log encontrado.
+                <td colSpan={6} style={{ padding: 0 }}>
+                  <EmptyState 
+                    icon={History}
+                    title="Nenhum log de importação"
+                    description="O histórico de sincronizações aparecerá aqui assim que a primeira fonte for processada."
+                    className="border-none shadow-none py-16"
+                  />
                 </td>
               </tr>
             ) : (
@@ -44,7 +51,7 @@ export default async function ImportLogsPage() {
                   <td style={{ padding: "12px 16px", color: "#0F172A" }}>{log.clients?.name}</td>
                   <td style={{ padding: "12px 16px", color: "#0F172A" }}>{log.dashboards?.name}</td>
                   <td style={{ padding: "12px 16px" }}>
-                    <StatusBadge status={log.status} />
+                    <ImportStatusBadge status={log.status as any} />
                   </td>
                   <td style={{ padding: "12px 16px", color: "#64748B" }}>
                     {log.duration_ms ? `${(log.duration_ms / 1000).toFixed(1)}s` : "—"}
@@ -66,18 +73,3 @@ export default async function ImportLogsPage() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === "success") {
-    return <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#16A34A", fontWeight: 600 }}><CheckCircle2 size={14} /> Sucesso</span>;
-  }
-  if (status === "success_with_warnings") {
-    return <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#D97706", fontWeight: 600 }}><AlertTriangle size={14} /> Com Avisos</span>;
-  }
-  if (status === "failed") {
-    return <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#DC2626", fontWeight: 600 }}><XCircle size={14} /> Falhou</span>;
-  }
-  if (status === "running") {
-    return <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#2563EB", fontWeight: 600 }}><Clock size={14} className="animate-spin" /> Em curso</span>;
-  }
-  return <span>{status}</span>;
-}
