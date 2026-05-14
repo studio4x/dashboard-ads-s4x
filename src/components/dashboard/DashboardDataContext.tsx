@@ -35,11 +35,17 @@ interface DashboardDataContextType {
 
 const DashboardDataContext = createContext<DashboardDataContextType | undefined>(undefined);
 
-export function DashboardDataProvider({ children }: { children: React.ReactNode }) {
+interface DashboardDataProviderProps {
+  children: React.ReactNode;
+  overrideDashboardId?: string;
+  shareToken?: string;
+}
+
+export function DashboardDataProvider({ children, overrideDashboardId, shareToken }: DashboardDataProviderProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const params = useParams();
-  const dashboardId = params.dashboardId as string;
+  const dashboardId = overrideDashboardId || (params.dashboardId as string);
 
   // 1. Resolve o período inicial (URL ou Default)
   const [rangePreset, setRangePreset] = useState<DateRangePreset>(
@@ -63,7 +69,10 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
     setNeedsImport(false);
     
     try {
-      const url = `/api/dashboards/${dashboardId}/data?from=${from}&to=${to}`;
+      let url = `/api/dashboards/${dashboardId}/data?from=${from}&to=${to}`;
+      if (shareToken) {
+        url += `&share_token=${shareToken}`;
+      }
       const response = await fetch(url);
       const result = await response.json();
 

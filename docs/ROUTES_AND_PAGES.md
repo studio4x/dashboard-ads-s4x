@@ -9,6 +9,7 @@
 |------|---------|-----------|
 | `/` | `src/app/page.tsx` | Landing page |
 | `/login` | `src/app/login/page.tsx` | Login |
+| `/share/[token]` | `src/app/share/[token]/page.tsx` | Visualização pública de Dashboard (via Hash) |
 
 ---
 
@@ -61,6 +62,7 @@
 RootLayout (src/app/layout.tsx)
 ├── / (landing)
 ├── /login
+├── /share/[token] (somente leitura)
 ├── /app/
 │   └── DashboardsLayout (sem layout especial)
 │       └── /app/dashboards/[dashboardId]/

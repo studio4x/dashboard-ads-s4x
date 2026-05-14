@@ -44,3 +44,10 @@ UPDATE public.profiles
 SET role = 'admin' 
 WHERE email = 'email-do-usuario@exemplo.com';
 ```
+
+## 5. Compartilhamento Público (Links Seguros)
+
+A partir da Fase 6, administradores podem gerar links de acesso público e seguro para dashboards específicos (`/share/[token]`).
+- Este link **ignora a necessidade de login** (bypassa o Auth), mas a validação ocorre na API através do token hash (SHA-256).
+- A tabela `dashboard_share_links` gerencia o ciclo de vida do token (active, revoked, expired).
+- A API `/api/dashboards/[dashboardId]/data` foi ajustada para aceitar a query string `?share_token=[token]` e permitir a leitura se validado, impedindo navegação para áreas ou dashboards não autorizados.

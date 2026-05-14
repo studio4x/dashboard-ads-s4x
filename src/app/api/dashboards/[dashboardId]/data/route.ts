@@ -9,11 +9,21 @@ export async function GET(
   try {
     const { dashboardId } = await params;
     
-    // 1. Verifica Autenticação e Acesso ao Dashboard (Helper Centralizado)
-    const authError = await requireDashboardAccess(dashboardId);
-    if (authError) return authError;
-
     const { searchParams } = new URL(request.url);
+    const shareToken = searchParams.get("share_token");
+
+    // 1. Verifica Autenticação e Acesso
+    if (shareToken) {
+      const { ShareService } = await import("@/services/share-service");
+      const shareData = await ShareService.validateShareToken(shareToken);
+      if (!shareData.isValid || shareData.link?.dashboard_id !== dashboardId) {
+        return NextResponse.json({ error: "Token inválido, expirado ou não autorizado para este dashboard." }, { status: 403 });
+      }
+    } else {
+      const authError = await requireDashboardAccess(dashboardId);
+      if (authError) return authError;
+    }
+
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     
