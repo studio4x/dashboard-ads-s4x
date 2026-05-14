@@ -48,3 +48,13 @@ A Fase 3 transformou o protótipo em uma aplicação real com banco de dados per
 - CRUD Completo com formulários no Admin (Novo Cliente, Novo Dashboard).
 - Integração com Supabase Storage para logos de clientes.
 - Sistema de convite de usuários.
+
+### Deploy na Vercel
+- **Project ID:** prj_ItBuzwCzFtKw36WXgZtHxsrXxHfF
+- **URL:** https://dashboard-ads-s4x.vercel.app/
+- **Framework Preset:** Next.js
+- **Build Command:** npm run build
+- **Install Command:** npm install
+- **Output Directory:** padrão da Vercel para Next.js
+- **GOOGLE_SHEETS_USE_MOCKS:** true no primeiro deploy para validação.
+
