@@ -16,10 +16,10 @@ Este documento lista as variáveis de ambiente necessárias para o funcionamento
 - **GOOGLE_PROJECT_ID**: ID do projeto no Google Cloud.
 - **GOOGLE_SHEETS_USE_MOCKS**: `true` usa dados mockados, `false` usa API real.
 
-## Vercel (Deployment)
-- **VERCEL_PROJECT_ID**: ID do projeto na Vercel.
-- **VERCEL_PROJECT_URL**: URL base do projeto (ex: dashboard-ads-s4x.vercel.app).
 - **VERCEL_TOKEN**: Token de autenticação para o CLI (apenas local/CI).
+
+## Automação (Cron)
+- **CRON_SECRET**: Segredo para autenticação do endpoint de cron. Na Vercel, este valor é gerado automaticamente pelo Vercel Cron ou configurado manualmente.
 
 ## Notas de Segurança
 - O arquivo `.env.local` deve ser ignorado pelo Git.

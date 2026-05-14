@@ -17,6 +17,7 @@ export interface ImportLogEntry {
   source: "google_sheets" | "mock";
   durationMs?: number;
   errorDetails?: string;
+  dataSourceId?: string;
 }
 
 export interface ImportReport {

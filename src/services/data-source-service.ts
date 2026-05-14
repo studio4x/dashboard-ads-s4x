@@ -98,5 +98,42 @@ export const DataSourceService = {
     
     if (error) throw error
     return data
+  },
+
+  /**
+   * Busca todas as fontes de Google Sheets ativas para automação.
+   */
+  async getActiveGoogleSheetsSources() {
+    const supabase = await createAdminClient()
+    const { data, error } = await supabase
+      .from('data_sources')
+      .select('*, google_sheet_sources(*)')
+      .eq('type', 'google_sheets')
+      .eq('status', 'active')
+    
+    if (error) throw error
+    return data
+  },
+
+  /**
+   * Atualiza o status da última importação da fonte.
+   */
+  async updateGoogleSheetSourceStatus(config: {
+    sourceId: string,
+    status: string,
+    lastImportAt: string
+  }) {
+    const supabase = await createAdminClient()
+    
+    const { error } = await supabase
+      .from('google_sheet_sources')
+      .update({
+        last_import_status: config.status,
+        last_import_at: config.lastImportAt,
+        updated_at: new Date().toISOString()
+      })
+      .eq('data_source_id', config.sourceId)
+
+    if (error) throw error
   }
 }

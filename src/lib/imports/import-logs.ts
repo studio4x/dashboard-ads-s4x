@@ -12,7 +12,7 @@ export const ImportLogsService = {
         id: log.id,
         client_id: log.clientId,
         dashboard_id: log.dashboardId,
-        data_source_id: log.id, // Simplificado para o MVP
+        data_source_id: log.dataSourceId || log.id,
         source_type: log.source,
         status: log.status,
         started_at: log.startedAt,

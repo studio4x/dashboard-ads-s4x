@@ -4,12 +4,13 @@ import { ImportLogsService } from "../imports/import-logs";
 import { ImportLogEntry, ImportStatus } from "@/types/imports";
 import { v4 as uuidv4 } from "uuid";
 import { DashboardService } from "@/services/dashboard-service";
+import { DataSourceService } from "@/services/data-source-service";
 
 export const GoogleSheetsImportService = {
   /**
    * Executa a importação completa de uma planilha.
    */
-  async importDashboardData(clientId: string, dashboardId: string, spreadsheetId: string) {
+  async importDashboardData(clientId: string, dashboardId: string, spreadsheetId: string, dataSourceId?: string) {
     const startedAt = new Date().toISOString();
     const logId = uuidv4();
     
@@ -81,7 +82,8 @@ export const GoogleSheetsImportService = {
         warnings,
         errors,
         source: "google_sheets",
-        durationMs
+        durationMs,
+        dataSourceId
       };
 
       await ImportLogsService.addLog(log);
@@ -94,6 +96,15 @@ export const GoogleSheetsImportService = {
           source_type: "google_sheets",
           payload_json: resultData,
           imported_at: finishedAt
+        });
+      }
+
+      // Atualiza o status na tabela google_sheet_sources se o dataSourceId estiver presente
+      if (dataSourceId) {
+        await DataSourceService.updateGoogleSheetSourceStatus({
+          sourceId: dataSourceId,
+          status,
+          lastImportAt: finishedAt
         });
       }
 
@@ -119,7 +130,8 @@ export const GoogleSheetsImportService = {
         warnings,
         errors,
         source: "google_sheets",
-        errorDetails: globalError.message
+        errorDetails: globalError.message,
+        dataSourceId
       };
 
       await ImportLogsService.addLog(log);
