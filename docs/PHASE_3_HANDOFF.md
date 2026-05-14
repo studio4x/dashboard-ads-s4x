@@ -58,3 +58,13 @@ A Fase 3 transformou o protótipo em uma aplicação real com banco de dados per
 - **Output Directory:** padrão da Vercel para Next.js
 - **GOOGLE_SHEETS_USE_MOCKS:** true no primeiro deploy para validação.
 
+
+### Validação Operacional em Produção
+- **Data/Hora:** 14/05/2026 16:48
+- **URL:** https://dashboard-ads-s4x.vercel.app/
+- **Primeiro Owner:** contato@studio4x.com.br (Criado e validado)
+- **Profile Automático:** Validado via Trigger SQL.
+- **Login:** Testado e funcional.
+- **Proteção de Rota /admin:** Validada.
+- **Persistência Remota:** Tabelas confirmadas via API REST.
+
