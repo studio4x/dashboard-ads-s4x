@@ -1,4 +1,5 @@
 import { DashboardStore } from "@/data/dashboard-store";
+import { DashboardService } from "@/services/dashboard-service";
 import * as mockOverview from "@/data/mock-sheet-overview";
 import * as mockGoogleAds from "@/data/mock-sheet-google-ads";
 import * as mockMetaAds from "@/data/mock-sheet-meta-ads";
@@ -20,7 +21,7 @@ export async function getDashboardData(dashboardId: string) {
         ...mockMetaAds.mockMetaAdsCampaigns
       ],
       ga4_events: mockGa4.mockGa4Events,
-      audience: mockAudience.mockAudienceChannel, // simplify for provider
+      audience: mockAudience.mockAudienceChannel,
       search_console: mockSC.mockSearchConsoleQueries,
       keywords: mockGoogleAds.mockKeywords,
       insights: mockInsights.mockInsights,
@@ -28,16 +29,29 @@ export async function getDashboardData(dashboardId: string) {
     };
   }
 
-  // Modo Real
-  const data = DashboardStore.getData(dashboardId);
-  
-  if (!data) {
-    // Retorna nulo para indicar que precisa de importação
-    return null;
+  // 1. Tenta buscar snapshot no Banco de Dados (Supabase)
+  try {
+    const snapshot = await DashboardService.getLatestSnapshot(dashboardId);
+    if (snapshot && snapshot.payload_json) {
+      return {
+        ...snapshot.payload_json,
+        source: snapshot.source_type || "google_sheets",
+        lastUpdated: new Date(snapshot.imported_at).toLocaleString("pt-BR")
+      };
+    }
+  } catch (dbError) {
+    console.error("Erro ao buscar snapshot no banco:", dbError);
   }
 
-  return {
-    ...data,
-    source: "google_sheets"
-  };
+  // 2. Fallback para Cache em memória (DashboardStore) - util para testes rápidos
+  const data = DashboardStore.getData(dashboardId);
+  if (data) {
+    return {
+      ...data,
+      source: "google_sheets"
+    };
+  }
+
+  // Retorna nulo se nada for encontrado
+  return null;
 }

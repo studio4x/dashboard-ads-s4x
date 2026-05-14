@@ -3,6 +3,7 @@ import { SheetTabReader } from "./sheet-tab-reader";
 import { ImportLogsService } from "../imports/import-logs";
 import { ImportLogEntry, ImportStatus } from "@/types/imports";
 import { v4 as uuidv4 } from "uuid";
+import { DashboardService } from "@/services/dashboard-service";
 
 export const GoogleSheetsImportService = {
   /**
@@ -83,7 +84,18 @@ export const GoogleSheetsImportService = {
         durationMs
       };
 
-      ImportLogsService.addLog(log);
+      await ImportLogsService.addLog(log);
+
+      // Se teve sucesso, salva o snapshot no banco
+      if (status !== "failed") {
+        await DashboardService.saveSnapshot({
+          client_id: clientId,
+          dashboard_id: dashboardId,
+          source_type: "google_sheets",
+          payload_json: resultData,
+          imported_at: finishedAt
+        });
+      }
 
       return {
         success: status !== "failed",
@@ -110,7 +122,7 @@ export const GoogleSheetsImportService = {
         errorDetails: globalError.message
       };
 
-      ImportLogsService.addLog(log);
+      await ImportLogsService.addLog(log);
       throw globalError;
     }
   }

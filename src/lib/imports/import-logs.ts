@@ -1,20 +1,40 @@
 import { ImportLogEntry } from "@/types/imports";
-
-// Armazenamento temporário em memória para o MVP sem banco de dados
-const logs: ImportLogEntry[] = [];
+import { DataSourceService } from "@/services/data-source-service";
 
 export const ImportLogsService = {
-  addLog(log: ImportLogEntry) {
-    logs.unshift(log);
-    // Mantém apenas os últimos 50 logs em memória
-    if (logs.length > 50) logs.pop();
+  /**
+   * Salva um log no banco de dados.
+   */
+  async addLog(log: ImportLogEntry) {
+    try {
+      // Mapeia para o formato do banco (snake_case)
+      const dbLog = {
+        id: log.id,
+        client_id: log.clientId,
+        dashboard_id: log.dashboardId,
+        data_source_id: log.id, // Simplificado para o MVP
+        source_type: log.source,
+        status: log.status,
+        started_at: log.startedAt,
+        finished_at: log.finishedAt,
+        duration_ms: log.durationMs,
+        tabs_read: log.tabsRead,
+        rows_read: log.rowsRead,
+        warnings: log.warnings,
+        errors: log.errors,
+        error_details: log.errorDetails
+      };
+      
+      await DataSourceService.saveImportLog(dbLog);
+    } catch (error) {
+      console.error("Erro ao salvar log no banco:", error);
+    }
   },
 
-  getLogs() {
-    return logs;
-  },
-
-  getLatestLog(dashboardId: string) {
-    return logs.find(l => l.dashboardId === dashboardId);
+  /**
+   * Obtém logs do banco.
+   */
+  async getLogs() {
+    return await DataSourceService.getImportLogs();
   }
 };
