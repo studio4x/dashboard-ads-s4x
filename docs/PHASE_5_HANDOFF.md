@@ -100,9 +100,58 @@
 4. Execute o "Importar Agora" na Fonte Google Sheets.
 5. Verifique o Checklist no Hub do Cliente para garantir que está 100% (o vínculo de usuário será expandido em fases futuras).
 
+## Fase 5.5 — Validação, Deploy e Handoff ✅
+
+### Auditorias e Validações:
+- **Segurança:** Variáveis de ambiente validadas e não versionadas. Nenhuma service account exposta.
+- **Técnica:** Build limpo sem quebras (159 warnings focados em tipagem `any` que não afetam runtime, permitindo deploy contínuo nesta fase inicial).
+- **Integração Vercel/Supabase:** Todos os tokens devidamente mapeados para produção.
+- **Cron Job:** `/api/cron/import-google-sheets` testado e validado de forma funcional, restrito pelo `CRON_SECRET`.
+- **Operacional:** Testes E2E de simulação (Criação de Cliente > Dashboard > Fonte > Importação) fluindo com sucesso.
+
 ---
 
-## Próximos Passos (Fase 5.5 ou 6):
-- Implementação de vínculo real entre Usuário Auth e Cliente via painel.
-- Duplicação de Dashboards.
-- Gráficos comparativos no front-end.
+# Fase 5 — Handoff Final
+
+A Fase 5 consolida a transição de um sistema MVP de leitura estática para uma **plataforma SaaS administrativa escalável** pronta para operação "Beta" com clientes reais limitados.
+
+**O que temos rodando em Produção:**
+- Automação de importação de planilhas via agendamento Cron (05:00 UTC).
+- Indicadores visuais robustos (Skeletons, Toasts e Empty States).
+- Dashboards dinâmicos com filtros de período (7d, 14d, 30d) e lógicas de variação (crescimento/queda).
+- Um Cockpit Admin E2E (gestão de clientes, painéis, planilhas e logs).
+- **Vercel:** URL final live (dashboard-ads-s4x.vercel.app).
+- **Supabase:** Storage e Auth rodando em nuvem com regras de RLS baseadas em Service Role onde necessário.
+- **Google Sheets:** Integração via Service Account.
+
+### Limitações Conhecidas
+- **Vínculo de Usuários:** A tela de associar e-mail de Auth diretamente pelo Cockpit não está finalizada. No momento, requer intervenção direta no Supabase para injetar na tabela `client_users` e `user_roles`.
+- **Duplicação de Dashboard:** A clonagem de templates exige setup manual no DB e Planilha por cliente.
+- **Gráficos Avançados:** Filtros de período processam a lógica via Server Actions, mas os gráficos de tendência complexos no front-end aguardarão a Fase 6.
+- **Tipagem (TypeScript):** Há diversos arquivos contendo `any` por conta de retornos variados do Supabase e Sheets. Uma limpeza técnica de longo prazo é recomendada.
+
+---
+
+### Checklist de Uso Beta (Para Novos Clientes)
+
+Siga este roteiro sempre que um novo cliente entrar na plataforma:
+
+1. [ ] Criar **Cliente** no painel Administrativo (`/admin/clients`).
+2. [ ] Criar **Dashboard** vinculado ao Cliente (`/admin/dashboards`).
+3. [ ] Preparar a **planilha Google Sheets** seguindo o esquema oficial (`docs/GOOGLE_SHEETS_SCHEMA.md`).
+4. [ ] Compartilhar a planilha com o e-mail da *Service Account*.
+5. [ ] Cadastrar a **Fonte Google Sheets** associando ao Cliente e ao Dashboard (`/admin/google-sheets`).
+6. [ ] Executar primeira importação manual via botão de Sincronizar na listagem de planilhas.
+7. [ ] Validar no **Import Logs** (`/admin/import-logs`) se a leitura ocorreu com status "Sucesso" ou "Avisos".
+8. [ ] Acessar o Dashboard em modo visualização para certificar-se do "Snapshot" correto e teste de filtros de data.
+9. [ ] Solicitar ao Cliente que crie a conta no `/login`.
+10. [ ] (Manual via Supabase): Vincular UUID do Usuário ao `client_id` nas tabelas `user_roles` (admin/client) e `client_users`.
+11. [ ] Testar o acesso direto em guia anônima.
+12. [ ] Validar o progresso 100% no "Hub do Cliente" (`/admin/clients/[id]`).
+
+---
+
+## Próximas Fases Recomendadas (Fase 6):
+- UI para criação de convites/vínculo de usuários Client via painel Admin.
+- Gerador de Templates automatizado (Duplicação de Dashboards).
+- Otimização gráfica visual usando `recharts`.
