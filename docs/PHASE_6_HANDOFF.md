@@ -29,24 +29,35 @@ Permitir que um dashboard seja acessado por clientes através de um link privado
    - Componente `SharedHeaderActions` criado para remover o menu de Admin e funcionalidades técnicas.
    - O cabeçalho exibe "Modo Leitura / Compartilhamento Seguro" para transparência.
 
-### Pendências para a Fase 6.2:
-- Criar a Interface de Usuário no Painel Admin (provavelmente dentro do *Hub do Cliente* ou na página de *Dashboards*) para disparar o `createShareLink` e exibir a lista de links gerados.
-- Implementar botões de "Copiar Link", "Revogar" e definir Data de Expiração opcional.
+## Fase 6.2 — Admin de Compartilhamento ✅
 
----
+### Objetivo
+Criar uma interface administrativa para gerenciar os links seguros de dashboard gerados na Fase 6.1.
 
-## Compartilhamento sem login
+### O que foi implementado:
+1. **APIs Administrativas (`/api/admin/share-links`)**:
+   - `GET /api/admin/share-links`: Lista os links de um dashboard, mas oculta o `token_hash` para evitar vazamentos de segurança para a camada client.
+   - `POST /api/admin/share-links/create`: Cria um novo link, retornando o `rawToken` apenas nessa primeira e única resposta.
+   - `POST /api/admin/share-links/revoke`: Revoga um link permanentemente.
+   - Todas protegidas por `requireAdmin`.
 
-**Por que clientes não precisam criar conta?**
-A decisão de negócio prioriza a baixa fricção. Em vez de forçar clientes a gerenciar senhas para visualizar um dashboard ocasionalmente, o administrador gera um link de acesso seguro que age como uma chave de leitura temporária ou permanente para aquele dashboard.
+2. **Componente de Gestão (`ShareLinksManager`)**:
+   - Desenvolvido como componente cliente reutilizável.
+   - Permite criar link com expiração opcional (7, 30, 90 dias ou nunca).
+   - Apresenta os links organizados com selos de status ("Ativo", "Expirado", "Revogado").
+   - Informações visuais úteis (data de criação, contagem de acessos e data de expiração).
+   - Função nativa de **Copiar Link**, apenas disponível durante o ato da criação (quando o `rawToken` é retornado pela API). Após fechar o modal, o token original nunca mais é visualizável por segurança.
 
-**Como o admin gera o link? (Na Fase 6.2)**
-Através de um botão no painel administrativo que chamará `ShareService.createShareLink()`, gerando um hash e retornando o link bruto `https://.../share/token-cru`.
+3. **Integração na UI do Admin**:
+   - **Hub do Cliente**: Adicionado o card "Links de Compartilhamento" listando cada dashboard do cliente e renderizando o manager para acesso direto sem sair do painel do cliente.
+   - **Listagem de Dashboards**: Substituído o botão fixo "Copiar Link" por "Compartilhar", que abre um Modal com o componente `ShareLinksManager` para o dashboard focado.
 
-**Como o token funciona?**
-O token bruto (semelhante a uma chave de API) viaja na URL. O backend o criptografa em SHA-256 e compara com o banco de dados. O banco de dados nunca vê o token original. 
+### Como funciona na prática
+- **Onde gerar links**: Acesse o Hub de um cliente ou a página "Dashboards", clique em "Compartilhar", digite um nome e escolha a expiração. Clique em gerar.
+- **Como copiar**: O link completo (com token) aparecerá na tela de sucesso. Clique no ícone verde de cópia. Se a janela for fechada, não haverá como ver o token novamente.
+- **Como revogar**: Na mesma interface, em frente ao link gerado, clique em "Revogar". O acesso daquele token `/share/...` será imediatamente interrompido.
+- **Expiração**: Automática. O Supabase avalia o campo `expires_at` em tempo real durante o carregamento de `/share/[token]`.
 
-**Limitações e Segurança:**
-- O link não dá acesso a outras áreas (arquivos, importação, configurações do admin).
-- O acesso do link requer a API `GET /api/dashboards/[id]/data`, que é rigorosamente validada de volta contra o hash do token para evitar injeção de IDs.
-- Links podem ser revogados a qualquer momento pelo admin.
+### Pendências para Fase 6.3:
+- Configurações estéticas nos templates ou personalização de subdomínio, caso haja.
+- Integração da lógica de duplicação/criação a partir de templates que havia sido desenhada inicialmente para o Dashboard ADS S4X.

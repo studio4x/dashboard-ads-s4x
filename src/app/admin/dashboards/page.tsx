@@ -4,12 +4,15 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, ArrowRight, PieChart, X, Loader2, Save, Layout } from "lucide-react";
 
+import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
+
 export default function AdminDashboardsPage() {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shareModalDashboard, setShareModalDashboard] = useState<any | null>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -138,13 +141,10 @@ export default function AdminDashboardsPage() {
                 </span>
                 
                 <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/app/dashboards/${d.id}`);
-                    alert("Link copiado para a área de transferência!");
-                  }}
-                  style={{ display: "flex", alignItems: "center", padding: "6px 12px", borderRadius: 8, background: "#F1F5F9", fontSize: 13, color: "#475569", border: "none", cursor: "pointer", fontWeight: 500 }}
+                  onClick={() => setShareModalDashboard(d)}
+                  style={{ display: "flex", alignItems: "center", padding: "6px 12px", borderRadius: 8, background: "#F0FDF4", fontSize: 13, color: "#16A34A", border: "1px solid #BBF7D0", cursor: "pointer", fontWeight: 500 }}
                 >
-                  Copiar Link
+                  Compartilhar
                 </button>
                 
                 <Link href={`/app/dashboards/${d.id}/executive-summary`} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "#EFF6FF", fontSize: 13, color: "#2563EB", textDecoration: "none", fontWeight: 500 }}>
@@ -238,6 +238,28 @@ export default function AdminDashboardsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Compartilhamento Seguro */}
+      {shareModalDashboard && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div className="card" style={{ width: "100%", maxWidth: 600, padding: 0, overflow: "hidden", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F8FAFC" }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
+                Compartilhar: {shareModalDashboard.name}
+              </h2>
+              <button onClick={() => setShareModalDashboard(null)} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: 24, overflowY: "auto" }}>
+              <ShareLinksManager 
+                dashboardId={shareModalDashboard.id} 
+                dashboardName={shareModalDashboard.name} 
+              />
+            </div>
           </div>
         </div>
       )}

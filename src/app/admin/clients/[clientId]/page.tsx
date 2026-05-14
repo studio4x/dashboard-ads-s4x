@@ -2,7 +2,8 @@ import { AdminService } from "@/services/admin-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Building2, LayoutDashboard, FileSpreadsheet, Users, CheckCircle2, Circle, ArrowLeft, Plus } from "lucide-react";
+import { Building2, LayoutDashboard, FileSpreadsheet, Users, CheckCircle2, Circle, ArrowLeft, Plus, Link as LinkIcon } from "lucide-react";
+import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 
 export default async function ClientHubPage({ params }: { params: { clientId: string } }) {
   await requireAdmin();
@@ -127,7 +128,7 @@ export default async function ClientHubPage({ params }: { params: { clientId: st
               {userRoles.length === 0 ? (
                 <div style={{ padding: "30px 20px", textAlign: "center", background: "#F8FAFC", borderRadius: 8, border: "1px dashed #CBD5E1" }}>
                   <p style={{ fontSize: 14, color: "#64748B", marginBottom: 12 }}>Nenhum usuário client vinculado a este cliente.</p>
-                  <p style={{ fontSize: 12, color: "#94A3B8" }}>A criação e vínculo de usuários clients será habilitada em breve.</p>
+                  <p style={{ fontSize: 12, color: "#94A3B8" }}>O compartilhamento primário da Fase 6 é via Links Seguros (veja abaixo).</p>
                 </div>
               ) : (
                 userRoles.map((r: any) => (
@@ -136,6 +137,33 @@ export default async function ClientHubPage({ params }: { params: { clientId: st
                       <p style={{ fontSize: 14, fontWeight: 500, color: "#0F172A" }}>User ID: {r.user_id}</p>
                       <p style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>Role: {r.role}</p>
                     </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Compartilhamento */}
+          <div className="card" style={{ padding: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A", display: "flex", alignItems: "center", gap: 8 }}>
+                <LinkIcon size={20} color="#0EA5E9" /> Links de Compartilhamento
+              </h2>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {dashboards.length === 0 ? (
+                <p style={{ fontSize: 14, color: "#64748B", textAlign: "center", padding: "20px 0" }}>Crie um dashboard primeiro para gerar links.</p>
+              ) : (
+                dashboards.map((d: any) => (
+                  <div key={`share-${d.id}`} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                    <div className="mb-4">
+                      <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                        {d.title}
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded uppercase tracking-wider">Dashboard</span>
+                      </h4>
+                    </div>
+                    <ShareLinksManager dashboardId={d.id} dashboardName={d.title} />
                   </div>
                 ))
               )}
