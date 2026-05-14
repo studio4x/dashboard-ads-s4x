@@ -8,16 +8,18 @@ interface ImportStatusBadgeProps {
   label?: boolean;
 }
 
-const config: Record<ImportStatus, { icon: React.ElementType; color: string; bg: string; text: string }> = {
+const config: Record<string, { icon: React.ElementType; color: string; bg: string; text: string }> = {
   idle: { icon: Clock, color: "#64748B", bg: "#F1F5F9", text: "Aguardando" },
+  pending: { icon: Clock, color: "#64748B", bg: "#F1F5F9", text: "Pendente" },
   running: { icon: Loader, color: "#2563EB", bg: "#EFF6FF", text: "Importando..." },
   success: { icon: CheckCircle, color: "#16A34A", bg: "#DCFCE7", text: "Concluído" },
   error: { icon: AlertCircle, color: "#DC2626", bg: "#FEE2E2", text: "Erro" },
+  failed: { icon: AlertCircle, color: "#DC2626", bg: "#FEE2E2", text: "Falhou" },
   never: { icon: MinusCircle, color: "#94A3B8", bg: "#F8FAFC", text: "Nunca importado" },
 };
 
 export function ImportStatusBadge({ status, label = true }: ImportStatusBadgeProps) {
-  const c = config[status];
+  const c = config[status] || config.idle;
   const Icon = c.icon;
   return (
     <span

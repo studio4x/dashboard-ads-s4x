@@ -1,5 +1,6 @@
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
+import { DashboardDataProvider } from "@/components/dashboard/DashboardDataContext";
 import { mockClients, mockDashboards } from "@/data/mock-sheet-overview";
 import type { Metadata } from "next";
 
@@ -18,31 +19,33 @@ export default async function DashboardLayout({ children, params }: DashboardLay
   const client = mockClients.find((c) => c.id === dashboard?.client_id) ?? mockClients[0];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8FAFC", display: "flex", flexDirection: "column" }}>
-      <DashboardHeader
-        clientName={client?.name ?? "Cliente"}
-        dashboardTitle={dashboard?.title ?? "Dashboard"}
-        dashboardId={dashboardId}
-      />
+    <DashboardDataProvider>
+      <div style={{ minHeight: "100vh", background: "#F8FAFC", display: "flex", flexDirection: "column" }}>
+        <DashboardHeader
+          clientName={client?.name ?? "Cliente"}
+          dashboardTitle={dashboard?.title ?? "Dashboard"}
+          dashboardId={dashboardId}
+        />
 
-      {/* Tabs */}
-      <div
-        style={{
-          background: "white",
-          borderBottom: "1px solid #E2E8F0",
-          padding: "10px 24px 0",
-          position: "sticky",
-          top: 60,
-          zIndex: 30,
-        }}
-      >
-        <DashboardTabs dashboardId={dashboardId} />
-      </div>
+        {/* Tabs */}
+        <div
+          style={{
+            background: "white",
+            borderBottom: "1px solid #E2E8F0",
+            padding: "10px 24px 0",
+            position: "sticky",
+            top: 60,
+            zIndex: 30,
+          }}
+        >
+          <DashboardTabs dashboardId={dashboardId} />
+        </div>
 
-      {/* Page content */}
-      <div style={{ flex: 1 }}>
-        {children}
+        {/* Page content */}
+        <div style={{ flex: 1 }}>
+          {children}
+        </div>
       </div>
-    </div>
+    </DashboardDataProvider>
   );
 }
