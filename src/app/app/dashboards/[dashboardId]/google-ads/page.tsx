@@ -15,7 +15,7 @@ export default function GoogleAdsPage() {
 
   if (!data) return null;
 
-  const kpis = generateGoogleAdsKpis(data.google_ads);
+  const kpis = generateGoogleAdsKpis(data.google_ads, data.google_ads_summary);
 
   const dailySeries = data.google_ads.map((r: any) => ({
     date: formatDateShort(r.date),
@@ -35,7 +35,7 @@ export default function GoogleAdsPage() {
       <KpiGrid metrics={kpis} columns={3} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <ChartCard title="Investimento Diário" subtitle="Evolução do gasto — últimos 28 dias" height={280}>
+        <ChartCard title="Investimento Diário" subtitle="Evolução do gasto no período" height={280}>
           <LineChartWidget data={dailySeries} lines={[{ key: "Investimento", label: "Investimento", color: "#4285F4" }]} xKey="date" formatValue={(v) => formatCurrency(v, true)} height={260} />
         </ChartCard>
 

@@ -58,8 +58,25 @@ export function DashboardPageShell({
           <AlertCircle size={32} />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Erro ao carrergar dados</h2>
+          <h2 className="text-xl font-bold text-slate-900">Erro ao carregar dados</h2>
           <p className="text-slate-500 mt-2">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty State for Period
+  if (data && data.overview && data.overview.length === 0) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center max-w-md mx-auto gap-4">
+        <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center">
+          <AlertCircle size={32} />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Sem dados neste período</h2>
+          <p className="text-slate-500 mt-2">
+            Não encontramos registros para o intervalo selecionado. Tente escolher um período diferente ou verifique a última importação.
+          </p>
         </div>
       </div>
     );

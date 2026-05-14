@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, Bell, Settings, ChevronDown, LogOut } from "lucide-react";
+import { BarChart3, Bell, Settings, LogOut } from "lucide-react";
 import { logout } from "@/app/login/actions";
+import { DateRangeSelector } from "./DateRangeSelector";
+import { useDashboard } from "./DashboardDataContext";
 
 interface DashboardHeaderProps {
   clientName: string;
@@ -16,9 +18,8 @@ export function DashboardHeader({
   clientName,
   dashboardTitle,
   dashboardId,
-  dateRangeLabel = "Últimos 30 dias",
-  onDateRangeClick,
 }: DashboardHeaderProps) {
+  const { rangePreset, updateRange } = useDashboard();
   return (
     <header
       style={{
@@ -60,28 +61,10 @@ export function DashboardHeader({
 
       {/* Right: Period + actions */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <button
-          onClick={onDateRangeClick}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 14px",
-            borderRadius: 8,
-            border: "1px solid #E2E8F0",
-            background: "white",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "#475569",
-            cursor: "pointer",
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#F8FAFC"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white"; }}
-        >
-          📅 {dateRangeLabel}
-          <ChevronDown size={14} />
-        </button>
+        <DateRangeSelector 
+          currentPreset={rangePreset} 
+          onPresetChange={updateRange} 
+        />
 
         <button
           style={{

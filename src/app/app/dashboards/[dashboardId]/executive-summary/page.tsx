@@ -35,12 +35,12 @@ export default function ExecutiveSummaryPage() {
     value: r.sessions,
   }));
 
-  const kpis = generateExecutiveKpis(data.overview);
+  const kpis = generateExecutiveKpis(data.overview, data.summary);
 
   return (
     <DashboardPageShell
       title="Resumo Executivo"
-      subtitle="Visão consolidada de todas as fontes de tráfego — últimos 30 dias"
+      subtitle={`Visão consolidada de todas as fontes de tráfego`}
     >
       {/* KPIs */}
       <KpiGrid metrics={kpis} columns={3} />
