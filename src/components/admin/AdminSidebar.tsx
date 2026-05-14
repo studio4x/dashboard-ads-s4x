@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
+import { logout } from "@/app/login/actions";
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Building2, PieChart, Database,
@@ -131,6 +132,28 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
           <BarChart3 size={15} />
           Ver como Cliente
         </Link>
+        <button
+          onClick={() => logout()}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 10px",
+            borderRadius: 8,
+            marginTop: 8,
+            width: "100%",
+            border: "none",
+            background: "#FEF2F2",
+            color: "#DC2626",
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: "pointer",
+            transition: "background 0.15s",
+          }}
+        >
+          <X size={15} />
+          Sair do Sistema
+        </button>
       </div>
     </aside>
   );

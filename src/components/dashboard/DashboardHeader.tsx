@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, Bell, Settings, ChevronDown } from "lucide-react";
+import { BarChart3, Bell, Settings, ChevronDown, LogOut } from "lucide-react";
+import { logout } from "@/app/login/actions";
 
 interface DashboardHeaderProps {
   clientName: string;
@@ -99,9 +100,22 @@ export function DashboardHeader({
             background: "white", display: "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer", color: "#64748B", textDecoration: "none",
           }}
+          title="Painel Admin"
         >
           <Settings size={16} />
         </Link>
+
+        <button
+          onClick={() => logout()}
+          style={{
+            width: 34, height: 34, borderRadius: 8, border: "1px solid #FEF2F2",
+            background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: "#DC2626",
+          }}
+          title="Sair"
+        >
+          <LogOut size={16} />
+        </button>
       </div>
     </header>
   );

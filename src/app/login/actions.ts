@@ -46,3 +46,10 @@ export async function signup(formData: FormData) {
 
   return { success: "Verifique seu e-mail para confirmar o cadastro." }
 }
+
+export async function logout() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  revalidatePath('/', 'layout')
+  redirect('/login')
+}
