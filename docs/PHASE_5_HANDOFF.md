@@ -154,4 +154,24 @@ Siga este roteiro sempre que um novo cliente entrar na plataforma:
 ## Próximas Fases Recomendadas (Fase 6):
 - UI para criação de convites/vínculo de usuários Client via painel Admin.
 - Gerador de Templates automatizado (Duplicação de Dashboards).
-- Otimização gráfica visual usando `recharts`.
+## Dívida técnica TypeScript
+
+- **Quantidade atual de warnings**: 159 warnings focados em `any` e `eslint`.
+- **Principais arquivos afetados**: `src/lib/dashboard/dashboard-aggregator.ts`, `src/services/data-source-service.ts`, `src/app/api/cron/...`, tipos e componentes onde dados complexos de Supabase (JSONB) exigem definições completas.
+- **Risco**: Muito baixo. Os warnings são estruturais de TS e não afetam runtime do cliente ou lógicas da API.
+- **Recomendação de correção**: Antes da elaboração de novos relatórios, revisar `src/types/google-sheets.ts` e implementar `zod` para schema matching.
+
+---
+
+## Saneamento pós-Fase 5
+
+Para garantir a total segurança da aplicação e fechar a Fase 5 com uma base blindada:
+- **`CRON_SECRET` Rotacionado**: Novo segredo de 64 caracteres gerado (randômico, alphanumerico), injetado no `.env.local` e Vercel sem logs locais.
+- **Vercel Atualizada**: `CRON_SECRET` anterior expurgado e novo sincronizado com os ambientes de *Production* e *Preview*.
+- **Redeploy Realizado**: Plataforma atualizada com sucesso (`dashboard-ads-s4x.vercel.app`).
+- **Cron Validado**: Requisições GET/POST retornam `401 Unauthorized` sem o token rotacionado e operam perfeitamente no acesso restrito via CLI/Cloud Scheduler.
+- **Auditoria de Secrets Validada**: Arquivos de log e history locais saneados.
+- **Produção Testada**: Todas as rotas críticas de admin, navegação, filtros e carregamento dos snapshots validados após rotação.
+- **Dívidas Técnicas Registradas**: Warnings tipificados (seção Dívida Técnica).
+
+A base está segura para darmos andamento à **Fase 6**!
