@@ -32,6 +32,21 @@ export const DashboardService = {
   },
 
   /**
+   * Cria um novo dashboard.
+   */
+  async createDashboard(dashboardData: any) {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('dashboards')
+      .insert([dashboardData])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  /**
    * Cria um snapshot de dados para um dashboard.
    */
   async saveSnapshot(snapshot: any) {

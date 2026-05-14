@@ -43,15 +43,17 @@ export async function getDashboardData(dashboardId: string) {
     console.error("Erro ao buscar snapshot no banco:", dbError);
   }
 
-  // 2. Fallback para Cache em memória (DashboardStore) - util para testes rápidos
-  const data = DashboardStore.getData(dashboardId);
-  if (data) {
-    return {
-      ...data,
-      source: "google_sheets"
-    };
+  // 2. Fallback para Cache em memória (DashboardStore) - apenas se GOOGLE_SHEETS_USE_MOCKS for true ou para testes rápidos
+  if (useMocks) {
+    const data = DashboardStore.getData(dashboardId);
+    if (data) {
+      return {
+        ...data,
+        source: "google_sheets_cache"
+      };
+    }
   }
 
-  // Retorna nulo se nada for encontrado
+  // Retorna nulo se nada for encontrado (forçando nova importação)
   return null;
 }

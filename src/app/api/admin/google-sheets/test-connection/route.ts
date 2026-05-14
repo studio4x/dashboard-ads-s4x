@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSpreadsheetMetadata } from "@/lib/google-sheets/google-sheets-client";
+import { requireAdmin } from "@/lib/auth/guards";
 
 export async function POST(request: Request) {
   try {
+    // 1. Proteção de Role
+    const authError = await requireAdmin();
+    if (authError) return authError;
+
     const { spreadsheetId } = await request.json();
 
     if (!spreadsheetId) {

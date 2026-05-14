@@ -1,44 +1,114 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, ArrowRight, PieChart } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { Plus, ArrowRight, PieChart, X, Loader2, Save, Layout } from "lucide-react";
 
-export const metadata: Metadata = { title: "Dashboards | Admin" };
-
-export default async function AdminDashboardsPage() {
-  const supabase = await createClient();
+export default function AdminDashboardsPage() {
+  const [dashboards, setDashboards] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { data: dashboards, error } = await supabase
-    .from('dashboards')
-    .select('*, clients(name, primary_color)')
-    .order('created_at', { ascending: false });
+  const [formData, setFormData] = useState({
+    name: "",
+    slug: "",
+    client_id: "",
+    description: "",
+    status: "active"
+  });
 
-  if (error) {
-    console.error("Erro ao buscar dashboards:", error);
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  async function fetchData() {
+    setIsLoading(true);
+    try {
+      const [dashRes, clientsRes] = await Promise.all([
+        fetch("/api/admin/dashboards/list-all"),
+        fetch("/api/admin/clients")
+      ]);
+      const dashboardsData = await dashRes.json();
+      const clientsData = await clientsRes.json();
+      
+      setDashboards(Array.isArray(dashboardsData) ? dashboardsData : []);
+      setClients(Array.isArray(clientsData) ? clientsData : []);
+    } catch (error) {
+      console.error("Erro ao buscar dados:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  const list = dashboards || [];
+  const generateSlug = (name: string) => {
+    return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
+  };
+
+  const handleNameChange = (name: string) => {
+    setFormData({ ...formData, name, slug: generateSlug(name) });
+  };
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/dashboards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+      const result = await res.json();
+      if (result.success) {
+        setIsModalOpen(false);
+        setFormData({ name: "", slug: "", client_id: "", description: "", status: "active" });
+        fetchData();
+      } else {
+        alert("Erro: " + result.error);
+      }
+    } catch (error) {
+      alert("Erro ao conectar com o servidor.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (isLoading && dashboards.length === 0) {
+    return (
+      <div style={{ display: "flex", height: "50vh", alignItems: "center", justifyContent: "center" }}>
+        <Loader2 className="animate-spin" size={32} color="#2563EB" />
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 32, maxWidth: 1000 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Dashboards</h1>
-          <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{list.length} dashboards cadastrados</p>
+          <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{dashboards.length} dashboards cadastrados</p>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 8, background: "#2563EB", color: "white", fontSize: 14, fontWeight: 500, border: "none", cursor: "pointer" }}>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          style={{ 
+            display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", 
+            borderRadius: 8, background: "#2563EB", color: "white", fontSize: 14, 
+            fontWeight: 500, border: "none", cursor: "pointer" 
+          }}
+        >
           <Plus size={15} /> Novo Dashboard
         </button>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {list.length === 0 ? (
+        {dashboards.length === 0 ? (
           <div className="card" style={{ padding: "40px", textAlign: "center", borderStyle: "dashed" }}>
             <PieChart size={40} color="#CBD5E1" style={{ margin: "0 auto 16px" }} />
             <p style={{ color: "#64748B", fontSize: 14 }}>Nenhum dashboard cadastrado ainda.</p>
           </div>
         ) : (
-          list.map((d: any) => (
+          dashboards.map((d: any) => (
             <div key={d.id} className="card card-hover" style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 16 }}>
               <div 
                 style={{ 
@@ -67,6 +137,92 @@ export default async function AdminDashboardsPage() {
           ))
         )}
       </div>
+
+      {/* Modal Novo Dashboard */}
+      {isModalOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div className="card" style={{ width: "100%", maxWidth: 500, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Criar Novo Dashboard</h2>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Cliente Proprietário</label>
+                <select 
+                  required
+                  value={formData.client_id}
+                  onChange={e => setFormData({ ...formData, client_id: e.target.value })}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
+                >
+                  <option value="">Selecione um cliente...</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome do Dashboard</label>
+                <input 
+                  required
+                  value={formData.name}
+                  onChange={e => handleNameChange(e.target.value)}
+                  placeholder="Ex: Performance Mensal"
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>URL Slug (Identificador único)</label>
+                <input 
+                  required
+                  value={formData.slug}
+                  onChange={e => setFormData({ ...formData, slug: e.target.value })}
+                  placeholder="ex: performance-mensal"
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "#F8FAFC" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Descrição (Opcional)</label>
+                <textarea 
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Breve descrição do objetivo deste dashboard"
+                  rows={2}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, resize: "none" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+                <button 
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  style={{ flex: 1, padding: "12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{ 
+                    flex: 1, padding: "12px", borderRadius: 8, border: "none", 
+                    background: "#2563EB", color: "white", fontSize: 14, 
+                    fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 
+                  }}
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : (
+                    <>
+                      <Save size={18} /> Criar Dashboard
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

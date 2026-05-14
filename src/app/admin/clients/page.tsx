@@ -1,12 +1,70 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Globe, ArrowRight, Plus, Building2 } from "lucide-react";
-import { ClientService } from "@/services/client-service";
+import { Globe, Plus, Building2, X, Loader2, Save } from "lucide-react";
 
-export const metadata: Metadata = { title: "Clientes | Admin" };
+export default function ClientsPage() {
+  const [clients, setClients] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    name: "",
+    company_name: "",
+    website_url: "",
+    primary_color: "#2563EB"
+  });
 
-export default async function ClientsPage() {
-  const clients = await ClientService.getAllClients();
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  async function fetchClients() {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/admin/clients");
+      const data = await res.json();
+      setClients(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Erro ao buscar clientes:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+      const result = await res.json();
+      if (result.success) {
+        setIsModalOpen(false);
+        setFormData({ name: "", company_name: "", website_url: "", primary_color: "#2563EB" });
+        fetchClients();
+      } else {
+        alert("Erro: " + result.error);
+      }
+    } catch (error) {
+      alert("Erro ao conectar com o servidor.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (isLoading && clients.length === 0) {
+    return (
+      <div style={{ display: "flex", height: "50vh", alignItems: "center", justifyContent: "center" }}>
+        <Loader2 className="animate-spin" size={32} color="#2563EB" />
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 32, maxWidth: 1000 }}>
@@ -15,16 +73,16 @@ export default async function ClientsPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Clientes</h1>
           <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{clients.length} clientes cadastrados no banco</p>
         </div>
-        <Link 
-          href="/admin/clients/new"
+        <button 
+          onClick={() => setIsModalOpen(true)}
           style={{ 
             display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", 
             borderRadius: 8, background: "#2563EB", color: "white", fontSize: 14, 
-            fontWeight: 500, border: "none", cursor: "pointer", textDecoration: "none" 
+            fontWeight: 500, border: "none", cursor: "pointer"
           }}
         >
           <Plus size={15} /> Novo Cliente
-        </Link>
+        </button>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -66,6 +124,94 @@ export default async function ClientsPage() {
           ))
         )}
       </div>
+
+      {/* Modal Novo Cliente */}
+      {isModalOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div className="card" style={{ width: "100%", maxWidth: 500, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Cadastrar Novo Cliente</h2>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome do Cliente (Exibição)</label>
+                <input 
+                  required
+                  value={formData.name}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ex: Loja XYZ"
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Razão Social / Nome da Empresa</label>
+                <input 
+                  value={formData.company_name}
+                  onChange={e => setFormData({ ...formData, company_name: e.target.value })}
+                  placeholder="Ex: Loja XYZ Varejo LTDA"
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Website (URL)</label>
+                <input 
+                  value={formData.website_url}
+                  onChange={e => setFormData({ ...formData, website_url: e.target.value })}
+                  placeholder="https://exemplo.com.br"
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Cor Primária (Branding)</label>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <input 
+                    type="color"
+                    value={formData.primary_color}
+                    onChange={e => setFormData({ ...formData, primary_color: e.target.value })}
+                    style={{ width: 44, height: 44, padding: 0, border: "none", borderRadius: 8, overflow: "hidden", cursor: "pointer" }}
+                  />
+                  <input 
+                    value={formData.primary_color}
+                    onChange={e => setFormData({ ...formData, primary_color: e.target.value })}
+                    style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, fontFamily: "monospace" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+                <button 
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  style={{ flex: 1, padding: "12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{ 
+                    flex: 1, padding: "12px", borderRadius: 8, border: "none", 
+                    background: "#2563EB", color: "white", fontSize: 14, 
+                    fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 
+                  }}
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : (
+                    <>
+                      <Save size={18} /> Salvar Cliente
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -34,25 +34,35 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Proteção de Rotas Admin
-  if (pathname.startsWith('/admin') && !user) {
+  // Se não estiver logado e tentar acessar área restrita
+  if ((pathname.startsWith('/admin') || pathname.startsWith('/app')) && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Proteção de Rotas App (Cliente)
-  if (pathname.startsWith('/app') && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
+  // Se logado, verificamos a role para proteção de área administrativa
+  if (user) {
+    // Buscamos o perfil para checar a role (Cacheamos isso no futuro se necessário)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('auth_user_id', user.id)
+      .single();
 
-  // Se logado, redireciona /login para /app ou /admin dependendo da role (implementaremos role check depois)
-  if (pathname === '/login' && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/app/dashboards'
-    return NextResponse.redirect(url)
+    // 1. Bloqueia Clientes de acessarem /admin
+    if (pathname.startsWith('/admin') && profile?.role === 'client') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/app/dashboards'
+      return NextResponse.redirect(url)
+    }
+
+    // 2. Redireciona /login para a área correta
+    if (pathname === '/login') {
+      const url = request.nextUrl.clone()
+      url.pathname = profile?.role === 'client' ? '/app/dashboards' : '/admin'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

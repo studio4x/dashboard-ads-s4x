@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { GoogleSheetsImportService } from "@/lib/google-sheets/google-sheets-import-service";
 import { DashboardStore } from "@/data/dashboard-store";
+import { requireAdmin } from "@/lib/auth/guards";
 
 export async function POST(request: Request) {
   try {
+    // 1. Proteção de Role
+    const authError = await requireAdmin();
+    if (authError) return authError;
+
     const { clientId, dashboardId, spreadsheetId } = await request.json();
 
     if (!clientId || !dashboardId || !spreadsheetId) {
