@@ -1,6 +1,6 @@
 "use client";
 
-import { FileSpreadsheet, ExternalLink, RefreshCw } from "lucide-react";
+import { FileSpreadsheet, ExternalLink, RefreshCw, Pencil, Trash2 } from "lucide-react";
 import { ImportStatusBadge } from "./ImportStatusBadge";
 import type { ImportStatus } from "@/types/data-sources";
 
@@ -13,6 +13,8 @@ interface GoogleSheetSourceCardProps {
   lastSynced?: string;
   status: ImportStatus;
   onSync?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   templateId?: string;
 }
 
@@ -25,6 +27,8 @@ export function GoogleSheetSourceCard({
   lastSynced,
   status,
   onSync,
+  onEdit,
+  onDelete,
   templateId,
 }: GoogleSheetSourceCardProps) {
   return (
@@ -72,22 +76,53 @@ export function GoogleSheetSourceCard({
         </div>
       </div>
 
-      {/* Status + Action */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+      {/* Status + Actions */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
         <ImportStatusBadge status={status} />
-        <button
-          onClick={onSync}
-          title="Sincronizar"
-          style={{
-            width: 32, height: 32, borderRadius: 8, border: "1px solid #E2E8F0",
-            background: "white", display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: "#64748B", transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#EFF6FF"; (e.currentTarget as HTMLButtonElement).style.color = "#2563EB"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white"; (e.currentTarget as HTMLButtonElement).style.color = "#64748B"; }}
-        >
-          <RefreshCw size={14} />
-        </button>
+        
+        <div style={{ display: "flex", gap: 6, marginLeft: 4 }}>
+          <button
+            onClick={onSync}
+            title="Sincronizar"
+            style={{
+              width: 32, height: 32, borderRadius: 8, border: "1px solid #E2E8F0",
+              background: "white", display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: "#64748B", transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#EFF6FF"; (e.currentTarget as HTMLButtonElement).style.color = "#2563EB"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white"; (e.currentTarget as HTMLButtonElement).style.color = "#64748B"; }}
+          >
+            <RefreshCw size={14} className={status === "running" ? "animate-spin" : ""} />
+          </button>
+
+          <button
+            onClick={onEdit}
+            title="Editar"
+            style={{
+              width: 32, height: 32, borderRadius: 8, border: "1px solid #E2E8F0",
+              background: "white", display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: "#64748B", transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#F8FAFC"; (e.currentTarget as HTMLButtonElement).style.color = "#0F172A"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white"; (e.currentTarget as HTMLButtonElement).style.color = "#64748B"; }}
+          >
+            <Pencil size={14} />
+          </button>
+
+          <button
+            onClick={onDelete}
+            title="Excluir"
+            style={{
+              width: 32, height: 32, borderRadius: 8, border: "1px solid #FEE2E2",
+              background: "white", display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: "#EF4444", transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#FEF2F2"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white"; }}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
     </div>
   );

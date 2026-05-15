@@ -45,6 +45,7 @@ export default function GoogleSheetsAdminPage() {
   
   // Estados para Modal de Nova Fonte
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [clients, setClients] = useState<any[]>([]);
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [formData, setFormData] = useState({
@@ -97,21 +98,74 @@ export default function GoogleSheetsAdminPage() {
     }
   };
 
-  const handleCreateSource = async (e: React.FormEvent) => {
+  const handleOpenEdit = async (source: SheetSource) => {
+    setEditingSourceId(source.id);
+    setFormData({
+      clientId: source.client_id,
+      dashboardId: source.dashboard_id,
+      name: source.name,
+      spreadsheetId: source.google_sheet_sources.spreadsheet_id
+    });
+    // Carrega os dashboards do cliente para o select
+    await handleClientChange(source.client_id);
+    // Mas garante que o dashboardId correto seja mantido (handleClientChange reseta ele)
+    setFormData(prev => ({ ...prev, dashboardId: source.dashboard_id }));
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteSource = async (id: string) => {
+    if (!confirm("Tem certeza que deseja remover esta planilha? Os dados importados não serão apagados, mas não haverá mais sincronização automática.")) return;
+    
+    try {
+      const res = await fetch(`/api/admin/google-sheets/${id}`, { method: "DELETE" });
+      const result = await res.json();
+      if (result.success) {
+        toast("Fonte removida com sucesso.", "success");
+        fetchData();
+      } else {
+        toast(`Erro: ${result.error}`, "error");
+      }
+    } catch (error) {
+      toast("Erro ao excluir fonte.", "error");
+    }
+  };
+
+  const handleClearLogs = async () => {
+    if (!confirm("Deseja realmente limpar todo o histórico de logs? Esta ação não pode ser desfeita.")) return;
+    
+    try {
+      const res = await fetch("/api/admin/import-logs", { method: "DELETE" });
+      const result = await res.json();
+      if (result.success) {
+        toast("Histórico de logs limpo.", "success");
+        fetchData();
+      } else {
+        toast(`Erro: ${result.error}`, "error");
+      }
+    } catch (error) {
+      toast("Erro ao limpar logs.", "error");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/admin/google-sheets", {
-        method: "POST",
+      const url = editingSourceId ? `/api/admin/google-sheets/${editingSourceId}` : "/api/admin/google-sheets";
+      const method = editingSourceId ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
       });
       const result = await res.json();
       if (result.success) {
         setIsModalOpen(false);
+        setEditingSourceId(null);
         setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "" });
         fetchData();
-        toast("Fonte criada com sucesso!", "success");
+        toast(editingSourceId ? "Fonte atualizada!" : "Fonte criada com sucesso!", "success");
       } else {
         toast("Erro: " + result.error, "error");
       }
@@ -131,7 +185,8 @@ export default function GoogleSheetsAdminPage() {
         body: JSON.stringify({
           clientId: source.client_id,
           dashboardId: source.dashboard_id,
-          spreadsheetId: source.google_sheet_sources.spreadsheet_id
+          spreadsheetId: source.google_sheet_sources.spreadsheet_id,
+          dataSourceId: source.id
         })
       });
 
@@ -169,7 +224,11 @@ export default function GoogleSheetsAdminPage() {
           </p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setEditingSourceId(null);
+            setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "" });
+            setIsModalOpen(true);
+          }}
           style={{ 
             background: "#2563EB", color: "white", border: "none", padding: "10px 16px", 
             borderRadius: 8, fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" 
@@ -203,7 +262,11 @@ export default function GoogleSheetsAdminPage() {
             description={sources.length === 0 ? "Conecte sua primeira planilha do Google Sheets para começar a alimentar os dashboards." : "Este cliente não possui planilhas vinculadas."}
             action={{
               label: "Nova Planilha",
-              onClick: () => setIsModalOpen(true),
+              onClick: () => {
+                setEditingSourceId(null);
+                setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "" });
+                setIsModalOpen(true);
+              },
               icon: Plus
             }}
           />
@@ -219,6 +282,8 @@ export default function GoogleSheetsAdminPage() {
               lastSynced={source.google_sheet_sources.last_import_at ? new Date(source.google_sheet_sources.last_import_at).toLocaleString("pt-BR") : undefined}
               status={isSyncing === source.id ? "running" : (source.google_sheet_sources.last_import_status as any || "pending")}
               onSync={() => handleSync(source)}
+              onEdit={() => handleOpenEdit(source)}
+              onDelete={() => handleDeleteSource(source.id)}
               spreadsheetUrl={`https://docs.google.com/spreadsheets/d/${source.google_sheet_sources.spreadsheet_id}`}
             />
           ))
@@ -229,13 +294,22 @@ export default function GoogleSheetsAdminPage() {
       <div style={{ marginTop: 48 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A" }}>Logs de Importação Recentes</h2>
-          <button 
-            onClick={fetchData}
-            style={{ background: "none", border: "none", color: "#2563EB", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-          >
-            <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
-            Atualizar logs
-          </button>
+          <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+            <button 
+              onClick={handleClearLogs}
+              style={{ background: "none", border: "none", color: "#EF4444", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+            >
+              <Trash2 size={14} />
+              Limpar tudo
+            </button>
+            <button 
+              onClick={fetchData}
+              style={{ background: "none", border: "none", color: "#2563EB", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+            >
+              <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
+              Atualizar logs
+            </button>
+          </div>
         </div>
         
         <div className="card" style={{ overflow: "hidden" }}>
@@ -303,17 +377,19 @@ export default function GoogleSheetsAdminPage() {
         </div>
       </div>
 
-      {/* Modal de Nova Fonte */}
+      {/* Modal de Nova Fonte / Edição */}
       {isModalOpen && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
           <div className="card" style={{ width: "100%", maxWidth: 500, padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Nova Fonte Google Sheets</h2>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>
+                {editingSourceId ? "Editar Fonte Google Sheets" : "Nova Fonte Google Sheets"}
+              </h2>
+              <button onClick={() => { setIsModalOpen(false); setEditingSourceId(null); }} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleCreateSource} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+            <form onSubmit={handleSubmit} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Fonte (Ex: Loja XYZ — Ads)</label>
                 <input 
@@ -329,9 +405,10 @@ export default function GoogleSheetsAdminPage() {
                 <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Cliente</label>
                 <select 
                   required
+                  disabled={!!editingSourceId}
                   value={formData.clientId}
                   onChange={e => handleClientChange(e.target.value)}
-                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: editingSourceId ? "#F8FAFC" : "white" }}
                 >
                   <option value="">Selecione um cliente...</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -342,10 +419,10 @@ export default function GoogleSheetsAdminPage() {
                 <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Dashboard Destino</label>
                 <select 
                   required
-                  disabled={!formData.clientId}
+                  disabled={!formData.clientId || !!editingSourceId}
                   value={formData.dashboardId}
                   onChange={e => setFormData({ ...formData, dashboardId: e.target.value })}
-                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: (editingSourceId || !formData.clientId) ? "#F8FAFC" : "white" }}
                 >
                   <option value="">Selecione um dashboard...</option>
                   {dashboards.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -393,7 +470,7 @@ export default function GoogleSheetsAdminPage() {
               <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
                 <button 
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => { setIsModalOpen(false); setEditingSourceId(null); }}
                   style={{ flex: 1, padding: "12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
                 >
                   Cancelar
@@ -407,7 +484,7 @@ export default function GoogleSheetsAdminPage() {
                     fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 
                   }}
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : "Criar Fonte"}
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : (editingSourceId ? "Salvar Alterações" : "Criar Fonte")}
                 </button>
               </div>
             </form>

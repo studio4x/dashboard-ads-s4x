@@ -135,5 +135,61 @@ export const DataSourceService = {
       .eq('data_source_id', config.sourceId)
 
     if (error) throw error
+  },
+
+  /**
+   * Atualiza uma fonte de dados Google Sheets.
+   */
+  async updateGoogleSheetSource(id: string, config: {
+    name: string,
+    spreadsheetId: string
+  }) {
+    const supabase = await createClient()
+
+    // 1. Atualiza a entrada na data_sources
+    const { error: sourceError } = await supabase
+      .from('data_sources')
+      .update({ name: config.name })
+      .eq('id', id)
+
+    if (sourceError) throw sourceError
+
+    // 2. Atualiza a configuração específica de Google Sheets
+    const { error: configError } = await supabase
+      .from('google_sheet_sources')
+      .update({ spreadsheet_id: config.spreadsheetId })
+      .eq('data_source_id', id)
+
+    if (configError) throw configError
+    
+    return true
+  },
+
+  /**
+   * Remove uma fonte de dados.
+   */
+  async deleteSource(id: string) {
+    const supabase = await createClient()
+    const { error } = await supabase
+      .from('data_sources')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
+    return true
+  },
+
+  /**
+   * Limpa todos os logs de importação.
+   */
+  async clearAllLogs() {
+    const supabase = await createAdminClient()
+    const { error } = await supabase
+      .from('import_logs')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000') // Deleta tudo que não tem esse ID fake (basicamente tudo)
+    
+    if (error) throw error
+    return true
   }
 }

@@ -36,5 +36,12 @@ export const ImportLogsService = {
    */
   async getLogs() {
     return await DataSourceService.getImportLogs();
+  },
+
+  /**
+   * Remove todos os logs.
+   */
+  async clearLogs() {
+    return await DataSourceService.clearAllLogs();
   }
 };
