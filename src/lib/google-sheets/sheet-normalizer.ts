@@ -8,44 +8,59 @@ export const SheetNormalizer = {
   /**
    * Converte moeda BRL (R$ 1.234,56) ou números com vírgula para number.
    */
-  toNumber(value: any): number {
-    if (value === null || value === undefined || value === "") return 0;
+  toNumber(value: any): number | null {
+    if (value === null || value === undefined || value === "") return null;
     if (typeof value === "number") return value;
 
+    const strValue = String(value).trim();
+    if (["--", "N/A", "null", "undefined", "NaN", "Infinity"].includes(strValue)) return null;
+
     // Remove R$, pontos de milhar e troca vírgula por ponto
-    const cleaned = String(value)
+    const cleaned = strValue
       .replace(/R\$\s?/, "")
       .replace(/\./g, "")
       .replace(/,/g, ".")
       .trim();
     
     const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? 0 : parsed;
+    return isNaN(parsed) ? null : parsed;
   },
 
   /**
-   * Converte porcentagem (12,5%) para number (12.5).
+   * Converte porcentagem (12,5%) para decimal (0.125).
    */
-  toPercent(value: any): number {
-    if (value === null || value === undefined || value === "") return 0;
+  toPercent(value: any): number | null {
+    if (value === null || value === undefined || value === "") return null;
     if (typeof value === "number") return value;
 
-    const cleaned = String(value)
+    const strValue = String(value).trim();
+    if (["--", "N/A", "null", "undefined", "NaN", "Infinity"].includes(strValue)) return null;
+
+    const cleaned = strValue
       .replace(/%/, "")
       .replace(/,/g, ".")
       .trim();
     
     const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? 0 : parsed;
+    if (isNaN(parsed)) return null;
+
+    // Se o valor original continha %, tratamos como percentual (dividimos por 100)
+    // Se era apenas um número (ex: 0.1234), mantemos como está
+    if (strValue.includes("%")) {
+      return parsed / 100;
+    }
+    
+    return parsed;
   },
 
   /**
    * Converte data em vários formatos para ISO (YYYY-MM-DD).
    */
-  toDate(value: any): string {
-    if (!value) return "";
+  toDate(value: any): string | null {
+    if (!value) return null;
     
     const dateStr = String(value).trim();
+    if (["--", "N/A", "null", "undefined", "NaN", "Infinity"].includes(dateStr)) return null;
     
     // Tenta formato ISO direto (YYYY-MM-DD)
     if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
@@ -64,21 +79,33 @@ export const SheetNormalizer = {
       return format(longDate, "yyyy-MM-dd");
     }
 
-    return dateStr; // Retorna original se falhar, o validador pegará depois
+    return null;
   },
 
   /**
-   * Converte string para null se vazia.
+   * Converte string para null se vazia ou se for um valor de erro conhecido.
    */
   toString(value: any): string | null {
     if (value === null || value === undefined || value === "") return null;
-    return String(value).trim();
+    const str = String(value).trim();
+    if (["--", "N/A", "null", "undefined", "NaN", "Infinity"].includes(str)) return null;
+    return str;
   },
 
   /**
    * Converte valor para inteiro.
    */
-  toInteger(value: any): number {
-    return Math.floor(this.toNumber(value));
+  toInteger(value: any): number | null {
+    const num = this.toNumber(value);
+    return num === null ? null : Math.floor(num);
+  },
+
+  /**
+   * Verifica se a linha deve ser ignorada (TOTAL, MÉDIA).
+   */
+  shouldIgnoreRow(firstCell: any): boolean {
+    if (!firstCell) return false;
+    const val = String(firstCell).toUpperCase().trim();
+    return val === "TOTAL" || val === "MÉDIA" || val === "MEDIA";
   }
 };

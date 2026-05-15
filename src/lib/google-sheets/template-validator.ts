@@ -10,8 +10,9 @@ export class TemplateValidator {
     spreadsheetId: string, 
     expectedTemplateId: string, 
     expectedVersion = "1.0"
-  ): Promise<{ isValid: boolean; errors: ImportError[]; templateId?: string; version?: string }> {
+  ): Promise<{ isValid: boolean; errors: ImportError[]; warnings: ImportError[]; templateId?: string; version?: string }> {
     const errors: ImportError[] = [];
+    const warnings: ImportError[] = [];
     
     try {
       // Tenta ler a aba Dashboard_Config
@@ -25,7 +26,8 @@ export class TemplateValidator {
             stage: "template_validation",
             sheet: "Dashboard_Config",
             message: "Aba 'Dashboard_Config' não encontrada ou está vazia."
-          }]
+          }],
+          warnings: []
         };
       }
 
@@ -51,21 +53,31 @@ export class TemplateValidator {
       }
 
       if (version !== expectedVersion) {
-        // Warning se a versão for diferente mas o template for o mesmo? 
-        // Por enquanto vamos tratar como warning se for compatível ou erro se for bloqueante.
-        // O usuário pediu apenas validação preliminar.
         errors.push({
-          severity: "warning",
+          severity: "blocking",
           stage: "template_validation",
           sheet: "Dashboard_Config",
           field: "Versao_Template",
-          message: `Versão do template (${version}) é diferente da esperada (${expectedVersion}).`
+          message: `Versão do template (${version}) é incompatível. Esperado: ${expectedVersion}.`
+        });
+      }
+
+      // Validação de Fonte (Opcional, mas boa prática)
+      const fonte = config["Fonte"];
+      if (!fonte) {
+        warnings.push({
+          severity: "warning",
+          stage: "template_validation",
+          sheet: "Dashboard_Config",
+          field: "Fonte",
+          message: "Campo 'Fonte' não encontrado em Dashboard_Config."
         });
       }
 
       return {
         isValid: errors.filter(e => e.severity === "blocking").length === 0,
-        errors,
+        errors: errors.filter(e => e.severity === "blocking"),
+        warnings: [...errors.filter(e => e.severity === "warning"), ...warnings],
         templateId,
         version
       };
@@ -77,7 +89,8 @@ export class TemplateValidator {
           severity: "blocking",
           stage: "template_validation",
           message: `Erro ao acessar aba Dashboard_Config: ${err.message}`
-        }]
+        }],
+        warnings: []
       };
     }
   }

@@ -34,6 +34,25 @@ export async function readSheetRange(spreadsheetId: string, range: string) {
 }
 
 /**
+ * Lê os metadados da planilha, incluindo os nomes de todas as abas.
+ */
+export async function getSpreadsheetMetadata(spreadsheetId: string) {
+  try {
+    const sheets = await getGoogleSheetsClient();
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId,
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    if (error.code === 404) {
+      throw new SheetNotFoundError(spreadsheetId);
+    }
+    throw new GoogleSheetsError(`Erro ao buscar metadados: ${error.message}`, error.code, error);
+  }
+}
+
+/**
  * Lê todas as abas configuradas de uma única vez (opcional, para performance futura).
  */
 export async function readMultipleRanges(spreadsheetId: string, ranges: string[]) {

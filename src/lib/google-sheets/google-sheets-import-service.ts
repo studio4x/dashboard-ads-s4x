@@ -3,9 +3,14 @@ import { SheetTabReader } from "./sheet-tab-reader";
 import { ImportLogsService } from "../imports/import-logs";
 import { ImportLogEntry, ImportStatus } from "@/types/imports";
 import { v4 as uuidv4 } from "uuid";
+import { createAdminClient } from "@/lib/supabase/server";
 import { DashboardService } from "@/services/dashboard-service";
 import { DataSourceService } from "@/services/data-source-service";
 import { TemplateValidator } from "./template-validator";
+import { SchemaValidator } from "./schema-validator";
+import { GOOGLE_ADS_S4X_SCHEMA } from "./schemas/google-ads-s4x";
+import { getSpreadsheetMetadata, readMultipleRanges } from "./read-sheet-range";
+import { MetricsHelper } from "./metrics-helper";
 import { ImportResult, ImportError } from "@/types/import";
 
 export const GoogleSheetsImportService = {
@@ -29,16 +34,20 @@ export const GoogleSheetsImportService = {
 
     try {
       // 1. Obter informações do dashboard para saber o template esperado
-      const dashboard = await DashboardService.getDashboardById(dashboardId);
+      const supabase = await createAdminClient();
+      const { data: dashboard } = await supabase
+        .from('dashboards')
+        .select('*')
+        .eq('id', dashboardId)
+        .single();
+        
       const expectedTemplateId = dashboard?.dashboard_type || "google_ads_s4x";
 
       // 2. Validação Preliminar de Template (Dashboard_Config)
       const templateVal = await TemplateValidator.validate(spreadsheetId, expectedTemplateId);
       
-      templateVal.errors.forEach(err => {
-        if (err.severity === "blocking") errors.push(err);
-        else warnings.push(err);
-      });
+      templateVal.errors.forEach(err => errors.push(err));
+      templateVal.warnings.forEach(warn => warnings.push(warn));
 
       if (!templateVal.isValid) {
         return this.finishImport({
@@ -55,28 +64,79 @@ export const GoogleSheetsImportService = {
         });
       }
 
-      // 3. Importação das Abas (Parser ainda parcial conforme solicitado)
-      const tabsToRead = [
-        { name: "overview", reader: SheetTabReader.readOverview, critical: true },
-        { name: "google_ads", reader: SheetTabReader.readGoogleAds, critical: false },
-        { name: "meta_ads", reader: SheetTabReader.readMetaAds, critical: false },
-        { name: "campaigns", reader: SheetTabReader.readCampaigns, critical: false },
-        { name: "ga4_events", reader: SheetTabReader.readGa4Events, critical: false },
-        { name: "audience", reader: SheetTabReader.readAudience, critical: false },
-        { name: "search_console", reader: SheetTabReader.readSearchConsole, critical: false },
-        { name: "keywords", reader: SheetTabReader.readKeywords, critical: false },
-        { name: "insights", reader: SheetTabReader.readInsights, critical: false },
+      // 3. Validação de Schema (Abas e Colunas)
+      const metadata = await getSpreadsheetMetadata(spreadsheetId);
+      const spreadsheetTabs = metadata.sheets?.map((s: any) => s.properties.title) || [];
+      
+      // Coleta cabeçalhos para o SchemaValidator
+      // Lemos a primeira linha de todas as abas que o schema espera
+      const schemaTabs = Object.keys(GOOGLE_ADS_S4X_SCHEMA.tabs);
+      const rangesToFetch = spreadsheetTabs
+        .filter(t => schemaTabs.includes(t))
+        .map(t => `${t}!1:1`);
+
+      const headerRanges = await readMultipleRanges(spreadsheetId, rangesToFetch);
+      const tabHeaders: Record<string, string[]> = {};
+      headerRanges.forEach((rangeObj: any, index: number) => {
+        const tabName = rangesToFetch[index].split("!")[0];
+        const headers = rangeObj.values?.[0] || [];
+        tabHeaders[tabName] = headers.map((h: any) => String(h).trim());
+      });
+
+      const schemaVal = SchemaValidator.validate(expectedTemplateId, spreadsheetTabs, tabHeaders);
+      schemaVal.errors.forEach(err => errors.push(err));
+      schemaVal.warnings.forEach(warn => warnings.push(warn));
+
+      if (!schemaVal.isValid) {
+        return this.finishImport({
+          success: false,
+          stage: "schema_validation",
+          errors,
+          warnings,
+          clientId,
+          dashboardId,
+          spreadsheetId,
+          startedAt,
+          logId,
+          dataSourceId
+        });
+      }
+
+      // 4. Importação das Abas (Parser)
+      const s4xTabsToRead = [
+        { name: "Performance Diária", key: "performance_daily", reader: (rows: any[][]) => SheetTabReader.readGoogleAds(rows) },
+        { name: "Campanhas", key: "campaigns", reader: (rows: any[][]) => SheetTabReader.readCampaigns(rows) },
+        { name: "Grupos de Anúncios", key: "ad_groups", reader: (rows: any[][]) => SheetTabReader.readAdGroups(rows) },
+        { name: "Palavras-Chave", key: "keywords", reader: (rows: any[][]) => SheetTabReader.readKeywords(rows) },
+        { name: "Termos de Pesquisa", key: "search_terms", reader: (rows: any[][]) => SheetTabReader.readSearchTerms(rows) },
+        { name: "Palavras-Chave Negativas", key: "negative_keywords", reader: (rows: any[][]) => SheetTabReader.readNegativeKeywords(rows) },
+        { name: "Anúncios (Recursos)", key: "ads_assets", reader: (rows: any[][]) => SheetTabReader.readAdsAssets(rows) },
+        { name: "Meta", key: "meta", reader: (rows: any[][]) => SheetTabReader.readMeta(rows) },
+        { name: "Dashboard_Config", key: "config", reader: (rows: any[][]) => SheetTabReader.readConfig(rows) },
       ];
 
-      for (const tab of tabsToRead) {
+      const tabsToProcess = expectedTemplateId === "google_ads_s4x" ? s4xTabsToRead : [
+        { name: "overview", key: "overview", reader: (rows: any[][]) => SheetTabReader.readOverview(rows) },
+        { name: "google_ads", key: "google_ads", reader: (rows: any[][]) => SheetTabReader.readGoogleAds(rows) },
+      ];
+
+      for (const tab of tabsToProcess) {
         try {
-          const rows = await readSheetRange(spreadsheetId, `${tab.name}!A1:Z1000`);
+          if (!spreadsheetTabs.includes(tab.name)) continue;
+
+          const rows = await readSheetRange(spreadsheetId, `${tab.name}!A1:Z2000`);
           
           if (rows && rows.length > 0) {
             const normalized = tab.reader(rows);
-            resultData[tab.name] = normalized.data;
+            
+            // 5. Normalização e Métricas Derivadas
+            if (Array.isArray(normalized.data)) {
+              normalized.data = normalized.data.map(item => MetricsHelper.enrichMetrics(item));
+            }
+
+            resultData[tab.key] = normalized.data;
             tabsRead.push(tab.name);
-            rowsRead += normalized.data.length;
+            rowsRead += (Array.isArray(normalized.data) ? normalized.data.length : 0);
             
             normalized.errors.forEach(err => {
               const impErr: ImportError = {
@@ -91,21 +151,12 @@ export const GoogleSheetsImportService = {
             });
           }
         } catch (err: any) {
-          if (tab.critical) {
-            errors.push({
-              severity: "blocking",
-              stage: "sheet_validation",
-              sheet: tab.name,
-              message: `Aba crítica ausente: ${tab.name}`
-            });
-          } else {
-            warnings.push({
-              severity: "warning",
-              stage: "sheet_validation",
-              sheet: tab.name,
-              message: `Aba opcional ausente ou erro na leitura: ${tab.name}`
-            });
-          }
+          warnings.push({
+            severity: "warning",
+            stage: "parsing",
+            sheet: tab.name,
+            message: `Erro ao processar aba ${tab.name}: ${err.message}`
+          });
         }
       }
 

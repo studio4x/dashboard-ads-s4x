@@ -1,9 +1,12 @@
 export type ImportStage = 
   | "connection" 
   | "template_validation" 
+  | "schema_validation"
   | "sheet_validation" 
   | "parsing" 
-  | "persistence";
+  | "normalization"
+  | "persistence"
+  | "snapshot_creation";
 
 export type ImportSeverity = "blocking" | "warning" | "info";
 

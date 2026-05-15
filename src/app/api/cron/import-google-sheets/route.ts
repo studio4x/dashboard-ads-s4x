@@ -47,7 +47,10 @@ async function handleCron(request: Request) {
     // 3. Processa cada fonte individualmente
     // Usamos for...of para processar sequencialmente e evitar estourar limites de cota da API do Google se houver muitas fontes
     for (const source of activeSources) {
-      const gSheetConfig = source.google_sheet_sources?.[0]; // Assume que é 1:1 devido ao UNIQUE no banco
+      // Pode vir como array ou objeto dependendo da versão do Supabase/PostgREST
+      const gSheetConfig = Array.isArray(source.google_sheet_sources) 
+        ? source.google_sheet_sources[0] 
+        : source.google_sheet_sources;
       
       if (!gSheetConfig || !gSheetConfig.spreadsheet_id) {
         summary.errors++;
