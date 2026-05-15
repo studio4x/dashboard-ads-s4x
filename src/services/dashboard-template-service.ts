@@ -46,7 +46,8 @@ export class DashboardTemplateService {
     templateType: DashboardTemplateType,
     description?: string
   ) {
-    const supabase = await createClient();
+    const { createAdminClient } = await import("@/lib/supabase/server");
+    const supabase = await createAdminClient();
     const template = getTemplateById(templateType);
 
     // 1. Criar Dashboard
@@ -98,7 +99,8 @@ export class DashboardTemplateService {
     newName: string,
     newSlug: string
   ) {
-    const supabase = await createClient();
+    const { createAdminClient } = await import("@/lib/supabase/server");
+    const supabase = await createAdminClient();
 
     // 1. Obter dashboard origem
     const { data: sourceDash, error: fetchDashError } = await supabase

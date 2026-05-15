@@ -5,10 +5,11 @@ import Link from "next/link";
 import { Building2, LayoutDashboard, FileSpreadsheet, Users, CheckCircle2, Circle, ArrowLeft, Plus, Link as LinkIcon } from "lucide-react";
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 
-export default async function ClientHubPage({ params }: { params: { clientId: string } }) {
+export default async function ClientHubPage({ params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await params;
   await requireAdmin();
   
-  const hubData = await AdminService.getClientHubDetails(params.clientId);
+  const hubData = await AdminService.getClientHubDetails(clientId);
   
   if (!hubData) {
     notFound();

@@ -62,7 +62,7 @@ export const DashboardService = {
    * Cria um novo dashboard.
    */
   async createDashboard(dashboardData: any) {
-    const supabase = await createClient()
+    const supabase = await createAdminClient()
     const { data, error } = await supabase
       .from('dashboards')
       .insert([dashboardData])
