@@ -18,6 +18,10 @@ export interface ImportLogEntry {
   durationMs?: number;
   errorDetails?: string;
   dataSourceId?: string;
+  detailedLists?: {
+    errors: any[];
+    warnings: any[];
+  };
 }
 
 export interface ImportReport {

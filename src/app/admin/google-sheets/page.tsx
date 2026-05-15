@@ -45,6 +45,8 @@ export default function GoogleSheetsAdminPage() {
   
   // Estados para Modal de Nova Fonte
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<any>(null);
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [clients, setClients] = useState<any[]>([]);
   const [dashboards, setDashboards] = useState<any[]>([]);
@@ -364,9 +366,22 @@ export default function GoogleSheetsAdminPage() {
                         {log.tabs_read?.length || 0} abas / {log.rows_read || 0} linhas
                       </td>
                       <td style={{ padding: "12px 16px" }}>
-                        <span style={{ color: log.errors > 0 ? "#EF4444" : "#64748B" }}>{log.errors} erros</span>
-                        <span style={{ margin: "0 4px", color: "#CBD5E1" }}>|</span>
-                        <span style={{ color: log.warnings > 0 ? "#F59E0B" : "#64748B" }}>{log.warnings} avisos</span>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div>
+                            <span style={{ color: log.errors > 0 ? "#EF4444" : "#64748B" }}>{log.errors} erros</span>
+                            <span style={{ margin: "0 4px", color: "#CBD5E1" }}>|</span>
+                            <span style={{ color: log.warnings > 0 ? "#F59E0B" : "#64748B" }}>{log.warnings} avisos</span>
+                          </div>
+                          <button 
+                            onClick={() => { setSelectedLog(log); setIsLogModalOpen(true); }}
+                            style={{ 
+                              background: "#F1F5F9", color: "#475569", border: "none", 
+                              padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" 
+                            }}
+                          >
+                            Ver detalhes
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -488,6 +503,88 @@ export default function GoogleSheetsAdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal de Detalhes do Log */}
+      {isLogModalOpen && selectedLog && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div className="card" style={{ width: "100%", maxWidth: 600, padding: 0, maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: "#0F172A" }}>Detalhes da Importação</h2>
+                <p style={{ fontSize: 12, color: "#64748B" }}>{new Date(selectedLog.started_at).toLocaleString("pt-BR")}</p>
+              </div>
+              <button onClick={() => setIsLogModalOpen(false)} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: 20, overflowY: "auto", flex: 1 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+                <div style={{ padding: 12, borderRadius: 8, background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                  <p style={{ fontSize: 11, color: "#64748B", marginBottom: 2 }}>Status Final</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: selectedLog.status === "failed" ? "#EF4444" : "#16A34A" }}>
+                    {selectedLog.status === "failed" ? "Falha" : "Sucesso com Ressalvas"}
+                  </p>
+                </div>
+                <div style={{ padding: 12, borderRadius: 8, background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                  <p style={{ fontSize: 11, color: "#64748B", marginBottom: 2 }}>Linhas Processadas</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>{selectedLog.rows_read}</p>
+                </div>
+              </div>
+
+              {(!selectedLog.details || (!selectedLog.details.errors?.length && !selectedLog.details.warnings?.length)) ? (
+                <div style={{ textAlign: "center", padding: "40px 0" }}>
+                  <Info size={32} color="#CBD5E1" style={{ margin: "0 auto 12px" }} />
+                  <p style={{ fontSize: 14, color: "#64748B" }}>Não há detalhes registrados para este log.</p>
+                  <p style={{ fontSize: 11, color: "#94A3B8", marginTop: 4 }}>Logs antigos podem não conter a lista detalhada de avisos.</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  {selectedLog.details.errors?.length > 0 && (
+                    <div>
+                      <h3 style={{ fontSize: 13, fontWeight: 700, color: "#EF4444", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                        <X size={14} /> Erros Bloqueantes ({selectedLog.details.errors.length})
+                      </h3>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {selectedLog.details.errors.map((err: any, idx: number) => (
+                          <div key={idx} style={{ padding: 10, borderRadius: 6, background: "#FEF2F2", border: "1px solid #FEE2E2", fontSize: 12 }}>
+                            <p style={{ fontWeight: 600, color: "#991B1B" }}>{err.sheet ? `[Aba: ${err.sheet}] ` : ""}{err.message}</p>
+                            {err.field && <p style={{ fontSize: 11, color: "#B91C1C", marginTop: 2 }}>Campo: {err.field}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedLog.details.warnings?.length > 0 && (
+                    <div>
+                      <h3 style={{ fontSize: 13, fontWeight: 700, color: "#D97706", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                        <AlertTriangle size={14} /> Avisos de Sincronização ({selectedLog.details.warnings.length})
+                      </h3>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {selectedLog.details.warnings.map((warn: any, idx: number) => (
+                          <div key={idx} style={{ padding: 10, borderRadius: 6, background: "#FFFBEB", border: "1px solid #FEF3C7", fontSize: 12 }}>
+                            <p style={{ fontWeight: 600, color: "#92400E" }}>{warn.sheet ? `[Aba: ${warn.sheet}] ` : ""}{warn.message}</p>
+                            {warn.field && <p style={{ fontSize: 11, color: "#B45309", marginTop: 2 }}>Campo: {warn.field}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: "16px 20px", borderTop: "1px solid #E2E8F0", textAlign: "right" }}>
+              <button 
+                onClick={() => setIsLogModalOpen(false)}
+                style={{ padding: "8px 16px", borderRadius: 8, background: "#F1F5F9", color: "#475569", border: "none", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}

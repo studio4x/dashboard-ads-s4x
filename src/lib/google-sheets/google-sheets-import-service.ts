@@ -301,7 +301,11 @@ export const GoogleSheetsImportService = {
       source: "google_sheets",
       durationMs,
       dataSourceId: params.dataSourceId,
-      errorDetails: params.errors.length > 0 ? params.errors[0].message : undefined
+      errorDetails: params.errors.length > 0 ? params.errors[0].message : undefined,
+      detailedLists: {
+        errors: params.errors,
+        warnings: params.warnings
+      }
     };
 
     // Salva o Log no Supabase

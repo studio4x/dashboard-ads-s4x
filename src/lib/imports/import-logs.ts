@@ -22,7 +22,8 @@ export const ImportLogsService = {
         rows_read: log.rowsRead,
         warnings: log.warnings,
         errors: log.errors,
-        error_details: log.errorDetails
+        error_details: log.errorDetails,
+        details: log.detailedLists
       };
       
       await DataSourceService.saveImportLog(dbLog);
