@@ -24,6 +24,7 @@ export interface ImportResult {
   stage: ImportStage;
   templateId?: string;
   templateVersion?: string;
+  error?: string;
   errors: ImportError[];
   warnings: ImportError[];
   summary?: {

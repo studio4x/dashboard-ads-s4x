@@ -330,6 +330,7 @@ export const GoogleSheetsImportService = {
     return {
       success: params.success,
       stage: params.stage,
+      error: params.errors.length > 0 ? params.errors[0].message : undefined,
       errors: params.errors,
       warnings: params.warnings,
       data: params.data,

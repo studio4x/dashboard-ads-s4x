@@ -140,7 +140,8 @@ export default function GoogleSheetsAdminPage() {
         fetchData(); // Atualiza a lista e os logs
         toast("Sincronização concluída com sucesso!", "success");
       } else {
-        toast(`Erro na sincronização: ${result.error}`, "error");
+        const errorMsg = result.error || (result.errors && result.errors.length > 0 ? result.errors[0].message : "Erro desconhecido");
+        toast(`Erro na sincronização: ${errorMsg}`, "error");
       }
     } catch (error) {
       console.error(error);
