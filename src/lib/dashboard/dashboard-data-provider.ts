@@ -40,6 +40,7 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
           if (data.dailyPerformance) {
             google_ads_summary = DashboardAggregator.compare(data.dailyPerformance, range);
             data.dailyPerformance = data.dailyPerformance.filter((row: any) => isDateInRange(row.date, range));
+            data.overview = data.dailyPerformance; // Garantir que overview tenha dados para gráficos
             summary = google_ads_summary; // O sumário geral do dashboard é o do Google Ads no template S4X
           }
         } else {
@@ -76,6 +77,7 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
           change: {}
         };
         google_ads_summary = summary;
+        data.overview = data.dailyPerformance || []; // Fallback sem range
       }
 
       // 2. Busca informações do dashboard para o template

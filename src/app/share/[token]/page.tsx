@@ -41,7 +41,8 @@ export default async function SharedDashboardPage(
   const params = await props.params;
   const searchParams = await props.searchParams;
   const token = params.token;
-  const currentPage = (searchParams?.page as string) || "executive-summary";
+  const requestedPage = (searchParams?.page as string) || "executive-summary";
+  const currentPage = pageTitles[requestedPage] ? requestedPage : "executive-summary";
 
   // Validate Token
   const validation = await ShareService.validateShareToken(token);
