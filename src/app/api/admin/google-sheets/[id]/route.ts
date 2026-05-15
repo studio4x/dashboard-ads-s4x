@@ -4,13 +4,13 @@ import { requireAdmin } from "@/lib/auth/guards";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
 
-    const { id } = params;
+    const { id } = await params;
     const { name, spreadsheetId } = await request.json();
 
     if (!name || !spreadsheetId) {
@@ -27,13 +27,13 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
 
-    const { id } = params;
+    const { id } = await params;
     await DataSourceService.deleteSource(id);
 
     return NextResponse.json({ success: true });

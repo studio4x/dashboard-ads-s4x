@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { GoogleSheetSourceCard } from "@/components/admin/GoogleSheetSourceCard";
-import { Plus, RefreshCw, AlertTriangle, CheckCircle2, Info, X, Loader2, FileSpreadsheet, History } from "lucide-react";
+import { Plus, RefreshCw, AlertTriangle, CheckCircle2, Info, X, Loader2, FileSpreadsheet, History, Trash2 } from "lucide-react";
 import { Skeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { AdminListSkeleton } from "@/components/admin/AdminListSkeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
