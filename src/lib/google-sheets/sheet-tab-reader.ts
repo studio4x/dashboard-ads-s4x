@@ -10,6 +10,7 @@ import {
   GoogleAdsS4XNegativeKeyword, 
   GoogleAdsS4XAdAsset 
 } from "@/types/google-ads-s4x";
+import { GOOGLE_ADS_S4X_SCHEMA } from "./schemas/google-ads-s4x";
 
 /**
  * Mapeia as colunas da planilha para o objeto do sistema.
@@ -360,14 +361,28 @@ export const SheetTabReader = {
    */
   readKeyValueTab(rows: any[][], tabName: string): NormalizedSheetData<any> {
     const validator = new SheetValidator(tabName);
-    if (rows.length === 0) return { tabName, data: [], errors: [] };
+    if (rows.length === 0) return { tabName, data: [], errors: [{ level: "error", message: "Aba vazia", tab: tabName }] };
     
     const data: Record<string, any> = {};
+    const presentKeys: string[] = [];
+
     rows.forEach(row => {
-      if (row[0] && row[1]) {
-        data[SheetNormalizer.toString(row[0]) || ""] = SheetNormalizer.toString(row[1]);
+      if (row[0] !== undefined && row[0] !== null) {
+        const key = SheetNormalizer.toString(row[0]) || "";
+        data[key] = SheetNormalizer.toString(row[1]);
+        presentKeys.push(key);
       }
     });
+
+    // Valida chaves críticas se houver schema
+    const tabSchema = GOOGLE_ADS_S4X_SCHEMA.tabs[tabName];
+    if (tabSchema?.criticalKeys) {
+      tabSchema.criticalKeys.forEach(key => {
+        if (!presentKeys.includes(key)) {
+          validator.addError("error", `Chave crítica ausente na aba ${tabName}: ${key}`, undefined, "Chave");
+        }
+      });
+    }
 
     return { tabName, data: [data], errors: validator.getErrors() };
   },

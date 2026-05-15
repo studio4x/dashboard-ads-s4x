@@ -3,6 +3,7 @@ export interface TabSchema {
   criticalColumns: string[];
   expectedColumns: string[];
   type: "key_value" | "table";
+  criticalKeys?: string[];
 }
 
 export interface TemplateSchema {
@@ -17,15 +18,17 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
   tabs: {
     "Meta": {
       required: true,
-      criticalColumns: ["Conta_ID", "Data_Inicial", "Data_Final", "Timezone"],
-      expectedColumns: ["Chave", "Valor"], // Key-Value format usually has Chave/Valor headers
-      type: "key_value"
+      criticalColumns: ["Chave", "Valor"],
+      expectedColumns: [],
+      type: "key_value",
+      criticalKeys: ["Conta_ID", "Data_Inicial", "Data_Final", "Timezone"]
     },
     "Dashboard_Config": {
       required: true,
-      criticalColumns: ["Template", "Versao_Template", "Fonte", "Data_Inicial", "Data_Final"],
-      expectedColumns: ["Chave", "Valor"],
-      type: "key_value"
+      criticalColumns: ["Chave", "Valor"],
+      expectedColumns: [],
+      type: "key_value",
+      criticalKeys: ["Template", "Versao_Template", "Fonte", "Data_Inicial", "Data_Final"]
     },
     "Performance Diária": {
       required: true,
