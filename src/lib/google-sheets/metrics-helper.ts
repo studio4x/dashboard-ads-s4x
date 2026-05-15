@@ -14,9 +14,10 @@ export const MetricsHelper = {
 
     // Helper para evitar divisão por zero
     const safeDiv = (num: number, den: number) => (den > 0 ? num / den : null);
+    const safePercent = (num: number, den: number) => (den > 0 ? (num / den) * 100 : null);
 
     // CTR = Cliques / Impressões
-    data.ctr = safeDiv(clicks, impressions);
+    data.ctr = safePercent(clicks, impressions);
 
     // CPC Médio = Custo / Cliques
     data.avgCpc = safeDiv(cost, clicks);
@@ -27,7 +28,7 @@ export const MetricsHelper = {
     if (data.cpa !== undefined) data.cpa = data.costPerConversion; // retrocompatibilidade
 
     // Taxa de Conversão = Conversões / Cliques
-    data.conversionRate = safeDiv(conversions, clicks);
+    data.conversionRate = safePercent(conversions, clicks);
     if (data.conversion_rate !== undefined) data.conversion_rate = data.conversionRate; // retrocompatibilidade
 
     // ROAS = Valor das Conversões / Custo
@@ -66,13 +67,14 @@ export const MetricsHelper = {
 
     // Recalcula métricas derivadas para o sumário
     const safeDiv = (num: number, den: number) => (den > 0 ? num / den : null);
+    const safePercent = (num: number, den: number) => (den > 0 ? (num / den) * 100 : null);
 
     return {
       ...summary,
-      ctr: safeDiv(summary.clicks, summary.impressions),
+      ctr: safePercent(summary.clicks, summary.impressions),
       avgCpc: safeDiv(summary.cost, summary.clicks),
       cpa: safeDiv(summary.cost, summary.conversions),
-      conversionRate: safeDiv(summary.conversions, summary.clicks),
+      conversionRate: safePercent(summary.conversions, summary.clicks),
       roas: safeDiv(summary.conversionValue, summary.cost),
       avgCpm: summary.impressions > 0 ? (summary.cost / summary.impressions) * 1000 : null,
     };

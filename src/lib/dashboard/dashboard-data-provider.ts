@@ -7,6 +7,7 @@ import * as mockGa4 from "@/data/mock-sheet-ga4-events";
 import * as mockAudience from "@/data/mock-sheet-audience";
 import * as mockSC from "@/data/mock-sheet-search-console";
 import * as mockInsights from "@/data/mock-sheet-insights";
+import { mockGoogleAdsS4XPayload } from "@/data/mock-sheet-google-ads-s4x";
 
 import { DashboardAggregator } from "./dashboard-aggregator";
 import { parseISO } from "date-fns";
@@ -92,6 +93,27 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
 
   // 2. Se não houver snapshot, verifica se deve usar mocks
   if (useMocks) {
+    const dashboard = await DashboardService.getDashboardById(dashboardId).catch(() => null);
+    const templateId = dashboard?.dashboard_type || "google_ads_s4x";
+
+    if (templateId === "google_ads_s4x") {
+      return {
+        ...mockGoogleAdsS4XPayload,
+        // Mantém campos legado vazios ou mapeados para evitar quebra de componentes antigos
+        overview: [],
+        google_ads: mockGoogleAdsS4XPayload.dailyPerformance,
+        meta_ads: [],
+        ga4_events: mockGa4.mockGa4Events,
+        audience: mockAudience.mockAudienceChannel,
+        search_console: mockSC.mockSearchConsoleQueries,
+        insights: mockInsights.mockInsights,
+        source: "mock",
+        templateId: "google_ads_s4x",
+        templateVersion: "1.0",
+        platform: "google_ads"
+      };
+    }
+
     return {
       overview: mockOverview.mockOverviewRows,
       google_ads: mockGoogleAds.mockGoogleAdsDaily,
