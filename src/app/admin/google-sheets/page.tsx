@@ -11,8 +11,8 @@ import { useToast } from "@/components/ui/Toast";
 interface SheetSource {
   id: string;
   name: string;
-  clientId: string;
-  dashboardId: string;
+  client_id: string;
+  dashboard_id: string;
   type: string;
   status: string;
   google_sheet_sources: {
@@ -129,8 +129,8 @@ export default function GoogleSheetsAdminPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clientId: source.clientId,
-          dashboardId: source.dashboardId,
+          clientId: source.client_id,
+          dashboardId: source.dashboard_id,
           spreadsheetId: source.google_sheet_sources.spreadsheet_id
         })
       });
@@ -155,7 +155,7 @@ export default function GoogleSheetsAdminPage() {
   const [filterClient, setFilterClient] = useState("");
 
   const filteredSources = sources.filter(s => 
-    !filterClient || s.clientId === filterClient
+    !filterClient || s.client_id === filterClient
   );
 
   return (
