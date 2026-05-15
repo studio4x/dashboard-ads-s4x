@@ -11,7 +11,9 @@ import { SchemaValidator } from "./schema-validator";
 import { GOOGLE_ADS_S4X_SCHEMA } from "./schemas/google-ads-s4x";
 import { getSpreadsheetMetadata, readMultipleRanges } from "./read-sheet-range";
 import { MetricsHelper } from "./metrics-helper";
+import { SheetNormalizer } from "./sheet-normalizer";
 import { ImportResult, ImportError } from "@/types/import";
+import { GoogleAdsS4XPayload, GoogleAdsS4XSummary, GoogleAdsS4XDiagnostics } from "@/types/google-ads-s4x";
 
 export const GoogleSheetsImportService = {
   /**
@@ -104,15 +106,16 @@ export const GoogleSheetsImportService = {
 
       // 4. Importação das Abas (Parser)
       const s4xTabsToRead = [
-        { name: "Performance Diária", key: "performance_daily", reader: (rows: any[][]) => SheetTabReader.readGoogleAds(rows) },
-        { name: "Campanhas", key: "campaigns", reader: (rows: any[][]) => SheetTabReader.readCampaigns(rows) },
-        { name: "Grupos de Anúncios", key: "ad_groups", reader: (rows: any[][]) => SheetTabReader.readAdGroups(rows) },
-        { name: "Palavras-Chave", key: "keywords", reader: (rows: any[][]) => SheetTabReader.readKeywords(rows) },
-        { name: "Termos de Pesquisa", key: "search_terms", reader: (rows: any[][]) => SheetTabReader.readSearchTerms(rows) },
-        { name: "Palavras-Chave Negativas", key: "negative_keywords", reader: (rows: any[][]) => SheetTabReader.readNegativeKeywords(rows) },
-        { name: "Anúncios (Recursos)", key: "ads_assets", reader: (rows: any[][]) => SheetTabReader.readAdsAssets(rows) },
+        { name: "Performance Diária", key: "dailyPerformance", reader: (rows: any[][]) => SheetTabReader.readPerformanceDailyS4X(rows) },
+        { name: "Campanhas", key: "campaigns", reader: (rows: any[][]) => SheetTabReader.readCampaignsS4X(rows) },
+        { name: "Grupos de Anúncios", key: "adGroups", reader: (rows: any[][]) => SheetTabReader.readAdGroupsS4X(rows) },
+        { name: "Palavras-Chave", key: "keywords", reader: (rows: any[][]) => SheetTabReader.readKeywordsS4X(rows) },
+        { name: "Termos de Pesquisa", key: "searchTerms", reader: (rows: any[][]) => SheetTabReader.readSearchTermsS4X(rows) },
+        { name: "Palavras-Chave Negativas", key: "negativeKeywords", reader: (rows: any[][]) => SheetTabReader.readNegativeKeywordsS4X(rows) },
+        { name: "Anúncios (Recursos)", key: "adsAndAssets", reader: (rows: any[][]) => SheetTabReader.readAdsAssetsS4X(rows) },
         { name: "Meta", key: "meta", reader: (rows: any[][]) => SheetTabReader.readMeta(rows) },
         { name: "Dashboard_Config", key: "config", reader: (rows: any[][]) => SheetTabReader.readConfig(rows) },
+        { name: "Export_Logs", key: "export_logs", reader: (rows: any[][]) => ({ tabName: "Export_Logs", data: rows, errors: [] }) },
       ];
 
       const tabsToProcess = expectedTemplateId === "google_ads_s4x" ? s4xTabsToRead : [
@@ -160,6 +163,71 @@ export const GoogleSheetsImportService = {
         }
       }
 
+      // 6. Construção do Payload Normalizado S4X
+      let finalPayload: any = resultData;
+      const rowCounts: Record<string, number> = {};
+      tabsRead.forEach(tab => {
+        const key = s4xTabsToRead.find(t => t.name === tab)?.key;
+        if (key && resultData[key]) {
+          rowCounts[tab] = Array.isArray(resultData[key]) ? resultData[key].length : 1;
+        }
+      });
+
+      if (expectedTemplateId === "google_ads_s4x") {
+        const dailyPerformance = resultData.dailyPerformance || [];
+        const summary = MetricsHelper.calculateSummary(dailyPerformance);
+        
+        const configData = resultData.config?.[0] || {};
+        const metaData = resultData.meta?.[0] || {};
+
+        const diagnostics: GoogleAdsS4XDiagnostics = {
+          templateValidation: templateVal,
+          schemaValidation: schemaVal,
+          warnings: warnings.map(w => w.message),
+          errors: errors.map(e => e.message),
+          exportLogs: resultData.export_logs,
+          rowCounts,
+          ignoredRows: 0, // Poderia ser calculado se rastreado no reader
+          sourceSpreadsheetId: spreadsheetId,
+          importedAt: new Date().toISOString(),
+          snapshotVersion: "google_ads_s4x_v1"
+        };
+
+        const s4xPayload: GoogleAdsS4XPayload = {
+          meta: {
+            accountName: metaData["Conta"] || metaData["accountName"],
+            accountId: metaData["Conta_ID"] || metaData["accountId"],
+            periodToken: metaData["Periodo_Token"] || metaData["periodToken"],
+            dateStart: SheetNormalizer.toDate(metaData["Data_Inicial"]),
+            dateEnd: SheetNormalizer.toDate(metaData["Data_Final"]),
+            queryCondition: metaData["Condicao_Query"],
+            executedAt: metaData["Executado_Em"],
+            timezone: metaData["Timezone"]
+          },
+          config: {
+            templateId: configData["Template"] || "google_ads_s4x",
+            templateLabel: configData["Template_Label"] || "Google Ads S4X",
+            templateVersion: configData["Versao_Template"] || "1.0",
+            source: configData["Fonte"] || "Google Sheets",
+            periodToken: configData["Periodo_Token"],
+            dateStart: SheetNormalizer.toDate(configData["Data_Inicial"]),
+            dateEnd: SheetNormalizer.toDate(configData["Data_Final"]),
+            notes: configData["Notas"]
+          },
+          summary: summary as GoogleAdsS4XSummary,
+          dailyPerformance: resultData.dailyPerformance || [],
+          campaigns: resultData.campaigns || [],
+          adGroups: resultData.adGroups || [],
+          keywords: resultData.keywords || [],
+          searchTerms: resultData.searchTerms || [],
+          negativeKeywords: resultData.negativeKeywords || [],
+          adsAndAssets: resultData.adsAndAssets || [],
+          diagnostics
+        };
+
+        finalPayload = s4xPayload;
+      }
+
       const success = errors.length === 0;
       
       return this.finishImport({
@@ -175,7 +243,7 @@ export const GoogleSheetsImportService = {
         dataSourceId,
         tabsRead,
         rowsRead,
-        data: resultData
+        data: finalPayload
       });
 
     } catch (globalError: any) {

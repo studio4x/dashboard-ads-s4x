@@ -1,6 +1,15 @@
 import { SheetNormalizer } from "./sheet-normalizer";
 import { SheetValidator } from "./sheet-validator";
 import { NormalizedSheetData } from "@/types/google-sheets";
+import { 
+  GoogleAdsS4XDailyPerformance, 
+  GoogleAdsS4XCampaign, 
+  GoogleAdsS4XAdGroup, 
+  GoogleAdsS4XKeyword, 
+  GoogleAdsS4XSearchTerm, 
+  GoogleAdsS4XNegativeKeyword, 
+  GoogleAdsS4XAdAsset 
+} from "@/types/google-ads-s4x";
 
 /**
  * Mapeia as colunas da planilha para o objeto do sistema.
@@ -361,6 +370,244 @@ export const SheetTabReader = {
     });
 
     return { tabName, data: [data], errors: validator.getErrors() };
+  },
+
+  /**
+   * Aba: Performance Diária (S4X)
+   */
+  readPerformanceDailyS4X(rows: any[][]): NormalizedSheetData<GoogleAdsS4XDailyPerformance> {
+    const tabName = "Performance Diária";
+    const validator = new SheetValidator(tabName);
+    if (rows.length === 0) return { tabName, data: [], errors: [] };
+    const headers = rows[0].map((h: any) => String(h).trim());
+    const data = rows.slice(1)
+      .filter(row => row[0] && !SheetNormalizer.shouldIgnoreRow(row[0]))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
+        date: SheetNormalizer.toDate(raw["Data"]) || "",
+        campaignName: SheetNormalizer.toString(raw["Campanha"]) || "",
+        campaignStatus: SheetNormalizer.toString(raw["Status da Campanha"]) || "",
+        channelType: SheetNormalizer.toString(raw["Tipo de Canal"]) || "",
+        aggregationScope: SheetNormalizer.toString(raw["Escopo_Agregacao"]),
+        impressions: SheetNormalizer.toInteger(raw["Impressões"]),
+        clicks: SheetNormalizer.toInteger(raw["Cliques"]),
+        ctr: SheetNormalizer.toPercent(raw["CTR"]),
+        avgCpc: SheetNormalizer.toNumber(raw["CPC Médio (R$)"]),
+        cost: SheetNormalizer.toNumber(raw["Custo (R$)"]),
+        conversions: SheetNormalizer.toNumber(raw["Conversões"]),
+        conversionValue: SheetNormalizer.toNumber(raw["Valor das Conversões (R$)"]),
+        costPerConversion: SheetNormalizer.toNumber(raw["Custo por Conversão (R$)"]),
+        allConversions: SheetNormalizer.toNumber(raw["Todas as Conversões"]),
+        allConversionsValue: SheetNormalizer.toNumber(raw["Valor Total Conversões (R$)"]),
+        avgCpm: SheetNormalizer.toNumber(raw["CPM Médio (R$)"]),
+        conversionRate: SheetNormalizer.toPercent(raw["Taxa de Conversão"]),
+        roas: SheetNormalizer.toNumber(raw["ROAS"]),
+        aiKey: SheetNormalizer.toString(raw["Chave_IA"]),
+      })));
+    return { tabName, data, errors: validator.getErrors() };
+  },
+
+  /**
+   * Aba: Campanhas (S4X)
+   */
+  readCampaignsS4X(rows: any[][]): NormalizedSheetData<GoogleAdsS4XCampaign> {
+    const tabName = "Campanhas";
+    const validator = new SheetValidator(tabName);
+    if (rows.length === 0) return { tabName, data: [], errors: [] };
+    const headers = rows[0].map((h: any) => String(h).trim());
+    const data = rows.slice(1)
+      .filter(row => row[0] && !SheetNormalizer.shouldIgnoreRow(row[0]))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
+        campaignName: SheetNormalizer.toString(raw["Campanha"]) || "",
+        campaignStatus: SheetNormalizer.toString(raw["Status da Campanha"]) || "",
+        channelType: SheetNormalizer.toString(raw["Tipo de Canal"]) || "",
+        aggregationScope: SheetNormalizer.toString(raw["Escopo_Agregacao"]),
+        impressions: SheetNormalizer.toInteger(raw["Impressões"]),
+        clicks: SheetNormalizer.toInteger(raw["Cliques"]),
+        ctr: SheetNormalizer.toPercent(raw["CTR"]),
+        avgCpc: SheetNormalizer.toNumber(raw["CPC Médio (R$)"]),
+        cost: SheetNormalizer.toNumber(raw["Custo (R$)"]),
+        conversions: SheetNormalizer.toNumber(raw["Conversões"]),
+        conversionValue: SheetNormalizer.toNumber(raw["Valor das Conversões (R$)"]),
+        costPerConversion: SheetNormalizer.toNumber(raw["Custo por Conversão (R$)"]),
+        allConversions: SheetNormalizer.toNumber(raw["Todas as Conversões"]),
+        allConversionsValue: SheetNormalizer.toNumber(raw["Valor Total Conversões (R$)"]),
+        interactionRate: SheetNormalizer.toPercent(raw["Taxa de Interação"]),
+        interactions: SheetNormalizer.toInteger(raw["Interações"]),
+        searchImpressionShare: SheetNormalizer.toPercent(raw["Parcela de impr. da rede de pesquisa"]),
+        searchRankLostImpressionShare: SheetNormalizer.toPercent(raw["Perda por Rank (Search)"]),
+        searchBudgetLostImpressionShare: SheetNormalizer.toPercent(raw["Perda por Orçamento (Search)"]),
+        avgCpm: SheetNormalizer.toNumber(raw["CPM Médio (R$)"]),
+        conversionRate: SheetNormalizer.toPercent(raw["Taxa de Conversão"]),
+        roas: SheetNormalizer.toNumber(raw["ROAS"]),
+        aiKey: SheetNormalizer.toString(raw["Chave_IA"]),
+      })));
+    return { tabName, data, errors: validator.getErrors() };
+  },
+
+  /**
+   * Aba: Grupos de Anúncios (S4X)
+   */
+  readAdGroupsS4X(rows: any[][]): NormalizedSheetData<GoogleAdsS4XAdGroup> {
+    const tabName = "Grupos de Anúncios";
+    const validator = new SheetValidator(tabName);
+    if (rows.length === 0) return { tabName, data: [], errors: [] };
+    const headers = rows[0].map((h: any) => String(h).trim());
+    const data = rows.slice(1)
+      .filter(row => row[0] && !SheetNormalizer.shouldIgnoreRow(row[0]))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
+        campaignName: SheetNormalizer.toString(raw["Campanha"]) || "",
+        adGroupName: SheetNormalizer.toString(raw["Grupo de Anúncios"]) || "",
+        adGroupStatus: SheetNormalizer.toString(raw["Status do Grupo"]) || "",
+        aggregationScope: SheetNormalizer.toString(raw["Escopo_Agregacao"]),
+        impressions: SheetNormalizer.toInteger(raw["Impressões"]),
+        clicks: SheetNormalizer.toInteger(raw["Cliques"]),
+        ctr: SheetNormalizer.toPercent(raw["CTR"]),
+        avgCpc: SheetNormalizer.toNumber(raw["CPC Médio (R$)"]),
+        cost: SheetNormalizer.toNumber(raw["Custo (R$)"]),
+        conversions: SheetNormalizer.toNumber(raw["Conversões"]),
+        conversionValue: SheetNormalizer.toNumber(raw["Valor das Conversões (R$)"]),
+        costPerConversion: SheetNormalizer.toNumber(raw["Custo por Conversão (R$)"]),
+        allConversions: SheetNormalizer.toNumber(raw["Todas as Conversões"]),
+        allConversionsValue: SheetNormalizer.toNumber(raw["Valor Total Conversões (R$)"]),
+        interactions: SheetNormalizer.toInteger(raw["Interações"]),
+        interactionRate: SheetNormalizer.toPercent(raw["Taxa de Interação"]),
+        avgCost: SheetNormalizer.toNumber(raw["Custo Médio (R$)"]),
+        avgCpm: SheetNormalizer.toNumber(raw["CPM Médio (R$)"]),
+        conversionRate: SheetNormalizer.toPercent(raw["Taxa de Conversão"]),
+        roas: SheetNormalizer.toNumber(raw["ROAS"]),
+        aiKey: SheetNormalizer.toString(raw["Chave_IA"]),
+      })));
+    return { tabName, data, errors: validator.getErrors() };
+  },
+
+  /**
+   * Aba: Palavras-Chave (S4X)
+   */
+  readKeywordsS4X(rows: any[][]): NormalizedSheetData<GoogleAdsS4XKeyword> {
+    const tabName = "Palavras-Chave";
+    const validator = new SheetValidator(tabName);
+    if (rows.length === 0) return { tabName, data: [], errors: [] };
+    const headers = rows[0].map((h: any) => String(h).trim());
+    const data = rows.slice(1)
+      .filter(row => row[0] && !SheetNormalizer.shouldIgnoreRow(row[0]))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
+        campaignName: SheetNormalizer.toString(raw["Campanha"]) || "",
+        adGroupName: SheetNormalizer.toString(raw["Grupo de Anúncios"]) || "",
+        keyword: SheetNormalizer.toString(raw["Palavra-chave"]) || "",
+        matchType: SheetNormalizer.toString(raw["Tipo de Correspondência"]) || "",
+        status: SheetNormalizer.toString(raw["Status"]) || "",
+        aggregationScope: SheetNormalizer.toString(raw["Escopo_Agregacao"]),
+        qualityScore: SheetNormalizer.toInteger(raw["Índice de Qualidade"]),
+        creativeQualityScore: SheetNormalizer.toString(raw["Qualidade Criativa"]),
+        postClickQualityScore: SheetNormalizer.toString(raw["Qualidade Pós-clique"]),
+        searchPredictedCtr: SheetNormalizer.toString(raw["CTR Previsto (Search)"]),
+        impressions: SheetNormalizer.toInteger(raw["Impressões"]),
+        clicks: SheetNormalizer.toInteger(raw["Cliques"]),
+        ctr: SheetNormalizer.toPercent(raw["CTR"]),
+        avgCpc: SheetNormalizer.toNumber(raw["CPC Médio (R$)"]),
+        cost: SheetNormalizer.toNumber(raw["Custo (R$)"]),
+        conversions: SheetNormalizer.toNumber(raw["Conversões"]),
+        conversionValue: SheetNormalizer.toNumber(raw["Valor das Conversões (R$)"]),
+        costPerConversion: SheetNormalizer.toNumber(raw["Custo por Conversão (R$)"]),
+        allConversions: SheetNormalizer.toNumber(raw["Todas as Conversões"]),
+        allConversionsValue: SheetNormalizer.toNumber(raw["Valor Total Conversões (R$)"]),
+        conversionRate: SheetNormalizer.toPercent(raw["Taxa de Conversão"]),
+        roas: SheetNormalizer.toNumber(raw["ROAS"]),
+        aiKey: SheetNormalizer.toString(raw["Chave_IA"]),
+      })));
+    return { tabName, data, errors: validator.getErrors() };
+  },
+
+  /**
+   * Aba: Termos de Pesquisa (S4X)
+   */
+  readSearchTermsS4X(rows: any[][]): NormalizedSheetData<GoogleAdsS4XSearchTerm> {
+    const tabName = "Termos de Pesquisa";
+    const validator = new SheetValidator(tabName);
+    if (rows.length === 0) return { tabName, data: [], errors: [] };
+    const headers = rows[0].map((h: any) => String(h).trim());
+    const data = rows.slice(1)
+      .filter(row => row[0] && !SheetNormalizer.shouldIgnoreRow(row[0]))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
+        campaignName: SheetNormalizer.toString(raw["Campanha"]) || "",
+        adGroupName: SheetNormalizer.toString(raw["Grupo de Anúncios"]) || "",
+        termMatchType: SheetNormalizer.toString(raw["Tipo de Correspondência (Termo)"]) || "",
+        searchTerm: SheetNormalizer.toString(raw["Termo de Pesquisa"]) || "",
+        termStatus: SheetNormalizer.toString(raw["Status do Termo"]) || "",
+        aggregationScope: SheetNormalizer.toString(raw["Escopo_Agregacao"]),
+        impressions: SheetNormalizer.toInteger(raw["Impressões"]),
+        clicks: SheetNormalizer.toInteger(raw["Cliques"]),
+        ctr: SheetNormalizer.toPercent(raw["CTR"]),
+        avgCpc: SheetNormalizer.toNumber(raw["CPC Médio (R$)"]),
+        cost: SheetNormalizer.toNumber(raw["Custo (R$)"]),
+        conversions: SheetNormalizer.toNumber(raw["Conversões"]),
+        conversionValue: SheetNormalizer.toNumber(raw["Valor das Conversões (R$)"]),
+        costPerConversion: SheetNormalizer.toNumber(raw["Custo por Conversão (R$)"]),
+        allConversions: SheetNormalizer.toNumber(raw["Todas as Conversões"]),
+        allConversionsValue: SheetNormalizer.toNumber(raw["Valor Total Conversões (R$)"]),
+        avgCpm: SheetNormalizer.toNumber(raw["CPM Médio (R$)"]),
+        conversionRate: SheetNormalizer.toPercent(raw["Taxa de Conversão"]),
+        roas: SheetNormalizer.toNumber(raw["ROAS"]),
+        aiKey: SheetNormalizer.toString(raw["Chave_IA"]),
+      })));
+    return { tabName, data, errors: validator.getErrors() };
+  },
+
+  /**
+   * Aba: Palavras-Chave Negativas (S4X)
+   */
+  readNegativeKeywordsS4X(rows: any[][]): NormalizedSheetData<GoogleAdsS4XNegativeKeyword> {
+    const tabName = "Palavras-Chave Negativas";
+    const validator = new SheetValidator(tabName);
+    if (rows.length === 0) return { tabName, data: [], errors: [] };
+    const headers = rows[0].map((h: any) => String(h).trim());
+    const data = rows.slice(1)
+      .filter(row => row[0] && !SheetNormalizer.shouldIgnoreRow(row[0]))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
+        campaignName: SheetNormalizer.toString(raw["Campanha"]) || "",
+        negativeOrigin: SheetNormalizer.toString(raw["Origem da Negativa"]) || "",
+        negativeList: SheetNormalizer.toString(raw["Lista Negativa"]) || "",
+        negativeKeyword: SheetNormalizer.toString(raw["Palavra-Chave Negativa"]) || "",
+        matchType: SheetNormalizer.toString(raw["Tipo de Correspondência"]) || "",
+        aiKey: SheetNormalizer.toString(raw["Chave_IA"]),
+      })));
+    return { tabName, data, errors: validator.getErrors() };
+  },
+
+  /**
+   * Aba: Anúncios (Recursos) (S4X)
+   */
+  readAdsAssetsS4X(rows: any[][]): NormalizedSheetData<GoogleAdsS4XAdAsset> {
+    const tabName = "Anúncios (Recursos)";
+    const validator = new SheetValidator(tabName);
+    if (rows.length === 0) return { tabName, data: [], errors: [] };
+    const headers = rows[0].map((h: any) => String(h).trim());
+    const data = rows.slice(1)
+      .filter(row => row[0] && !SheetNormalizer.shouldIgnoreRow(row[0]))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
+        campaignName: SheetNormalizer.toString(raw["Campanha"]) || "",
+        adGroupName: SheetNormalizer.toString(raw["Grupo de Anúncios"]) || "",
+        adStatus: SheetNormalizer.toString(raw["Status do Anúncio"]) || "",
+        assetType: SheetNormalizer.toString(raw["Tipo de Recurso"]) || "",
+        assetText: SheetNormalizer.toString(raw["Recurso (Texto)"]) || "",
+        metricsOrigin: SheetNormalizer.toString(raw["Origem das Métricas"]) || "",
+        aggregationScope: SheetNormalizer.toString(raw["Escopo_Agregacao"]),
+        impressions: SheetNormalizer.toInteger(raw["Impressões"]),
+        clicks: SheetNormalizer.toInteger(raw["Cliques"]),
+        ctr: SheetNormalizer.toPercent(raw["CTR"]),
+        avgCpc: SheetNormalizer.toNumber(raw["CPC Médio (R$)"]),
+        cost: SheetNormalizer.toNumber(raw["Custo (R$)"]),
+        conversions: SheetNormalizer.toNumber(raw["Conversões"]),
+        conversionValue: SheetNormalizer.toNumber(raw["Valor das Conversões (R$)"]),
+        costPerConversion: SheetNormalizer.toNumber(raw["Custo por Conversão (R$)"]),
+        allConversions: SheetNormalizer.toNumber(raw["Todas as Conversões"]),
+        allConversionsValue: SheetNormalizer.toNumber(raw["Valor Total Conversões (R$)"]),
+        avgCpm: SheetNormalizer.toNumber(raw["CPM Médio (R$)"]),
+        conversionRate: SheetNormalizer.toPercent(raw["Taxa de Conversão"]),
+        roas: SheetNormalizer.toNumber(raw["ROAS"]),
+        aiKey: SheetNormalizer.toString(raw["Chave_IA"]),
+        isAggregatable: false,
+      })));
+    return { tabName, data, errors: validator.getErrors() };
   }
 };
-

@@ -37,7 +37,7 @@ export const DashboardAggregator = {
     
     const totals = filtered.reduce((acc, row) => ({
       spend: acc.spend + (row.total_spend || row.value || row.cost || 0),
-      revenue: acc.revenue + (row.total_revenue || row.revenue || 0),
+      revenue: acc.revenue + (row.conversionValue || row.total_revenue || row.revenue || 0),
       conversions: acc.conversions + (row.total_conversions || row.conversions || 0),
       clicks: acc.clicks + (row.total_clicks || row.clicks || 0),
       impressions: acc.impressions + (row.total_impressions || row.impressions || 0),

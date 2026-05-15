@@ -30,19 +30,36 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
       let google_ads_summary = null;
       let meta_ads_summary = null;
 
+      // Identifica se é o novo payload S4X
+      const isS4X = data.diagnostics?.snapshotVersion?.startsWith("google_ads_s4x");
+
       if (range) {
-        if (data.overview) {
-          summary = DashboardAggregator.compare(data.overview, range);
-          data.overview = data.overview.filter((row: any) => isDateInRange(row.date, range));
+        if (isS4X) {
+          // No novo payload, usamos dailyPerformance para o sumário geral
+          if (data.dailyPerformance) {
+            google_ads_summary = DashboardAggregator.compare(data.dailyPerformance, range);
+            data.dailyPerformance = data.dailyPerformance.filter((row: any) => isDateInRange(row.date, range));
+            summary = google_ads_summary; // O sumário geral do dashboard é o do Google Ads no template S4X
+          }
+        } else {
+          // Legado
+          if (data.overview) {
+            summary = DashboardAggregator.compare(data.overview, range);
+            data.overview = data.overview.filter((row: any) => isDateInRange(row.date, range));
+          }
+          if (data.google_ads) {
+            google_ads_summary = DashboardAggregator.compare(data.google_ads, range);
+            data.google_ads = data.google_ads.filter((row: any) => isDateInRange(row.date, range));
+          }
+          if (data.meta_ads) {
+            meta_ads_summary = DashboardAggregator.compare(data.meta_ads, range);
+            data.meta_ads = data.meta_ads.filter((row: any) => isDateInRange(row.date, range));
+          }
         }
-        if (data.google_ads) {
-          google_ads_summary = DashboardAggregator.compare(data.google_ads, range);
-          data.google_ads = data.google_ads.filter((row: any) => isDateInRange(row.date, range));
-        }
-        if (data.meta_ads) {
-          meta_ads_summary = DashboardAggregator.compare(data.meta_ads, range);
-          data.meta_ads = data.meta_ads.filter((row: any) => isDateInRange(row.date, range));
-        }
+      } else if (isS4X) {
+        // Se não houver range mas for S4X, usamos o summary pré-calculado no payload
+        summary = data.summary;
+        google_ads_summary = data.summary;
       }
 
       // 2. Busca informações do dashboard para o template
@@ -50,9 +67,18 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
 
       return {
         ...data,
-        summary,
-        google_ads_summary,
-        meta_ads_summary,
+        overview: data.overview || [],
+        google_ads: data.google_ads || [],
+        meta_ads: data.meta_ads || [],
+        ga4_events: data.ga4_events || [],
+        audience: data.audience || [],
+        search_console: data.search_console || [],
+        insights: data.insights || [],
+        campaigns: data.campaigns || [],
+        keywords: data.keywords || [],
+        summary: summary || data.summary,
+        google_ads_summary: google_ads_summary || data.google_ads_summary,
+        meta_ads_summary: meta_ads_summary || data.meta_ads_summary,
         source: snapshot.source_type || "google_sheets",
         lastUpdated: new Date(snapshot.imported_at).toLocaleString("pt-BR"),
         templateId: dashboard?.dashboard_type || "google_ads_s4x",
@@ -74,6 +100,7 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
         ...mockGoogleAds.mockGoogleAdsCampaigns,
         ...mockMetaAds.mockMetaAdsCampaigns
       ],
+      dailyPerformance: mockGoogleAds.mockGoogleAdsDaily, // Mapeia para suportar S4X
       ga4_events: mockGa4.mockGa4Events,
       audience: mockAudience.mockAudienceChannel,
       search_console: mockSC.mockSearchConsoleQueries,
@@ -86,17 +113,5 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
     };
   }
 
-  // 2. Fallback para Cache em memória (DashboardStore) - apenas se GOOGLE_SHEETS_USE_MOCKS for true ou para testes rápidos
-  if (useMocks) {
-    const data = DashboardStore.getData(dashboardId);
-    if (data) {
-      return {
-        ...data,
-        source: "google_sheets_cache"
-      };
-    }
-  }
-
-  // Retorna nulo se nada for encontrado (forçando nova importação)
   return null;
 }

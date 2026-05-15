@@ -5,22 +5,35 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getDateRangePreset, formatDateISO, DateRangePreset } from "@/lib/dashboard/date-utils";
 
 interface DashboardData {
+  // Legado / Geral (Mantidos como não-opcionais para evitar quebra de componentes existentes)
   overview: any[];
   google_ads: any[];
   meta_ads: any[];
-  campaigns: any[];
   ga4_events: any[];
   audience: any[];
   search_console: any[];
-  keywords: any[];
   insights: any[];
+  campaigns: any[];
+  keywords: any[];
+  
+  // Google Ads S4X
+  dailyPerformance?: any[];
+  adGroups?: any[];
+  searchTerms?: any[];
+  negativeKeywords?: any[];
+  adsAndAssets?: any[];
+  meta?: any;
+  config?: any;
+  diagnostics?: any;
+
+  // Sumários e Metadados
   summary?: any;
   google_ads_summary?: any;
   meta_ads_summary?: any;
   templateId?: string;
   templateVersion?: string;
   platform?: string;
-  source: "mock" | "google_sheets";
+  source: "mock" | "google_sheets" | "google_sheets_cache";
   lastUpdated?: string;
 }
 
