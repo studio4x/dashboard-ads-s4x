@@ -21,25 +21,29 @@ export async function GET(request: Request) {
   }
 }
 
+import { DashboardTemplateService, DashboardTemplateType } from "@/services/dashboard-template-service";
+
 export async function POST(request: Request) {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
 
     const body = await request.json();
-    const { client_id, name, slug, description, status } = body;
+    const { client_id, name, slug, description, dashboard_type } = body;
 
     if (!client_id || !name || !slug) {
       return NextResponse.json({ error: "Cliente, Nome e Slug são obrigatórios" }, { status: 400 });
     }
 
-    const dashboard = await DashboardService.createDashboard({
+    const type: DashboardTemplateType = dashboard_type || "google_ads";
+
+    const dashboard = await DashboardTemplateService.createFromTemplate(
       client_id,
       name,
       slug,
-      description,
-      status: status || 'active'
-    });
+      type,
+      description
+    );
 
     return NextResponse.json({ success: true, dashboard });
   } catch (error: any) {

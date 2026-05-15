@@ -58,9 +58,43 @@ Criar uma interface administrativa para gerenciar os links seguros de dashboard 
 - **Como revogar**: Na mesma interface, em frente ao link gerado, clique em "Revogar". O acesso daquele token `/share/...` será imediatamente interrompido.
 - **Expiração**: Automática. O Supabase avalia o campo `expires_at` em tempo real durante o carregamento de `/share/[token]`.
 
-### Pendências para Fase 6.4:
-- Configurações estéticas nos templates ou personalização de subdomínio, caso haja.
-- Integração da lógica de duplicação/criação a partir de templates que havia sido desenhada inicialmente para o Dashboard ADS S4X.
+### Pendências para Fase 6.5:
+- Configurações estéticas nos templates (cores, fontes, logos) para total White Label.
+- Implementar modelo `meta_ads` e `google_ads_meta_ads`.
+- Implementar a página de configurações de cada dashboard para editar o tipo do template.
+
+## Fase 6.4 — Templates e Duplicação ✅
+
+### Objetivo
+Acelerar a criação de dashboards para novos clientes através de modelos predefinidos (templates) e permitir a duplicação rápida de estruturas de dashboards existentes sem copiar dados sensíveis.
+
+### O que foi implementado:
+1. **Modelos de Dashboard (Dashboard Type)**:
+   - Adicionado o campo `dashboard_type` na tabela `dashboards` via migration (`20260515120759_add_dashboard_type.sql`).
+   - Definidos os tipos: `google_ads`, `meta_ads`, `google_ads_meta_ads` e `custom`.
+   - O serviço `DashboardTemplateService` foi criado para gerenciar a geração padronizada de páginas dependendo do tipo selecionado (Ex: modelo "Google Ads" gera automaticamente Resumo Executivo, Campanhas, Palavras-chave, etc).
+
+2. **Criação Rápida por Template**:
+   - A página `/admin/dashboards` agora permite escolher o "Modelo" ao criar um novo dashboard.
+   - O botão cria automaticamente a estrutura de abas e rotas correspondentes ao modelo, reduzindo o esforço manual a zero.
+
+3. **Duplicação de Dashboards**:
+   - Criado endpoint `POST /api/admin/dashboards/[id]/duplicate`.
+   - Adicionada a ação "Duplicar" na interface `/admin/dashboards`.
+   - **Regra de Segurança Garantida**: A duplicação clona as configurações do dashboard e as páginas (`dashboard_pages`), mas **NÃO COPIA**:
+     - Links de compartilhamento (`dashboard_share_links`)
+     - Snapshots de dados (`dashboard_data_snapshots`)
+     - Logs de importação (`import_logs`)
+     - Fontes de dados vinculadas (`google_sheet_sources`)
+
+4. **Onboarding Visual por Dashboard**:
+   - Atualizado o `/admin/clients/[clientId]` para mostrar um mini-checklist dentro do card de cada dashboard, informando visualmente:
+     - Dashboard criado
+     - Fonte de dados vinculada
+     - Primeira importação realizada
+
+5. **Páginas Adicionais (Placeholders)**:
+   - Criados placeholders elegantes para `campaigns`, `keywords`, `search-terms`, e `ads-assets` em conformidade com o template Google Ads, já linkados na visualização pública (`/share/[token]`).
 
 ## Fase 6.3 — Visualização Compartilhada do Cliente ✅
 

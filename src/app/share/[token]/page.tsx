@@ -6,6 +6,10 @@ import MetaAdsPage from "@/app/app/dashboards/[dashboardId]/meta-ads/page";
 import ConversionsPage from "@/app/app/dashboards/[dashboardId]/conversions/page";
 import AudiencePage from "@/app/app/dashboards/[dashboardId]/audience/page";
 import SearchConsolePage from "@/app/app/dashboards/[dashboardId]/search-console/page";
+import CampaignsPage from "@/app/app/dashboards/[dashboardId]/campaigns/page";
+import KeywordsPage from "@/app/app/dashboards/[dashboardId]/keywords/page";
+import SearchTermsPage from "@/app/app/dashboards/[dashboardId]/search-terms/page";
+import AdsAssetsPage from "@/app/app/dashboards/[dashboardId]/ads-assets/page";
 import { SharedHeaderActions } from "./SharedHeaderActions";
 import { SharedDashboardTabs } from "@/components/dashboard/SharedDashboardTabs";
 import { AlertCircle } from "lucide-react";
@@ -95,6 +99,10 @@ export default async function SharedDashboardPage(
           {currentPage === "conversions" && <ConversionsPage />}
           {currentPage === "audience" && <AudiencePage />}
           {currentPage === "search-console" && <SearchConsolePage />}
+          {currentPage === "campaigns" && <CampaignsPage />}
+          {currentPage === "keywords" && <KeywordsPage />}
+          {currentPage === "search-terms" && <SearchTermsPage />}
+          {currentPage === "ads-assets" && <AdsAssetsPage />}
         </main>
       </div>
     </DashboardDataProvider>

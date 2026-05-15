@@ -55,6 +55,30 @@ export const DASHBOARD_PAGES: {
     icon: "Globe",
     description: "Impressões orgânicas, cliques e posições",
   },
+  {
+    key: "campaigns",
+    label: "Campanhas",
+    icon: "Target",
+    description: "Performance por campanha detalhada",
+  },
+  {
+    key: "keywords",
+    label: "Palavras-chave",
+    icon: "Search",
+    description: "Termos com melhor performance",
+  },
+  {
+    key: "search-terms",
+    label: "Termos de Pesquisa",
+    icon: "Search",
+    description: "O que os usuários pesquisaram",
+  },
+  {
+    key: "ads-assets",
+    label: "Anúncios e Recursos",
+    icon: "LayoutDashboard",
+    description: "Performance dos criativos",
+  },
 ];
 
 // Opções de período predefinido

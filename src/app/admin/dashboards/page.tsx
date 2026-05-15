@@ -19,7 +19,8 @@ export default function AdminDashboardsPage() {
     slug: "",
     client_id: "",
     description: "",
-    status: "active"
+    status: "active",
+    dashboard_type: "google_ads"
   });
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export default function AdminDashboardsPage() {
       const result = await res.json();
       if (result.success) {
         setIsModalOpen(false);
-        setFormData({ name: "", slug: "", client_id: "", description: "", status: "active" });
+        setFormData({ name: "", slug: "", client_id: "", description: "", status: "active", dashboard_type: "google_ads" });
         fetchData();
       } else {
         alert("Erro: " + result.error);
@@ -74,6 +75,36 @@ export default function AdminDashboardsPage() {
       alert("Erro ao conectar com o servidor.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleDuplicate(dash: any) {
+    const newName = prompt(`Duplicar "${dash.name}"\nNovo nome:`, `${dash.name} (Cópia)`);
+    if (!newName) return;
+    
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/admin/dashboards/${dash.id}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: dash.client_id,
+          name: newName,
+          slug: generateSlug(newName)
+        })
+      });
+      
+      const result = await res.json();
+      if (result.success) {
+        fetchData();
+        alert("Dashboard duplicado com sucesso!");
+      } else {
+        alert("Erro: " + result.error);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      alert("Erro ao duplicar dashboard");
+      setIsLoading(false);
     }
   }
 
@@ -139,6 +170,16 @@ export default function AdminDashboardsPage() {
                 <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: d.status === "active" ? "#DCFCE7" : "#FEF3C7", color: d.status === "active" ? "#16A34A" : "#D97706", fontWeight: 500 }}>
                   {d.status === "active" ? "Ativo" : "Inativo"}
                 </span>
+                <span style={{ fontSize: 11, color: "#64748B", background: "#F1F5F9", padding: "3px 10px", borderRadius: 99, fontWeight: 500 }}>
+                  {d.dashboard_type === "google_ads" ? "Google Ads" : d.dashboard_type === "custom" ? "Customizado" : d.dashboard_type || "Google Ads"}
+                </span>
+                
+                <button 
+                  onClick={() => handleDuplicate(d)}
+                  style={{ display: "flex", alignItems: "center", padding: "6px 12px", borderRadius: 8, background: "#F8FAFC", fontSize: 13, color: "#475569", border: "1px solid #E2E8F0", cursor: "pointer", fontWeight: 500 }}
+                >
+                  Duplicar
+                </button>
                 
                 <button 
                   onClick={() => setShareModalDashboard(d)}
@@ -213,30 +254,45 @@ export default function AdminDashboardsPage() {
                 />
               </div>
 
-              <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-                <button 
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  style={{ flex: 1, padding: "12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  disabled={isSubmitting}
-                  style={{ 
-                    flex: 1, padding: "12px", borderRadius: 8, border: "none", 
-                    background: "#2563EB", color: "white", fontSize: 14, 
-                    fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 
-                  }}
-                >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : (
-                    <>
-                      <Save size={18} /> Criar Dashboard
-                    </>
-                  )}
-                </button>
-              </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Modelo de Dashboard</label>
+                  <select 
+                    required
+                    value={formData.dashboard_type}
+                    onChange={e => setFormData({ ...formData, dashboard_type: e.target.value })}
+                    style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
+                  >
+                    <option value="google_ads">Google Ads</option>
+                    <option value="meta_ads" disabled>Meta Ads (Em breve)</option>
+                    <option value="google_ads_meta_ads" disabled>Google Ads + Meta Ads (Em breve)</option>
+                    <option value="custom">Em branco (Customizado)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+                  <button 
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    style={{ flex: 1, padding: "12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isSubmitting}
+                    style={{ 
+                      flex: 1, padding: "12px", borderRadius: 8, border: "none", 
+                      background: "#2563EB", color: "white", fontSize: 14, 
+                      fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 
+                    }}
+                  >
+                    {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : (
+                      <>
+                        <Save size={18} /> Criar Dashboard
+                      </>
+                    )}
+                  </button>
+                </div>
             </form>
           </div>
         </div>

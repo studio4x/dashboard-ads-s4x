@@ -13,7 +13,11 @@ export type DashboardPageKey =
   | "meta-ads"
   | "conversions"
   | "audience"
-  | "search-console";
+  | "search-console"
+  | "campaigns"
+  | "keywords"
+  | "search-terms"
+  | "ads-assets";
 
 // Cliente
 export interface Client {

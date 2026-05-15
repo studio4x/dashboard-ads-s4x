@@ -70,17 +70,50 @@ export default async function ClientHubPage({ params }: { params: { clientId: st
               {dashboards.length === 0 ? (
                 <p style={{ fontSize: 14, color: "#64748B", textAlign: "center", padding: "20px 0" }}>Nenhum dashboard cadastrado.</p>
               ) : (
-                dashboards.map((d: any) => (
-                  <div key={d.id} style={{ padding: 16, borderRadius: 8, border: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <p style={{ fontSize: 14, fontWeight: 500, color: "#0F172A" }}>{d.title}</p>
-                      <p style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>ID: {d.id.substring(0,8)}... • Status: {d.status}</p>
+                dashboards.map((d: any) => {
+                  const dashSources = dataSources.filter((s: any) => s.dashboard_id === d.id);
+                  const hasDashSource = dashSources.length > 0;
+                  const hasDashImport = dashSources.some((s: any) => s.last_import_status === "success" || s.last_import_status === "success_with_warnings");
+                  
+                  return (
+                    <div key={d.id} style={{ padding: 16, borderRadius: 8, border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div>
+                          <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{d.title || d.name}</p>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                            <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: "#F1F5F9", color: "#475569" }}>
+                              Tipo: {d.dashboard_type === "google_ads" ? "Google Ads" : d.dashboard_type === "custom" ? "Customizado" : d.dashboard_type || "Google Ads"}
+                            </span>
+                            <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: d.status === "active" ? "#DCFCE7" : "#F1F5F9", color: d.status === "active" ? "#16A34A" : "#64748B" }}>
+                              {d.status === "active" ? "Ativo" : "Inativo"}
+                            </span>
+                          </div>
+                        </div>
+                        <Link href={`/app/dashboards/${d.id}/executive-summary`} target="_blank" style={{ fontSize: 13, color: "#2563EB", fontWeight: 500, textDecoration: "none", background: "#EFF6FF", padding: "4px 10px", borderRadius: 6 }}>
+                          Abrir
+                        </Link>
+                      </div>
+
+                      <div style={{ borderTop: "1px solid #E2E8F0", paddingTop: 12, marginTop: 4 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 8 }}>Checklist de Operação:</p>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <CheckCircle2 size={14} color="#16A34A" />
+                            <span style={{ fontSize: 12, color: "#334155" }}>Dashboard criado ({d.dashboard_type || "google_ads"})</span>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            {hasDashSource ? <CheckCircle2 size={14} color="#16A34A" /> : <Circle size={14} color="#CBD5E1" />}
+                            <span style={{ fontSize: 12, color: hasDashSource ? "#334155" : "#94A3B8" }}>Fonte de dados vinculada</span>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            {hasDashImport ? <CheckCircle2 size={14} color="#16A34A" /> : <Circle size={14} color="#CBD5E1" />}
+                            <span style={{ fontSize: 12, color: hasDashImport ? "#334155" : "#94A3B8" }}>Primeira importação realizada</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <Link href={`/app/dashboards/${d.id}/executive-summary`} target="_blank" style={{ fontSize: 13, color: "#2563EB", fontWeight: 500, textDecoration: "none" }}>
-                      Abrir
-                    </Link>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
