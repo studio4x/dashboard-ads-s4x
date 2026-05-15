@@ -5,7 +5,8 @@ export const AdminService = {
    * Obtém as estatísticas gerais do painel admin.
    */
   async getDashboardStats() {
-    const supabase = await createClient()
+    const { createAdminClient } = await import('@/lib/supabase/server')
+    const supabase = await createAdminClient()
 
     // Counts
     const { count: clientsCount } = await supabase.from('clients').select('*', { count: 'exact', head: true })
@@ -67,7 +68,8 @@ export const AdminService = {
    * Obtém detalhes completos de um cliente para o Hub Operacional
    */
   async getClientHubDetails(clientId: string) {
-    const supabase = await createClient()
+    const { createAdminClient } = await import('@/lib/supabase/server')
+    const supabase = await createAdminClient()
 
     // 1. Cliente
     const { data: client, error: clientError } = await supabase
@@ -90,9 +92,9 @@ export const AdminService = {
       .select('*')
       .eq('client_id', clientId)
 
-    // 4. Usuários Vinculados (User Roles)
+    // 4. Usuários Vinculados (Client Users)
     const { data: userRoles } = await supabase
-      .from('user_roles')
+      .from('client_users')
       .select('id, user_id, role, created_at')
       .eq('client_id', clientId)
 
