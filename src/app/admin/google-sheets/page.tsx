@@ -21,7 +21,7 @@ interface SheetSource {
     last_import_status?: string;
   };
   clients: { name: string };
-  dashboards: { name: string };
+  dashboards: { name: string; dashboard_type?: string };
 }
 
 interface ImportLog {
@@ -213,6 +213,7 @@ export default function GoogleSheetsAdminPage() {
               spreadsheetName={source.name}
               clientName={source.clients.name}
               dashboardName={source.dashboards?.name}
+              templateId={source.dashboards?.dashboard_type}
               tabsCount={source.google_sheet_sources.last_import_status ? 10 : 0}
               lastSynced={source.google_sheet_sources.last_import_at ? new Date(source.google_sheet_sources.last_import_at).toLocaleString("pt-BR") : undefined}
               status={isSyncing === source.id ? "running" : (source.google_sheet_sources.last_import_status as any || "pending")}
@@ -361,6 +362,32 @@ export default function GoogleSheetsAdminPage() {
                 />
                 <p style={{ fontSize: 11, color: "#94A3B8" }}>O ID fica na URL da planilha, entre /d/ e /edit.</p>
               </div>
+
+              {formData.dashboardId && (
+                <div style={{ padding: 16, borderRadius: 12, background: "#F0F9FF", border: "1px solid #BAE6FD" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                    <Info size={16} className="text-blue-600" />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#0369A1" }}>
+                      Requisitos do Modelo: {dashboards.find(d => d.id === formData.dashboardId)?.dashboard_type === 'google_ads_s4x' ? 'Google Ads S4X' : 'Custom'}
+                    </span>
+                  </div>
+                  {dashboards.find(d => d.id === formData.dashboardId)?.dashboard_type === 'google_ads_s4x' ? (
+                    <ul style={{ fontSize: 11, color: "#0369A1", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
+                      <li>Meta</li>
+                      <li>Dashboard_Config</li>
+                      <li>Performance Diária</li>
+                      <li>Campanhas</li>
+                      <li>Grupos de Anúncios</li>
+                      <li>Palavras-Chave</li>
+                      <li>Termos de Pesquisa</li>
+                      <li>Negativas</li>
+                      <li>Anúncios (Recursos)</li>
+                    </ul>
+                  ) : (
+                    <p style={{ fontSize: 11, color: "#0369A1" }}>Este modelo aceita qualquer estrutura de planilha.</p>
+                  )}
+                </div>
+              )}
 
               <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
                 <button 

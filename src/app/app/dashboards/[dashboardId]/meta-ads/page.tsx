@@ -9,11 +9,25 @@ import { DataTableWidget } from "@/components/dashboard/DataTableWidget";
 import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters";
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateMetaAdsKpis } from "@/lib/dashboard/kpi-generator";
+import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 
 export default function MetaAdsPage() {
   const { data } = useDashboard();
 
   if (!data) return null;
+
+  const hasData = data.meta_ads && data.meta_ads.length > 0;
+  
+  if (!hasData && data.source !== "mock") {
+    return (
+      <DashboardPageShell title="Meta Ads" subtitle="Campanhas, conjuntos de anúncios e desempenho por objetivo">
+        <TemplateEmptyState 
+          title="Dados do Meta Ads"
+          description="Ainda não foram encontrados dados do Meta Ads. Este modelo de dashboard está em preparação."
+        />
+      </DashboardPageShell>
+    );
+  }
 
   const kpis = generateMetaAdsKpis(data.meta_ads, data.meta_ads_summary);
 

@@ -45,13 +45,19 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
         }
       }
 
+      // 2. Busca informações do dashboard para o template
+      const dashboard = await DashboardService.getDashboardById(dashboardId);
+
       return {
         ...data,
         summary,
         google_ads_summary,
         meta_ads_summary,
         source: snapshot.source_type || "google_sheets",
-        lastUpdated: new Date(snapshot.imported_at).toLocaleString("pt-BR")
+        lastUpdated: new Date(snapshot.imported_at).toLocaleString("pt-BR"),
+        templateId: dashboard?.dashboard_type || "google_ads_s4x",
+        templateVersion: dashboard?.template_version || "1.0",
+        platform: dashboard?.platform || "google_ads"
       };
     }
   } catch (dbError) {
@@ -73,7 +79,10 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
       search_console: mockSC.mockSearchConsoleQueries,
       keywords: mockGoogleAds.mockKeywords,
       insights: mockInsights.mockInsights,
-      source: "mock"
+      source: "mock",
+      templateId: "google_ads_s4x",
+      templateVersion: "1.0",
+      platform: "google_ads"
     };
   }
 

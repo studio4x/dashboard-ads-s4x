@@ -13,6 +13,7 @@ interface GoogleSheetSourceCardProps {
   lastSynced?: string;
   status: ImportStatus;
   onSync?: () => void;
+  templateId?: string;
 }
 
 export function GoogleSheetSourceCard({
@@ -24,6 +25,7 @@ export function GoogleSheetSourceCard({
   lastSynced,
   status,
   onSync,
+  templateId,
 }: GoogleSheetSourceCardProps) {
   return (
     <div
@@ -56,7 +58,12 @@ export function GoogleSheetSourceCard({
         <p style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>
           {clientName} {dashboardName && `· ${dashboardName}`}
         </p>
-        <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 12, marginTop: 4, alignItems: "center" }}>
+          {templateId && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#F1F5F9", color: "#475569", textTransform: "uppercase" }}>
+              {templateId.replace('_s4x', '').replace('_', ' ')}
+            </span>
+          )}
           {lastSynced ? (
             <p style={{ fontSize: 11, color: "#94A3B8" }}>Última sync: {lastSynced}</p>
           ) : (

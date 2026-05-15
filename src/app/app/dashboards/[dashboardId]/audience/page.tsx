@@ -8,10 +8,25 @@ import { HorizontalBarChartWidget } from "@/components/dashboard/BarChartWidget"
 import { formatCurrency } from "@/lib/formatters";
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 
+import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
+
 export default function AudiencePage() {
   const { data } = useDashboard();
 
   if (!data) return null;
+
+  const hasData = data.audience && data.audience.length > 0;
+  
+  if (!hasData && data.source !== "mock") {
+    return (
+      <DashboardPageShell title="Público e Origem" subtitle="Dados demográficos e canais de aquisição">
+        <TemplateEmptyState 
+          title="Dados de Público"
+          description="Ainda não foram encontrados dados de público. Verifique a integração na planilha."
+        />
+      </DashboardPageShell>
+    );
+  }
 
   const channelData = data.audience.map((r: any) => ({
     label: r.dimension_value,

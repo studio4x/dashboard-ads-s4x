@@ -8,10 +8,25 @@ import { DataTableWidget } from "@/components/dashboard/DataTableWidget";
 import { formatNumber } from "@/lib/formatters";
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 
+import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
+
 export default function ConversionsPage() {
   const { data } = useDashboard();
 
   if (!data) return null;
+
+  const hasData = data.ga4_events && data.ga4_events.length > 0;
+  
+  if (!hasData && data.source !== "mock") {
+    return (
+      <DashboardPageShell title="Conversões e Comportamento" subtitle="Eventos de conversão GA4 e funil de comportamento">
+        <TemplateEmptyState 
+          title="Dados de Conversão"
+          description="Ainda não foram encontrados dados de conversão do GA4. Verifique a integração na planilha."
+        />
+      </DashboardPageShell>
+    );
+  }
 
   const eventData = data.ga4_events.map((e: any) => ({
     label: e.event_name,

@@ -70,7 +70,7 @@ async function handleCron(request: Request) {
         );
 
         if (result.success) {
-          if (result.log.warnings > 0) {
+          if (result.warnings.length > 0) {
             summary.warnings++;
           } else {
             summary.success++;
@@ -81,9 +81,9 @@ async function handleCron(request: Request) {
 
         summary.details.push({
           sourceId: source.id,
-          status: result.log.status,
-          warnings: result.log.warnings,
-          errors: result.log.errors
+          status: result.success ? (result.warnings.length > 0 ? "success_with_warnings" : "success") : "failed",
+          warnings: result.warnings.length,
+          errors: result.errors.length
         });
 
       } catch (error: any) {

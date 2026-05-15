@@ -17,6 +17,9 @@ interface DashboardData {
   summary?: any;
   google_ads_summary?: any;
   meta_ads_summary?: any;
+  templateId?: string;
+  templateVersion?: string;
+  platform?: string;
   source: "mock" | "google_sheets";
   lastUpdated?: string;
 }

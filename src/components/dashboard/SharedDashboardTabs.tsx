@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { LayoutDashboard, Search, MessageSquare, Target, Users, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_PAGES } from "@/lib/constants";
+import { useDashboard } from "./DashboardDataContext";
+import { getVisiblePages } from "@/lib/dashboard/templates";
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Search, Facebook: MessageSquare, Target, Users, Globe,
@@ -15,14 +17,17 @@ interface SharedDashboardTabsProps {
 }
 
 export function SharedDashboardTabs({ token }: SharedDashboardTabsProps) {
+  const { data } = useDashboard();
   const searchParams = useSearchParams();
   const currentPage = searchParams.get("page") || "executive-summary";
-  const period = searchParams.get("period");
+  
+  const visiblePageKeys = getVisiblePages(data?.templateId);
+  const filteredPages = DASHBOARD_PAGES.filter(p => visiblePageKeys.includes(p.key));
 
   return (
     <div className="py-2">
       <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "4px 0", scrollbarWidth: "none" }} className="no-scrollbar">
-        {DASHBOARD_PAGES.map((page) => {
+        {filteredPages.map((page) => {
           const params = new URLSearchParams(searchParams.toString());
           params.set("page", page.key);
           const href = `/share/${token}?${params.toString()}`;

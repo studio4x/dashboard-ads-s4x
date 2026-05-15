@@ -24,7 +24,7 @@ export const DataSourceService = {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('data_sources')
-      .select('*, google_sheet_sources(*), clients(name), dashboards(name)')
+      .select('*, google_sheet_sources(*), clients(name), dashboards(name, dashboard_type)')
       .order('created_at', { ascending: false })
     
     if (error) throw error

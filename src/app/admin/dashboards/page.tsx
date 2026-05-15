@@ -20,7 +20,7 @@ export default function AdminDashboardsPage() {
     client_id: "",
     description: "",
     status: "active",
-    dashboard_type: "google_ads"
+    dashboard_type: "google_ads_s4x"
   });
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function AdminDashboardsPage() {
       const result = await res.json();
       if (result.success) {
         setIsModalOpen(false);
-        setFormData({ name: "", slug: "", client_id: "", description: "", status: "active", dashboard_type: "google_ads" });
+        setFormData({ name: "", slug: "", client_id: "", description: "", status: "active", dashboard_type: "google_ads_s4x" });
         fetchData();
       } else {
         alert("Erro: " + result.error);
@@ -262,8 +262,9 @@ export default function AdminDashboardsPage() {
                     onChange={e => setFormData({ ...formData, dashboard_type: e.target.value })}
                     style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
                   >
-                    <option value="google_ads">Google Ads</option>
-                    <option value="meta_ads" disabled>Meta Ads (Em breve)</option>
+                    <option value="google_ads_s4x">Google Ads — S4X (Oficial)</option>
+                    <option value="google_ads">Google Ads (Legado)</option>
+                    <option value="meta_ads_s4x" disabled>Meta Ads — S4X (Em breve)</option>
                     <option value="google_ads_meta_ads" disabled>Google Ads + Meta Ads (Em breve)</option>
                     <option value="custom">Em branco (Customizado)</option>
                   </select>

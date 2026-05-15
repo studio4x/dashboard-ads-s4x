@@ -1,18 +1,13 @@
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import { Hammer } from "lucide-react";
+import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 
 export default function SearchTermsPage() {
   return (
     <DashboardPageShell title="Termos de Pesquisa" subtitle="O que os usuários pesquisaram">
-      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl border border-slate-200 min-h-[300px] text-center">
-        <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
-          <Hammer size={32} />
-        </div>
-        <h2 className="text-lg font-bold text-slate-900">Em desenvolvimento</h2>
-        <p className="text-slate-500 mt-2 max-w-sm">
-          A visualização detalhada de termos de pesquisa será disponibilizada na próxima atualização da plataforma.
-        </p>
-      </div>
+      <TemplateEmptyState 
+        title="Termos de Pesquisa"
+        description="A visualização detalhada de termos de pesquisa requer a importação de dados no modelo Google Ads S4X."
+      />
     </DashboardPageShell>
   );
 }

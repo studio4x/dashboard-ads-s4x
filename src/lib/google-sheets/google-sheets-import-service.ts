@@ -5,38 +5,71 @@ import { ImportLogEntry, ImportStatus } from "@/types/imports";
 import { v4 as uuidv4 } from "uuid";
 import { DashboardService } from "@/services/dashboard-service";
 import { DataSourceService } from "@/services/data-source-service";
+import { TemplateValidator } from "./template-validator";
+import { ImportResult, ImportError } from "@/types/import";
 
 export const GoogleSheetsImportService = {
   /**
    * Executa a importação completa de uma planilha.
    */
-  async importDashboardData(clientId: string, dashboardId: string, spreadsheetId: string, dataSourceId?: string) {
+  async importDashboardData(
+    clientId: string, 
+    dashboardId: string, 
+    spreadsheetId: string, 
+    dataSourceId?: string
+  ): Promise<ImportResult & { data?: any }> {
     const startedAt = new Date().toISOString();
     const logId = uuidv4();
     
     let rowsRead = 0;
-    let warnings = 0;
-    let errors = 0;
     const tabsRead: string[] = [];
-    const allIssues: any[] = [];
+    const errors: ImportError[] = [];
+    const warnings: ImportError[] = [];
     const resultData: Record<string, any> = {};
 
-    const tabsToRead = [
-      { name: "overview", reader: SheetTabReader.readOverview },
-      { name: "google_ads", reader: SheetTabReader.readGoogleAds },
-      { name: "meta_ads", reader: SheetTabReader.readMetaAds },
-      { name: "campaigns", reader: SheetTabReader.readCampaigns },
-      { name: "ga4_events", reader: SheetTabReader.readGa4Events },
-      { name: "audience", reader: SheetTabReader.readAudience },
-      { name: "search_console", reader: SheetTabReader.readSearchConsole },
-      { name: "keywords", reader: SheetTabReader.readKeywords },
-      { name: "insights", reader: SheetTabReader.readInsights },
-    ];
-
     try {
+      // 1. Obter informações do dashboard para saber o template esperado
+      const dashboard = await DashboardService.getDashboardById(dashboardId);
+      const expectedTemplateId = dashboard?.dashboard_type || "google_ads_s4x";
+
+      // 2. Validação Preliminar de Template (Dashboard_Config)
+      const templateVal = await TemplateValidator.validate(spreadsheetId, expectedTemplateId);
+      
+      templateVal.errors.forEach(err => {
+        if (err.severity === "blocking") errors.push(err);
+        else warnings.push(err);
+      });
+
+      if (!templateVal.isValid) {
+        return this.finishImport({
+          success: false,
+          stage: "template_validation",
+          errors,
+          warnings,
+          clientId,
+          dashboardId,
+          spreadsheetId,
+          startedAt,
+          logId,
+          dataSourceId
+        });
+      }
+
+      // 3. Importação das Abas (Parser ainda parcial conforme solicitado)
+      const tabsToRead = [
+        { name: "overview", reader: SheetTabReader.readOverview, critical: true },
+        { name: "google_ads", reader: SheetTabReader.readGoogleAds, critical: false },
+        { name: "meta_ads", reader: SheetTabReader.readMetaAds, critical: false },
+        { name: "campaigns", reader: SheetTabReader.readCampaigns, critical: false },
+        { name: "ga4_events", reader: SheetTabReader.readGa4Events, critical: false },
+        { name: "audience", reader: SheetTabReader.readAudience, critical: false },
+        { name: "search_console", reader: SheetTabReader.readSearchConsole, critical: false },
+        { name: "keywords", reader: SheetTabReader.readKeywords, critical: false },
+        { name: "insights", reader: SheetTabReader.readInsights, critical: false },
+      ];
+
       for (const tab of tabsToRead) {
         try {
-          // Lê intervalo A1:Z1000 por padrão
           const rows = await readSheetRange(spreadsheetId, `${tab.name}!A1:Z1000`);
           
           if (rows && rows.length > 0) {
@@ -46,96 +79,146 @@ export const GoogleSheetsImportService = {
             rowsRead += normalized.data.length;
             
             normalized.errors.forEach(err => {
-              if (err.level === "error") errors++;
-              else if (err.level === "warning") warnings++;
-              allIssues.push(err);
+              const impErr: ImportError = {
+                severity: err.level === "error" ? "blocking" : "warning",
+                stage: "sheet_validation",
+                sheet: tab.name,
+                message: err.message,
+                field: err.column,
+              };
+              if (impErr.severity === "blocking") errors.push(impErr);
+              else warnings.push(impErr);
             });
           }
         } catch (err: any) {
-          // Se a aba não existir, apenas logamos como aviso se for opcional, ou erro se for crítica
-          const isCritical = tab.name === "overview";
-          if (isCritical) {
-            errors++;
-            allIssues.push({ level: "error", message: `Aba crítica ausente: ${tab.name}`, tab: tab.name });
+          if (tab.critical) {
+            errors.push({
+              severity: "blocking",
+              stage: "sheet_validation",
+              sheet: tab.name,
+              message: `Aba crítica ausente: ${tab.name}`
+            });
           } else {
-            warnings++;
-            allIssues.push({ level: "warning", message: `Aba ausente ou erro na leitura: ${tab.name}`, tab: tab.name });
+            warnings.push({
+              severity: "warning",
+              stage: "sheet_validation",
+              sheet: tab.name,
+              message: `Aba opcional ausente ou erro na leitura: ${tab.name}`
+            });
           }
         }
       }
 
-      const status: ImportStatus = errors > 0 ? "failed" : warnings > 0 ? "success_with_warnings" : "success";
+      const success = errors.length === 0;
       
-      const finishedAt = new Date().toISOString();
-      const durationMs = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
-
-      const log: ImportLogEntry = {
-        id: logId,
+      return this.finishImport({
+        success,
+        stage: "persistence",
+        errors,
+        warnings,
         clientId,
         dashboardId,
         spreadsheetId,
         startedAt,
-        finishedAt,
-        status,
+        logId,
+        dataSourceId,
         tabsRead,
         rowsRead,
-        warnings,
-        errors,
-        source: "google_sheets",
-        durationMs,
-        dataSourceId
-      };
-
-      await ImportLogsService.addLog(log);
-
-      // Se teve sucesso, salva o snapshot no banco
-      if (status !== "failed") {
-        await DashboardService.saveSnapshot({
-          client_id: clientId,
-          dashboard_id: dashboardId,
-          source_type: "google_sheets",
-          payload_json: resultData,
-          imported_at: finishedAt
-        });
-      }
-
-      // Atualiza o status na tabela google_sheet_sources se o dataSourceId estiver presente
-      if (dataSourceId) {
-        await DataSourceService.updateGoogleSheetSourceStatus({
-          sourceId: dataSourceId,
-          status,
-          lastImportAt: finishedAt
-        });
-      }
-
-      return {
-        success: status !== "failed",
-        data: resultData,
-        log,
-        issues: allIssues
-      };
+        data: resultData
+      });
 
     } catch (globalError: any) {
-      const finishedAt = new Date().toISOString();
-      const log: ImportLogEntry = {
-        id: logId,
+      console.error("Global Import Error:", globalError);
+      return this.finishImport({
+        success: false,
+        stage: "connection",
+        errors: [{ severity: "blocking", stage: "connection", message: globalError.message }],
+        warnings,
         clientId,
         dashboardId,
         spreadsheetId,
         startedAt,
-        finishedAt,
-        status: "failed",
-        tabsRead,
-        rowsRead,
-        warnings,
-        errors,
-        source: "google_sheets",
-        errorDetails: globalError.message,
+        logId,
         dataSourceId
-      };
-
-      await ImportLogsService.addLog(log);
-      throw globalError;
+      });
     }
+  },
+
+  /**
+   * Finaliza o processo de importação, salvando logs e snapshots.
+   */
+  async finishImport(params: {
+    success: boolean;
+    stage: any;
+    errors: ImportError[];
+    warnings: ImportError[];
+    clientId: string;
+    dashboardId: string;
+    spreadsheetId: string;
+    startedAt: string;
+    logId: string;
+    dataSourceId?: string;
+    tabsRead?: string[];
+    rowsRead?: number;
+    data?: any;
+  }): Promise<ImportResult & { data?: any }> {
+    const finishedAt = new Date().toISOString();
+    const durationMs = new Date(finishedAt).getTime() - new Date(params.startedAt).getTime();
+    
+    const status: ImportStatus = !params.success ? "failed" : params.warnings.length > 0 ? "success_with_warnings" : "success";
+
+    const log: ImportLogEntry = {
+      id: params.logId,
+      clientId: params.clientId,
+      dashboardId: params.dashboardId,
+      spreadsheetId: params.spreadsheetId,
+      startedAt: params.startedAt,
+      finishedAt,
+      status,
+      tabsRead: params.tabsRead || [],
+      rowsRead: params.rowsRead || 0,
+      warnings: params.warnings.length,
+      errors: params.errors.length,
+      source: "google_sheets",
+      durationMs,
+      dataSourceId: params.dataSourceId,
+      errorDetails: params.errors.length > 0 ? params.errors[0].message : undefined
+    };
+
+    // Salva o Log no Supabase
+    await ImportLogsService.addLog(log).catch(err => console.error("Error saving log:", err));
+
+    // Se teve sucesso, salva o snapshot no banco
+    if (params.success && params.data) {
+      await DashboardService.saveSnapshot({
+        client_id: params.clientId,
+        dashboard_id: params.dashboardId,
+        source_type: "google_sheets",
+        payload_json: params.data,
+        imported_at: finishedAt
+      }).catch(err => console.error("Error saving snapshot:", err));
+    }
+
+    // Atualiza o status na tabela google_sheet_sources se o dataSourceId estiver presente
+    if (params.dataSourceId) {
+      await DataSourceService.updateGoogleSheetSourceStatus({
+        sourceId: params.dataSourceId,
+        status,
+        lastImportAt: finishedAt
+      }).catch(err => console.error("Error updating source status:", err));
+    }
+
+    return {
+      success: params.success,
+      stage: params.stage,
+      errors: params.errors,
+      warnings: params.warnings,
+      data: params.data,
+      summary: {
+        rowsProcessed: params.rowsRead || 0,
+        sheetsRead: params.tabsRead || [],
+        timestamp: finishedAt
+      }
+    };
   }
 };

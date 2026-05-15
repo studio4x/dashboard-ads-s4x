@@ -1,15 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
+import { DASHBOARD_TEMPLATES, getTemplateById } from "@/lib/dashboard/templates";
 
-export type DashboardTemplateType = "google_ads" | "meta_ads" | "google_ads_meta_ads" | "custom";
+export type DashboardTemplateType = 
+  | "google_ads" 
+  | "meta_ads" 
+  | "google_ads_meta_ads" 
+  | "custom" 
+  | "google_ads_s4x" 
+  | "meta_ads_s4x";
 
-const TEMPLATE_PAGES = {
-  google_ads: [
+const TEMPLATE_PAGES: Record<string, { key: string; title: string; sort: number }[]> = {
+  google_ads_s4x: [
     { key: "executive-summary", title: "Resumo Executivo", sort: 10 },
     { key: "google-ads", title: "Google Ads", sort: 20 },
     { key: "campaigns", title: "Campanhas", sort: 30 },
     { key: "keywords", title: "Palavras-chave", sort: 40 },
     { key: "search-terms", title: "Termos de Pesquisa", sort: 50 },
     { key: "ads-assets", title: "Anúncios e Recursos", sort: 60 }
+  ],
+  google_ads: [
+    { key: "executive-summary", title: "Resumo Executivo", sort: 10 },
+    { key: "google-ads", title: "Google Ads", sort: 20 },
+    { key: "campaigns", title: "Campanhas", sort: 30 },
+    { key: "keywords", title: "Palavras-chave", sort: 40 }
   ],
   meta_ads: [
     { key: "executive-summary", title: "Resumo Executivo", sort: 10 },
@@ -34,6 +47,7 @@ export class DashboardTemplateService {
     description?: string
   ) {
     const supabase = await createClient();
+    const template = getTemplateById(templateType);
 
     // 1. Criar Dashboard
     const { data: dashboard, error: dashError } = await supabase
@@ -44,6 +58,8 @@ export class DashboardTemplateService {
         slug,
         description,
         dashboard_type: templateType,
+        template_version: template?.version || "1.0",
+        platform: template?.platform || "custom",
         status: "active"
       })
       .select()
@@ -52,8 +68,10 @@ export class DashboardTemplateService {
     if (dashError) throw new Error(`Erro ao criar dashboard: ${dashError.message}`);
 
     // 2. Criar Páginas do Template
-    if (templateType !== "custom" && TEMPLATE_PAGES[templateType]) {
-      const pages = TEMPLATE_PAGES[templateType].map(p => ({
+    const pagesToCreate = TEMPLATE_PAGES[templateType] || TEMPLATE_PAGES["google_ads"];
+    
+    if (templateType !== "custom") {
+      const pages = pagesToCreate.map(p => ({
         dashboard_id: dashboard.id,
         page_key: p.key,
         title: p.title,
@@ -73,7 +91,6 @@ export class DashboardTemplateService {
 
   /**
    * Duplica um dashboard existente
-   * Copia estrutura, mas não dados transacionais (snapshots, logs, links)
    */
   static async duplicateDashboard(
     sourceDashboardId: string,
@@ -111,6 +128,8 @@ export class DashboardTemplateService {
         slug: newSlug,
         description: sourceDash.description,
         dashboard_type: sourceDash.dashboard_type,
+        template_version: sourceDash.template_version,
+        platform: sourceDash.platform,
         default_period: sourceDash.default_period,
         status: "active"
       })
@@ -137,7 +156,6 @@ export class DashboardTemplateService {
       if (pagesError) throw new Error(`Erro ao copiar páginas: ${pagesError.message}`);
     }
 
-    // Nota: NÃO copiamos data_sources, import_logs, dashboard_share_links nem dashboard_data_snapshots.
     return newDash;
   }
 }

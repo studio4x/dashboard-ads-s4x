@@ -9,11 +9,25 @@ import { DataTableWidget } from "@/components/dashboard/DataTableWidget";
 import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters";
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateGoogleAdsKpis } from "@/lib/dashboard/kpi-generator";
+import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 
 export default function GoogleAdsPage() {
   const { data } = useDashboard();
 
   if (!data) return null;
+
+  const hasData = data.google_ads && data.google_ads.length > 0;
+  
+  if (!hasData && data.source !== "mock") {
+    return (
+      <DashboardPageShell title="Google Ads" subtitle="Desempenho de campanhas, grupos e palavras-chave">
+        <TemplateEmptyState 
+          title="Dados do Google Ads"
+          description="Ainda não foram encontrados dados do Google Ads. Verifique se a planilha conectada segue o modelo S4X."
+        />
+      </DashboardPageShell>
+    );
+  }
 
   const kpis = generateGoogleAdsKpis(data.google_ads, data.google_ads_summary);
 
