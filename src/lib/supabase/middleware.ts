@@ -59,10 +59,10 @@ export async function updateSession(request: NextRequest) {
       }
     }
 
-    // 2. Redireciona /login para a área correta
-    if (pathname === '/login') {
+    // 2. Redireciona /login para a área correta apenas se o perfil existir
+    if (pathname === '/login' && profile) {
       const url = request.nextUrl.clone()
-      url.pathname = profile?.role === 'client' ? '/app/dashboards' : '/admin'
+      url.pathname = profile.role === 'client' ? '/app/dashboards' : '/admin'
       return NextResponse.redirect(url)
     }
   }
