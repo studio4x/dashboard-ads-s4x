@@ -9,13 +9,13 @@ export async function POST(request: Request) {
     const authError = await requireAdmin();
     if (authError) return authError;
 
-    const { clientId, dashboardId, spreadsheetId } = await request.json();
+    const { clientId, dashboardId, spreadsheetId, dataSourceId } = await request.json();
 
     if (!clientId || !dashboardId || !spreadsheetId) {
       return NextResponse.json({ error: "Campos obrigatórios: clientId, dashboardId, spreadsheetId." }, { status: 400 });
     }
 
-    const result = await GoogleSheetsImportService.importDashboardData(clientId, dashboardId, spreadsheetId);
+    const result = await GoogleSheetsImportService.importDashboardData(clientId, dashboardId, spreadsheetId, dataSourceId);
     
     // Salva o dado normalizado no store (em memória no MVP)
     if (result.success && result.data) {
