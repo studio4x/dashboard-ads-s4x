@@ -14,14 +14,27 @@ export async function getSessionProfile() {
  * Retorna null se autorizado, ou NextResponse se houver erro.
  */
 export async function requireAdmin() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Sessão não encontrada ou expirada. Por favor, faça login novamente." }, { status: 401 });
+  }
+
   const profile = await getSessionProfile();
 
   if (!profile) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    return NextResponse.json({ 
+      error: "Perfil não encontrado no banco de dados.",
+      debug: { userId: user.id }
+    }, { status: 401 });
   }
 
   if (profile.role !== "admin" && profile.role !== "owner") {
-    return NextResponse.json({ error: "Acesso negado: Requer privilégios administrativos" }, { status: 403 });
+    return NextResponse.json({ 
+      error: "Acesso negado: Requer privilégios administrativos",
+      role: profile.role
+    }, { status: 403 });
   }
 
   return null;

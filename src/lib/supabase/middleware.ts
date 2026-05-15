@@ -50,11 +50,13 @@ export async function updateSession(request: NextRequest) {
       .eq('auth_user_id', user.id)
       .single();
 
-    // 1. Bloqueia Clientes de acessarem /admin
-    if (pathname.startsWith('/admin') && profile?.role === 'client') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/app/dashboards'
-      return NextResponse.redirect(url)
+    // 1. Proteção da área /admin
+    if (pathname.startsWith('/admin')) {
+      if (!profile || (profile.role !== 'admin' && profile.role !== 'owner')) {
+        const url = request.nextUrl.clone()
+        url.pathname = profile?.role === 'client' ? '/app/dashboards' : '/login'
+        return NextResponse.redirect(url)
+      }
     }
 
     // 2. Redireciona /login para a área correta
