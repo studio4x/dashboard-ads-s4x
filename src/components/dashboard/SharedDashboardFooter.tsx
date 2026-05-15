@@ -52,10 +52,13 @@ export function SharedDashboardFooter() {
            <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
              Studio 4x — Inteligência em Tráfego Pago
            </div>
-           <div className="flex gap-4">
-             <span className="text-[10px] text-slate-400">Suporte: studio4x.com.br</span>
-             <span className="text-[10px] text-slate-400">© 2026</span>
-           </div>
+            <div className="flex flex-wrap justify-center sm:justify-end gap-x-4 gap-y-2">
+              <span className="text-[10px] text-slate-400">Suporte: studio4x.com.br</span>
+              <span className="text-[10px] text-slate-400">© 2026</span>
+              <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                v{process.env.NEXT_PUBLIC_APP_VERSION}-{process.env.NEXT_PUBLIC_GIT_HASH}
+              </span>
+            </div>
         </div>
       </div>
     </footer>

@@ -154,6 +154,20 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
           <X size={15} />
           Sair do Sistema
         </button>
+
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 4 }}>
+          <p style={{ fontSize: 9, color: "#94A3B8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>
+            Versão do Sistema
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 10, color: "#475569", fontWeight: 600, background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, border: "1px solid #E2E8F0" }}>
+              v{process.env.NEXT_PUBLIC_APP_VERSION}
+            </span>
+            <span style={{ fontSize: 10, color: "#94A3B8", fontFamily: "monospace" }}>
+              #{process.env.NEXT_PUBLIC_GIT_HASH}
+            </span>
+          </div>
+        </div>
       </div>
     </aside>
   );
