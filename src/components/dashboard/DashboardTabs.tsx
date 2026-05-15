@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Search, MessageSquare, Target, Users, Globe,
+  LayoutDashboard, Search, MessageSquare, Target, Users, Globe, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_PAGES } from "@/lib/constants";
 
 const iconMap: Record<string, React.ElementType> = {
-  LayoutDashboard, Search, Facebook: MessageSquare, Target, Users, Globe,
+  LayoutDashboard, Search, Facebook: MessageSquare, Target, Users, Globe, X,
 };
 
 interface DashboardTabsProps {

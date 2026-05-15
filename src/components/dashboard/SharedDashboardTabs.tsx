@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { LayoutDashboard, Search, MessageSquare, Target, Users, Globe } from "lucide-react";
+import { LayoutDashboard, Search, MessageSquare, Target, Users, Globe, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_PAGES } from "@/lib/constants";
 import { useDashboard } from "./DashboardDataContext";
 import { getVisiblePages } from "@/lib/dashboard/templates";
 
 const iconMap: Record<string, React.ElementType> = {
-  LayoutDashboard, Search, Facebook: MessageSquare, Target, Users, Globe,
+  LayoutDashboard, Search, Facebook: MessageSquare, Target, Users, Globe, X,
 };
 
 interface SharedDashboardTabsProps {

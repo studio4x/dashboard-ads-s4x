@@ -15,9 +15,11 @@ export type DashboardPageKey =
   | "audience"
   | "search-console"
   | "campaigns"
+  | "ad-groups"
   | "keywords"
   | "search-terms"
-  | "ads-assets";
+  | "ads-assets"
+  | "negative-keywords";
 
 // Cliente
 export interface Client {

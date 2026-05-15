@@ -59,8 +59,23 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
         }
       } else if (isS4X) {
         // Se não houver range mas for S4X, usamos o summary pré-calculado no payload
-        summary = data.summary;
-        google_ads_summary = data.summary;
+        // Envolvemos em { current } para manter compatibilidade com kpi-generator
+        summary = { 
+          current: {
+            total_spend: data.summary.cost,
+            total_revenue: data.summary.conversionValue,
+            total_conversions: data.summary.conversions,
+            total_clicks: data.summary.clicks,
+            total_impressions: data.summary.impressions,
+            ctr: data.summary.ctr,
+            cpc: data.summary.avgCpc,
+            cpa: data.summary.cpa,
+            roas: data.summary.roas,
+          },
+          previous: null,
+          change: {}
+        };
+        google_ads_summary = summary;
       }
 
       // 2. Busca informações do dashboard para o template

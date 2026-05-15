@@ -71,9 +71,11 @@ export const VISIBLE_PAGES_BY_TEMPLATE: Record<string, string[]> = {
     "executive-summary",
     "google-ads",
     "campaigns",
+    "ad-groups",
     "keywords",
     "search-terms",
-    "ads-assets"
+    "ads-assets",
+    "negative-keywords"
   ],
   google_ads: [
     "executive-summary",

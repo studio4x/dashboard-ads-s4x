@@ -62,6 +62,12 @@ export const DASHBOARD_PAGES: {
     description: "Performance por campanha detalhada",
   },
   {
+    key: "ad-groups",
+    label: "Grupos de Anúncios",
+    icon: "Target",
+    description: "Desempenho por grupo de anúncios",
+  },
+  {
     key: "keywords",
     label: "Palavras-chave",
     icon: "Search",
@@ -78,6 +84,12 @@ export const DASHBOARD_PAGES: {
     label: "Anúncios e Recursos",
     icon: "LayoutDashboard",
     description: "Performance dos criativos",
+  },
+  {
+    key: "negative-keywords",
+    label: "Negativas",
+    icon: "X",
+    description: "Palavras-chave excluídas",
   },
 ];
 

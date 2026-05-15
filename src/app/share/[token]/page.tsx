@@ -7,9 +7,11 @@ import ConversionsPage from "@/app/app/dashboards/[dashboardId]/conversions/page
 import AudiencePage from "@/app/app/dashboards/[dashboardId]/audience/page";
 import SearchConsolePage from "@/app/app/dashboards/[dashboardId]/search-console/page";
 import CampaignsPage from "@/app/app/dashboards/[dashboardId]/campaigns/page";
+import AdGroupsPage from "@/app/app/dashboards/[dashboardId]/ad-groups/page";
 import KeywordsPage from "@/app/app/dashboards/[dashboardId]/keywords/page";
 import SearchTermsPage from "@/app/app/dashboards/[dashboardId]/search-terms/page";
 import AdsAssetsPage from "@/app/app/dashboards/[dashboardId]/ads-assets/page";
+import NegativeKeywordsPage from "@/app/app/dashboards/[dashboardId]/negative-keywords/page";
 import { SharedDashboardHeader } from "@/components/dashboard/SharedDashboardHeader";
 import { SharedDashboardFooter } from "@/components/dashboard/SharedDashboardFooter";
 import { SharedDashboardTabs } from "@/components/dashboard/SharedDashboardTabs";
@@ -23,9 +25,11 @@ const pageTitles: Record<string, string> = {
   "audience": "Público e Canais",
   "search-console": "Google Search Console",
   "campaigns": "Campanhas",
+  "ad-groups": "Grupos de Anúncios",
   "keywords": "Palavras-chave",
   "search-terms": "Termos de Pesquisa",
   "ads-assets": "Recursos de Anúncio",
+  "negative-keywords": "Palavras-Chave Negativas",
 };
 
 export default async function SharedDashboardPage(
@@ -97,9 +101,11 @@ export default async function SharedDashboardPage(
           {currentPage === "audience" && <AudiencePage />}
           {currentPage === "search-console" && <SearchConsolePage />}
           {currentPage === "campaigns" && <CampaignsPage />}
+          {currentPage === "ad-groups" && <AdGroupsPage />}
           {currentPage === "keywords" && <KeywordsPage />}
           {currentPage === "search-terms" && <SearchTermsPage />}
           {currentPage === "ads-assets" && <AdsAssetsPage />}
+          {currentPage === "negative-keywords" && <NegativeKeywordsPage />}
         </main>
 
         {/* Rodapé Executivo */}
