@@ -9,6 +9,7 @@ interface DateRangeSelectorProps {
   currentPreset?: DateRangePreset;
   onPresetChange: (preset: DateRangePreset) => void;
   className?: string;
+  variant?: "default" | "minimal";
 }
 
 const presets: { value: DateRangePreset; label: string }[] = [
@@ -23,17 +24,25 @@ export function DateRangeSelector({
   currentPreset = "last_30_days",
   onPresetChange,
   className,
+  variant = "default",
 }: DateRangeSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const currentRange = getDateRangePreset(currentPreset);
+
+  const isMinimal = variant === "minimal";
 
   return (
     <div className={cn("relative", className)}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+        className={cn(
+          "flex items-center gap-2 transition-colors",
+          isMinimal 
+            ? "px-0 py-0 bg-transparent text-sm font-semibold text-slate-700"
+            : "px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm"
+        )}
       >
-        <Calendar size={16} className="text-slate-400" />
+        {!isMinimal && <Calendar size={16} className="text-slate-400" />}
         <span>{currentRange.label}</span>
         <ChevronDown size={14} className={cn("text-slate-400 transition-transform", isOpen && "rotate-180")} />
       </button>

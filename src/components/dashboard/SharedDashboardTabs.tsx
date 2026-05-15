@@ -20,29 +20,32 @@ export function SharedDashboardTabs({ token }: SharedDashboardTabsProps) {
   const period = searchParams.get("period");
 
   return (
-    <div className="bg-white border-b border-slate-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div style={{ display: "flex", gap: 4, overflowX: "auto", padding: "8px 0", scrollbarWidth: "none" }}>
-          {DASHBOARD_PAGES.map((page) => {
-            const params = new URLSearchParams(searchParams.toString());
-            params.set("page", page.key);
-            const href = `/share/${token}?${params.toString()}`;
-            
-            const isActive = currentPage === page.key;
-            const Icon = iconMap[page.icon] || LayoutDashboard;
+    <div className="py-2">
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "4px 0", scrollbarWidth: "none" }} className="no-scrollbar">
+        {DASHBOARD_PAGES.map((page) => {
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("page", page.key);
+          const href = `/share/${token}?${params.toString()}`;
+          
+          const isActive = currentPage === page.key;
+          const Icon = iconMap[page.icon] || LayoutDashboard;
 
-            return (
-              <Link
-                key={page.key}
-                href={href}
-                className={cn("dashboard-tab", isActive && "active")}
-              >
-                <Icon size={14} />
-                {page.label}
-              </Link>
-            );
-          })}
-        </div>
+          return (
+            <Link
+              key={page.key}
+              href={href}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all",
+                isActive 
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-100" 
+                  : "bg-white text-slate-500 border border-slate-200 hover:border-blue-300 hover:text-blue-600 shadow-sm"
+              )}
+            >
+              <Icon size={14} strokeWidth={2.4} />
+              {page.label}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

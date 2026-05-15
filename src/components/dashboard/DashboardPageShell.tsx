@@ -11,6 +11,7 @@ interface DashboardPageShellProps {
   subtitle?: string;
   children: React.ReactNode;
   className?: string;
+  hideHeader?: boolean;
 }
 
 export function DashboardPageShell({
@@ -18,6 +19,7 @@ export function DashboardPageShell({
   subtitle,
   children,
   className,
+  hideHeader = false,
 }: DashboardPageShellProps) {
   const { loading, error, needsImport, data, isShared } = useDashboard();
 
@@ -86,33 +88,35 @@ export function DashboardPageShell({
 
   return (
     <div className={cn("p-6 flex flex-col gap-6 animate-fade-in", className)}>
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 style={{ fontSize: "1.375rem", fontWeight: 700, color: "#0F172A", lineHeight: 1.3 }}>
-            {title}
-          </h1>
-          {subtitle && (
-            <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{subtitle}</p>
-          )}
-        </div>
-        
-        {/* Indicador de fonte de dados */}
-        {data && (
-          <div className="flex flex-col items-end gap-1">
-            <span className={cn(
-              "text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider",
-              data.source === "mock" ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
-            )}>
-              {data.source === "mock" ? "Ambiente de Teste (Mock)" : "Dados Reais (Google Sheets)"}
-            </span>
-            {data.lastUpdated && (
-              <span className="text-[10px] text-slate-400">
-                Atualizado em: {data.lastUpdated}
-              </span>
+      {!hideHeader && (
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 style={{ fontSize: "1.375rem", fontWeight: 700, color: "#0F172A", lineHeight: 1.3 }}>
+              {title}
+            </h1>
+            {subtitle && (
+              <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{subtitle}</p>
             )}
           </div>
-        )}
-      </div>
+          
+          {/* Indicador de fonte de dados */}
+          {data && (
+            <div className="flex flex-col items-end gap-1">
+              <span className={cn(
+                "text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider",
+                data.source === "mock" ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
+              )}>
+                {data.source === "mock" ? "Ambiente de Teste (Mock)" : "Dados Reais (Google Sheets)"}
+              </span>
+              {data.lastUpdated && (
+                <span className="text-[10px] text-slate-400">
+                  Atualizado em: {data.lastUpdated}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {children}
     </div>
   );

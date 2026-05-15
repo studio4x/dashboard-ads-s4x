@@ -10,9 +10,23 @@ import CampaignsPage from "@/app/app/dashboards/[dashboardId]/campaigns/page";
 import KeywordsPage from "@/app/app/dashboards/[dashboardId]/keywords/page";
 import SearchTermsPage from "@/app/app/dashboards/[dashboardId]/search-terms/page";
 import AdsAssetsPage from "@/app/app/dashboards/[dashboardId]/ads-assets/page";
-import { SharedHeaderActions } from "./SharedHeaderActions";
+import { SharedDashboardHeader } from "@/components/dashboard/SharedDashboardHeader";
+import { SharedDashboardFooter } from "@/components/dashboard/SharedDashboardFooter";
 import { SharedDashboardTabs } from "@/components/dashboard/SharedDashboardTabs";
 import { AlertCircle } from "lucide-react";
+
+const pageTitles: Record<string, string> = {
+  "executive-summary": "Resumo Executivo",
+  "google-ads": "Google Ads",
+  "meta-ads": "Meta Ads",
+  "conversions": "Conversões",
+  "audience": "Público e Canais",
+  "search-console": "Google Search Console",
+  "campaigns": "Campanhas",
+  "keywords": "Palavras-chave",
+  "search-terms": "Termos de Pesquisa",
+  "ads-assets": "Recursos de Anúncio",
+};
 
 export default async function SharedDashboardPage(
   props: { 
@@ -29,6 +43,7 @@ export default async function SharedDashboardPage(
   const validation = await ShareService.validateShareToken(token);
 
   if (!validation.isValid) {
+    // ... (Keep existing validation UI)
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
         <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 max-w-md w-full text-center">
@@ -59,37 +74,19 @@ export default async function SharedDashboardPage(
 
   return (
     <DashboardDataProvider overrideDashboardId={link?.dashboard_id} shareToken={token}>
-      <div className="min-h-screen bg-slate-50">
-        {/* Header Simples (Somente Leitura) */}
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-xs">
-                  S4X
-                </div>
-                <div className="hidden sm:block">
-                  <span className="block text-sm font-bold text-slate-900 leading-tight">Studio 4x</span>
-                  <span className="block text-[10px] text-slate-500 uppercase tracking-widest">Dashboard</span>
-                </div>
-              </div>
-              <div className="h-8 w-px bg-slate-200"></div>
-              <div className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
-                  {link?.dashboards?.clients?.name || "Cliente"}
-                </span>
-                <span className="text-sm font-bold text-slate-900">
-                  {link?.dashboards?.name || "Dashboard"}
-                </span>
-              </div>
-            </div>
-            
-            <SharedHeaderActions />
-          </div>
-        </header>
+      <div className="min-h-screen bg-[#F7F9FC]">
+        {/* Header Executivo (Fase 6.5) */}
+        <SharedDashboardHeader 
+          clientName={link?.dashboards?.clients?.name}
+          dashboardName={link?.dashboards?.name}
+          pageTitle={pageTitles[currentPage] || "Dashboard"}
+          pageSubtitle="Relatório de desempenho de tráfego pago e inteligência de dados"
+        />
 
-        {/* Abas de Navegação (Somente Leitura) */}
-        <SharedDashboardTabs token={token} />
+        {/* Navegação Compacta */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <SharedDashboardTabs token={token} />
+        </div>
 
         {/* Content */}
         <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -104,6 +101,9 @@ export default async function SharedDashboardPage(
           {currentPage === "search-terms" && <SearchTermsPage />}
           {currentPage === "ads-assets" && <AdsAssetsPage />}
         </main>
+
+        {/* Rodapé Executivo */}
+        <SharedDashboardFooter />
       </div>
     </DashboardDataProvider>
   );
