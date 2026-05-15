@@ -43,8 +43,14 @@ export async function updateSession(request: NextRequest) {
 
   // Se logado, verificamos a role para proteção de área administrativa
   if (user) {
-    // Buscamos o perfil para checar a role (Cacheamos isso no futuro se necessário)
-    const { data: profile } = await supabase
+    // Buscamos o perfil para checar a role usando service_role para evitar falhas de RLS no servidor
+    const adminSupabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { cookies: { getAll() { return [] }, setAll() {} } }
+    )
+
+    const { data: profile } = await adminSupabase
       .from('profiles')
       .select('role')
       .eq('auth_user_id', user.id)

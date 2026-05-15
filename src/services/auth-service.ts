@@ -10,7 +10,12 @@ export const AuthService = {
     
     if (!user) return null
 
-    const { data, error } = await supabase
+    // Usamos o createAdminClient para garantir a leitura do perfil 
+    // mesmo que haja latência ou falha no contexto RLS do servidor.
+    const { createAdminClient } = await import('@/lib/supabase/server')
+    const adminSupabase = await createAdminClient()
+    
+    const { data, error } = await adminSupabase
       .from('profiles')
       .select('*')
       .eq('auth_user_id', user.id)
