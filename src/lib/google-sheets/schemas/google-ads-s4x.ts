@@ -59,7 +59,6 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
       expectedColumns: [
         "Campanha", "Grupo de Anúncios", "Status do Grupo", "Impressões", 
         "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", 
-        "Todas as Conversões", "Valor Total Conversões (R$)", 
         "Interações", "Chave_IA"
       ],
       type: "table"
@@ -71,8 +70,7 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
         "Campanha", "Grupo de Anúncios", "Palavra-chave", "Tipo de Correspondência", "Status", 
         "Índice de Qualidade", "Qualidade Criativa", "Qualidade Pós-clique", 
         "CTR Previsto (Search)", "Impressões", "Cliques", "Custo (R$)", 
-        "Conversões", "Valor das Conversões (R$)", 
-        "Todas as Conversões", "Valor Total Conversões (R$)", "Chave_IA"
+        "Conversões", "Valor das Conversões (R$)", "Chave_IA"
       ],
       type: "table"
     },
@@ -82,8 +80,7 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
       expectedColumns: [
         "Campanha", "Grupo de Anúncios", "Tipo de Correspondência (Termo)", "Termo de Pesquisa", 
         "Status do Termo", "Impressões", "Cliques", 
-        "Custo (R$)", "Conversões", "Valor das Conversões (R$)", 
-        "Todas as Conversões", "Valor Total Conversões (R$)", "Chave_IA"
+        "Custo (R$)", "Conversões", "Valor das Conversões (R$)", "Chave_IA"
       ],
       type: "table"
     },
@@ -98,8 +95,7 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
       criticalColumns: ["Campanha", "Grupo de Anúncios", "Tipo de Recurso", "Recurso (Texto)", "Origem das Métricas", "Chave_IA"],
       expectedColumns: [
         "Campanha", "Grupo de Anúncios", "Status do Anúncio", "Tipo de Recurso", "Recurso (Texto)", 
-        "Origem das Métricas", "Impressões", "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", 
-        "Todas as Conversões", "Valor Total Conversões (R$)", "Chave_IA"
+        "Origem das Métricas", "Impressões", "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", "Chave_IA"
       ],
       type: "table"
     },
