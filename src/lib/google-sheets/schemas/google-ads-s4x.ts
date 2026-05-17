@@ -34,10 +34,10 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
       required: true,
       criticalColumns: ["Data", "Campanha", "Impressões", "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", "Chave_IA"],
       expectedColumns: [
-        "Data", "Campanha", "Status da Campanha", "Tipo de Canal", "Escopo_Agregacao", 
-        "Impressões", "Cliques", "CTR", "CPC Médio (R$)", "Custo (R$)", "Conversões", 
-        "Valor das Conversões (R$)", "Custo por Conversão (R$)", "Todas as Conversões", 
-        "Valor Total Conversões (R$)", "CPM Médio (R$)", "Taxa de Conversão", "ROAS", "Chave_IA"
+        "Data", "Campanha", "Status da Campanha", "Tipo de Canal",
+        "Impressões", "Cliques", "Custo (R$)", "Conversões", 
+        "Valor das Conversões (R$)", "Todas as Conversões", 
+        "Valor Total Conversões (R$)", "Chave_IA"
       ],
       type: "table"
     },
@@ -45,12 +45,11 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
       required: true,
       criticalColumns: ["Campanha", "Impressões", "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", "Chave_IA"],
       expectedColumns: [
-        "Campanha", "Status da Campanha", "Tipo de Canal", "Escopo_Agregacao", "Impressões", 
-        "Cliques", "CTR", "CPC Médio (R$)", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", 
-        "Custo por Conversão (R$)", "Todas as Conversões", "Valor Total Conversões (R$)", 
-        "Taxa de Interação", "Interações", "Parcela de impr. da rede de pesquisa", 
-        "Perda por Rank (Search)", "Perda por Orçamento (Search)", "CPM Médio (R$)", 
-        "Taxa de Conversão", "ROAS", "Chave_IA"
+        "Campanha", "Status da Campanha", "Tipo de Canal", "Impressões", 
+        "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", 
+        "Todas as Conversões", "Valor Total Conversões (R$)", 
+        "Interações", "Parcela de impr. da rede de pesquisa", 
+        "Perda por Rank (Search)", "Perda por Orçamento (Search)", "Chave_IA"
       ],
       type: "table"
     },
@@ -58,11 +57,10 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
       required: true,
       criticalColumns: ["Campanha", "Grupo de Anúncios", "Impressões", "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", "Chave_IA"],
       expectedColumns: [
-        "Campanha", "Grupo de Anúncios", "Status do Grupo", "Escopo_Agregacao", "Impressões", 
-        "Cliques", "CTR", "CPC Médio (R$)", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", 
-        "Custo por Conversão (R$)", "Todas as Conversões", "Valor Total Conversões (R$)", 
-        "Interações", "Taxa de Interação", "Custo Médio (R$)", "CPM Médio (R$)", 
-        "Taxa de Conversão", "ROAS", "Chave_IA"
+        "Campanha", "Grupo de Anúncios", "Status do Grupo", "Impressões", 
+        "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", 
+        "Todas as Conversões", "Valor Total Conversões (R$)", 
+        "Interações", "Chave_IA"
       ],
       type: "table"
     },
@@ -71,10 +69,10 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
       criticalColumns: ["Campanha", "Grupo de Anúncios", "Palavra-chave", "Tipo de Correspondência", "Impressões", "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", "Chave_IA"],
       expectedColumns: [
         "Campanha", "Grupo de Anúncios", "Palavra-chave", "Tipo de Correspondência", "Status", 
-        "Escopo_Agregacao", "Índice de Qualidade", "Qualidade Criativa", "Qualidade Pós-clique", 
-        "CTR Previsto (Search)", "Impressões", "Cliques", "CTR", "CPC Médio (R$)", "Custo (R$)", 
-        "Conversões", "Valor das Conversões (R$)", "Custo por Conversão (R$)", 
-        "Todas as Conversões", "Valor Total Conversões (R$)", "Taxa de Conversão", "ROAS", "Chave_IA"
+        "Índice de Qualidade", "Qualidade Criativa", "Qualidade Pós-clique", 
+        "CTR Previsto (Search)", "Impressões", "Cliques", "Custo (R$)", 
+        "Conversões", "Valor das Conversões (R$)", 
+        "Todas as Conversões", "Valor Total Conversões (R$)", "Chave_IA"
       ],
       type: "table"
     },
@@ -83,10 +81,9 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
       criticalColumns: ["Campanha", "Grupo de Anúncios", "Termo de Pesquisa", "Impressões", "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", "Chave_IA"],
       expectedColumns: [
         "Campanha", "Grupo de Anúncios", "Tipo de Correspondência (Termo)", "Termo de Pesquisa", 
-        "Status do Termo", "Escopo_Agregacao", "Impressões", "Cliques", "CTR", "CPC Médio (R$)", 
-        "Custo (R$)", "Conversões", "Valor das Conversões (R$)", "Custo por Conversão (R$)", 
-        "Todas as Conversões", "Valor Total Conversões (R$)", "CPM Médio (R$)", 
-        "Taxa de Conversão", "ROAS", "Chave_IA"
+        "Status do Termo", "Impressões", "Cliques", 
+        "Custo (R$)", "Conversões", "Valor das Conversões (R$)", 
+        "Todas as Conversões", "Valor Total Conversões (R$)", "Chave_IA"
       ],
       type: "table"
     },
@@ -101,10 +98,8 @@ export const GOOGLE_ADS_S4X_SCHEMA: TemplateSchema = {
       criticalColumns: ["Campanha", "Grupo de Anúncios", "Tipo de Recurso", "Recurso (Texto)", "Origem das Métricas", "Chave_IA"],
       expectedColumns: [
         "Campanha", "Grupo de Anúncios", "Status do Anúncio", "Tipo de Recurso", "Recurso (Texto)", 
-        "Origem das Métricas", "Escopo_Agregacao", "Impressões", "Cliques", "CTR", 
-        "CPC Médio (R$)", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", 
-        "Custo por Conversão (R$)", "Todas as Conversões", "Valor Total Conversões (R$)", 
-        "CPM Médio (R$)", "Taxa de Conversão", "ROAS", "Chave_IA"
+        "Origem das Métricas", "Impressões", "Cliques", "Custo (R$)", "Conversões", "Valor das Conversões (R$)", 
+        "Todas as Conversões", "Valor Total Conversões (R$)", "Chave_IA"
       ],
       type: "table"
     },
