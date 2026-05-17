@@ -85,8 +85,8 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
 
       return {
         ...data,
-        overview: data.overview || [],
-        google_ads: data.google_ads || [],
+        overview: data.overview && data.overview.length > 0 ? data.overview : data.dailyPerformance || [],
+        google_ads: data.google_ads && data.google_ads.length > 0 ? data.google_ads : data.dailyPerformance || [],
         meta_ads: data.meta_ads || [],
         ga4_events: data.ga4_events || [],
         audience: data.audience || [],

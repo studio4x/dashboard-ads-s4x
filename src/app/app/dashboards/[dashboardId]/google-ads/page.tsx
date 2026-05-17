@@ -33,7 +33,7 @@ export default function GoogleAdsPage() {
 
   const dailySeries = data.google_ads.map((r: any) => ({
     date: formatDateShort(r.date),
-    Investimento: r.value,
+    Investimento: r.cost !== undefined ? r.cost : r.value || 0,
   }));
 
   const googleCampaigns = data.campaigns.filter((c: any) => 
