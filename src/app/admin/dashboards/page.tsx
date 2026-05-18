@@ -270,86 +270,192 @@ export default function AdminDashboardsPage() {
           </div>
         ) : (
           dashboards.map((d: any) => (
-            <div key={d.id} className="card card-hover" style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 16 }}>
-              <div 
-                style={{ 
-                  width: 44, height: 44, borderRadius: 10, 
-                  background: d.clients?.primary_color || "#2563EB", 
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 
-                }}
-              >
-                <PieChart size={22} color="white" />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{d.name}</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, color: "#94A3B8" }}>{d.clients?.name}</span>
-                  <span style={{ fontSize: 12, color: "#94A3B8" }}>•</span>
-                  <span style={{ fontSize: 12, color: "#64748B", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4 }}>
-                    <strong>{d.pages_count}</strong> {d.pages_count === 1 ? "página" : "páginas"}
+            <div 
+              key={d.id} 
+              className="card card-hover" 
+              style={{ 
+                padding: "20px 24px", 
+                display: "flex", 
+                flexDirection: "column", 
+                gap: 16,
+                background: "white",
+                borderRadius: 12,
+                border: "1px solid #E2E8F0",
+                boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05)"
+              }}
+            >
+              {/* TOP ROW: Icon + Title & System Badges */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, width: "100%", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 280 }}>
+                  <div 
+                    style={{ 
+                      width: 42, height: 42, borderRadius: 10, 
+                      background: d.clients?.primary_color || "#2563EB", 
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 
+                    }}
+                  >
+                    <PieChart size={20} color="white" />
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p style={{ fontSize: 16, fontWeight: 700, color: "#0F172A", wordBreak: "break-word" }}>{d.name}</p>
+                    <p style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>
+                      Cliente: <strong style={{ color: "#334155" }}>{d.clients?.name}</strong>
+                    </p>
+                  </div>
+                </div>
+                
+                {/* System Badges (Status & Type) */}
+                <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 99, background: d.status === "active" ? "#DCFCE7" : "#FEF3C7", color: d.status === "active" ? "#16A34A" : "#D97706", fontWeight: 600 }}>
+                    {d.status === "active" ? "Ativo" : "Inativo"}
                   </span>
-                  <span style={{ fontSize: 12, color: "#64748B", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4 }}>
-                    Snapshot: <strong>{d.latest_snapshot_date ? new Date(d.latest_snapshot_date).toLocaleDateString('pt-BR') : "Nenhum"}</strong>
+                  <span style={{ fontSize: 11, color: "#475569", background: "#F1F5F9", padding: "4px 10px", borderRadius: 99, fontWeight: 600, border: "1px solid #E2E8F0" }}>
+                    {d.dashboard_type === "google_ads_s4x" ? "Google Ads — S4X" : d.dashboard_type === "google_ads" ? "Google Ads (Legado)" : d.dashboard_type || "Custom"}
                   </span>
-                  <span style={{ fontSize: 12, color: "#94A3B8" }}>•</span>
-                  {(() => {
-                    const source = sources.find((s: any) => s.dashboard_id === d.id);
-                    if (source) {
-                      return (
-                        <span style={{ fontSize: 12, color: "#16A34A", background: "#E8F5E9", padding: "2px 6px", borderRadius: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4CAF50", display: "inline-block" }}></span>
-                          Planilha: <strong>{source.name}</strong>
-                        </span>
-                      );
-                    }
-                    return (
-                      <span style={{ fontSize: 12, color: "#D97706", background: "#FFF3E0", padding: "2px 6px", borderRadius: 4 }}>
-                        Sem Planilha
-                      </span>
-                    );
-                  })()}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
-                <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: d.status === "active" ? "#DCFCE7" : "#FEF3C7", color: d.status === "active" ? "#16A34A" : "#D97706", fontWeight: 500 }}>
-                  {d.status === "active" ? "Ativo" : "Inativo"}
-                </span>
-                <span style={{ fontSize: 11, color: "#64748B", background: "#F1F5F9", padding: "3px 10px", borderRadius: 99, fontWeight: 500 }}>
-                  {d.dashboard_type === "google_ads" ? "Google Ads" : d.dashboard_type === "custom" ? "Customizado" : d.dashboard_type || "Google Ads"}
-                </span>
-                
-                <button 
-                  onClick={() => handleDuplicate(d)}
-                  style={{ display: "flex", alignItems: "center", padding: "6px 12px", borderRadius: 8, background: "#F8FAFC", fontSize: 13, color: "#475569", border: "1px solid #E2E8F0", cursor: "pointer", fontWeight: 500 }}
-                >
-                  Duplicar
-                </button>
 
-                <button 
-                  onClick={() => handleOpenIntegration(d)}
-                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 8, background: "#FFF7ED", fontSize: 13, color: "#EA580C", border: "1px solid #FFEDD5", cursor: "pointer", fontWeight: 500 }}
-                >
-                  <Link2 size={13} /> Integração
-                </button>
-                
-                <button 
-                  onClick={() => setShareModalDashboard(d)}
-                  style={{ display: "flex", alignItems: "center", padding: "6px 12px", borderRadius: 8, background: "#F0FDF4", fontSize: 13, color: "#16A34A", border: "1px solid #BBF7D0", cursor: "pointer", fontWeight: 500 }}
-                >
-                  Compartilhar
-                </button>
+              {/* MIDDLE ROW: Spreadsheet Integration Status (Spanning full width!) */}
+              <div style={{ width: "100%" }}>
+                {(() => {
+                  const source = sources.find((s: any) => s.dashboard_id === d.id);
+                  if (source) {
+                    return (
+                      <div 
+                        style={{ 
+                          width: "100%",
+                          fontSize: 13, 
+                          color: "#15803d", 
+                          background: "#f0fdf4", 
+                          padding: "10px 14px", 
+                          borderRadius: 8, 
+                          border: "1px solid #dcfce7",
+                          display: "flex", 
+                          alignItems: "center", 
+                          justifyContent: "space-between",
+                          gap: 12
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }}></span>
+                          <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                            Planilha Vinculada: <strong>{source.name}</strong>
+                          </span>
+                        </div>
+                        {source.google_sheet_sources?.spreadsheet_id && (
+                          <a 
+                            href={`https://docs.google.com/spreadsheets/d/${source.google_sheet_sources.spreadsheet_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: 11, color: "#166534", fontWeight: 600, textDecoration: "underline", flexShrink: 0 }}
+                          >
+                            Ver Sheets ↗
+                          </a>
+                        )}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div 
+                      style={{ 
+                        width: "100%",
+                        fontSize: 13, 
+                        color: "#b45309", 
+                        background: "#fffbeb", 
+                        padding: "10px 14px", 
+                        borderRadius: 8, 
+                        border: "1px solid #fef3c7",
+                        display: "flex", 
+                        alignItems: "center", 
+                        gap: 8
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }}></span>
+                      <span>Sem planilha vinculada. Clique em <strong>Integração</strong> para configurar.</span>
+                    </div>
+                  );
+                })()}
+              </div>
 
-                <button 
-                  onClick={() => handleDeleteDashboard(d.id, d.name)}
-                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 8, background: "#FEF2F2", fontSize: 13, color: "#DC2626", border: "1px solid #FEE2E2", cursor: "pointer", fontWeight: 500 }}
-                  title="Excluir Dashboard"
-                >
-                  <Trash2 size={13} /> Excluir
-                </button>
-                
-                <Link href={`/app/dashboards/${d.id}/executive-summary`} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "#EFF6FF", fontSize: 13, color: "#2563EB", textDecoration: "none", fontWeight: 500 }}>
-                  Visualizar
-                </Link>
+              {/* METADATA INFO ROW */}
+              <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 12, color: "#64748B", borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
+                <div>
+                  Páginas: <strong style={{ color: "#334155" }}>{d.pages_count}</strong>
+                </div>
+                <div style={{ color: "#CBD5E1" }}>|</div>
+                <div>
+                  Última Sincronização: <strong style={{ color: "#334155" }}>{d.latest_snapshot_date ? new Date(d.latest_snapshot_date).toLocaleDateString('pt-BR') : "Nunca"}</strong>
+                </div>
+              </div>
+
+              {/* BOTTOM ROW: Actions (Spanning full width!) */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 4, width: "100%", flexWrap: "wrap" }}>
+                {/* Secondary/Admin Actions */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button 
+                    onClick={() => handleOpenIntegration(d)}
+                    style={{ 
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", 
+                      borderRadius: 8, background: "#FFF7ED", fontSize: 13, color: "#EA580C", 
+                      border: "1px solid #FFEDD5", cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <Link2 size={14} /> Configurar Planilha
+                  </button>
+
+                  <button 
+                    onClick={() => setShareModalDashboard(d)}
+                    style={{ 
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", 
+                      borderRadius: 8, background: "#F0FDF4", fontSize: 13, color: "#16A34A", 
+                      border: "1px solid #BBF7D0", cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    Compartilhar
+                  </button>
+                  
+                  <button 
+                    onClick={() => handleDuplicate(d)}
+                    style={{ 
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", 
+                      borderRadius: 8, background: "#F8FAFC", fontSize: 13, color: "#475569", 
+                      border: "1px solid #E2E8F0", cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    Duplicar
+                  </button>
+                </div>
+
+                {/* Primary Actions (View & Delete) */}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button 
+                    onClick={() => handleDeleteDashboard(d.id, d.name)}
+                    style={{ 
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", 
+                      borderRadius: 8, background: "#FEF2F2", fontSize: 13, color: "#DC2626", 
+                      border: "1px solid #FEE2E2", cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                    title="Excluir Dashboard"
+                  >
+                    <Trash2 size={14} /> Excluir
+                  </button>
+
+                  <Link 
+                    href={`/app/dashboards/${d.id}/executive-summary`} 
+                    style={{ 
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", 
+                      borderRadius: 8, background: "#2563EB", fontSize: 13, color: "white", 
+                      textDecoration: "none", fontWeight: 600, boxShadow: "0 1px 2px 0 rgba(37, 99, 235, 0.2)",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    Visualizar Dashboard →
+                  </Link>
+                </div>
               </div>
             </div>
           ))

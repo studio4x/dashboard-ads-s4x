@@ -6,7 +6,7 @@ import type { DashboardPageKey } from "@/types/entities";
 
 export const APP_NAME = "Dashboard ADS S4X";
 export const APP_SLUG = "s4x";
-export const APP_VERSION = "0.1.1";
+export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.1.1";
 
 // IDs de demonstração (mock)
 export const DEMO_CLIENT_ID = "client-demo-001";
