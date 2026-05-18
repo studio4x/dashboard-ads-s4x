@@ -45,7 +45,7 @@ interface DashboardDataContextType {
   from: string;
   to: string;
   rangePreset: DateRangePreset;
-  updateRange: (preset: DateRangePreset) => void;
+  updateRange: (preset: DateRangePreset, customDates?: { from: Date; to: Date }) => void;
   refresh: () => Promise<void>;
   isShared: boolean;
 }
@@ -69,9 +69,26 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
     (searchParams.get("period") as DateRangePreset) || "last_30_days"
   );
 
-  const range = getDateRangePreset(rangePreset);
-  const from = searchParams.get("from") || formatDateISO(range.from);
-  const to = searchParams.get("to") || formatDateISO(range.to);
+  // We read the query parameters:
+  const urlFrom = searchParams.get("from");
+  const urlTo = searchParams.get("to");
+
+  // Let's resolve the actual start and end dates:
+  let customDates: { from: Date; to: Date } | undefined = undefined;
+  if (urlFrom && urlTo) {
+    const parseDate = (dStr: string) => {
+      const [y, m, d] = dStr.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+    customDates = {
+      from: parseDate(urlFrom),
+      to: parseDate(urlTo)
+    };
+  }
+
+  const range = getDateRangePreset(rangePreset, customDates);
+  const from = urlFrom || formatDateISO(range.from);
+  const to = urlTo || formatDateISO(range.to);
   
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,12 +127,18 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
     }
   }, [dashboardId, from, to]);
 
-  const updateRange = (preset: DateRangePreset) => {
-    const newRange = getDateRangePreset(preset);
+  const updateRange = (preset: DateRangePreset, customDatesOverride?: { from: Date; to: Date }) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("period", preset);
-    params.set("from", formatDateISO(newRange.from));
-    params.set("to", formatDateISO(newRange.to));
+    
+    if (preset === "custom" && customDatesOverride) {
+      params.set("from", formatDateISO(customDatesOverride.from));
+      params.set("to", formatDateISO(customDatesOverride.to));
+    } else {
+      const newRange = getDateRangePreset(preset);
+      params.set("from", formatDateISO(newRange.from));
+      params.set("to", formatDateISO(newRange.to));
+    }
     
     setRangePreset(preset);
     router.push(`?${params.toString()}`, { scroll: false });

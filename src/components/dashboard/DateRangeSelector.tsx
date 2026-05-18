@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, ChevronDown, Check } from "lucide-react";
-import { DateRangePreset, getDateRangePreset } from "@/lib/dashboard/date-utils";
+import { DateRangePreset, getDateRangePreset, formatDateISO } from "@/lib/dashboard/date-utils";
 import { cn } from "@/lib/utils";
 
 interface DateRangeSelectorProps {
   currentPreset?: DateRangePreset;
-  onPresetChange: (preset: DateRangePreset) => void;
+  onPresetChange: (preset: DateRangePreset, customDates?: { from: Date, to: Date }) => void;
   className?: string;
   variant?: "default" | "minimal";
 }
@@ -29,7 +29,17 @@ export function DateRangeSelector({
   const [isOpen, setIsOpen] = useState(false);
   const currentRange = getDateRangePreset(currentPreset);
 
+  const [startDateStr, setStartDateStr] = useState("");
+  const [endDateStr, setEndDateStr] = useState("");
+
   const isMinimal = variant === "minimal";
+
+  useEffect(() => {
+    if (isOpen && currentRange) {
+      setStartDateStr(formatDateISO(currentRange.from));
+      setEndDateStr(formatDateISO(currentRange.to));
+    }
+  }, [isOpen, currentRange]);
 
   const formatDateRange = (from: Date, to: Date) => {
     const fmt = (d: Date) => {
@@ -65,8 +75,11 @@ export function DateRangeSelector({
             className="fixed inset-0 z-40" 
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-64 rounded-xl border border-slate-200 bg-white shadow-xl z-50 overflow-hidden animate-fade-in">
-            <div className="p-1.5 flex flex-col gap-1">
+          <div 
+            className="absolute right-0 mt-2 w-72 rounded-xl border border-slate-200 bg-white shadow-xl z-50 overflow-hidden animate-fade-in"
+            style={{ padding: "8px" }}
+          >
+            <div className="flex flex-col gap-1">
               {presets.map((preset) => {
                 const range = getDateRangePreset(preset.value);
                 const isSelected = currentPreset === preset.value;
@@ -77,31 +90,114 @@ export function DateRangeSelector({
                       onPresetChange(preset.value);
                       setIsOpen(false);
                     }}
-                    className={cn(
-                      "flex flex-col items-start px-3 py-1.5 rounded-lg text-left transition-colors w-full",
-                      isSelected 
-                        ? "bg-blue-50 text-blue-700 font-semibold" 
-                        : "text-slate-600 hover:bg-slate-50"
-                    )}
+                    style={{
+                      padding: "8px 12px",
+                      width: "100%",
+                      textAlign: "left",
+                      borderRadius: "8px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      background: isSelected ? "#EFF6FF" : "transparent",
+                      color: isSelected ? "#1D4ED8" : "#475569",
+                      border: "none",
+                      cursor: "pointer",
+                      transition: "background 0.2s"
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = "#F8FAFC";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = "transparent";
+                      }
+                    }}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span className="text-sm font-medium">{preset.label}</span>
-                      {isSelected && <Check size={14} className="text-blue-700" />}
+                      <span style={{ fontSize: "13.5px", fontWeight: isSelected ? 600 : 500 }}>
+                        {preset.label}
+                      </span>
+                      {isSelected && <Check size={14} style={{ color: "#1D4ED8" }} />}
                     </div>
-                    <span className={cn("text-[10px] font-normal mt-0.5", isSelected ? "text-blue-500" : "text-slate-400")}>
+                    <span style={{ fontSize: "10.5px", marginTop: "2px", color: isSelected ? "#3B82F6" : "#94A3B8" }}>
                       {formatDateRange(range.from, range.to)}
                     </span>
                   </button>
                 );
               })}
             </div>
-            <div className="border-t border-slate-100 p-2 bg-slate-50">
-              <button 
-                disabled
-                className="w-full text-left px-2 py-1.5 text-xs text-slate-400 cursor-not-allowed"
-              >
-                Período personalizado (Breve)
-              </button>
+            <div style={{ borderTop: "1px solid #E2E8F0", marginTop: "8px", paddingTop: "8px", paddingLeft: "4px", paddingRight: "4px" }}>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B", textTransform: "uppercase", display: "block", marginBottom: "8px", paddingLeft: "8px" }}>
+                Período Personalizado
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingLeft: "8px", paddingRight: "8px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <label style={{ fontSize: "10.5px", color: "#64748B" }}>De:</label>
+                  <input 
+                    type="date" 
+                    value={startDateStr}
+                    onChange={(e) => setStartDateStr(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "6px 8px",
+                      fontSize: "12.5px",
+                      borderRadius: "6px",
+                      border: "1px solid #CBD5E1",
+                      color: "#1E293B",
+                      outline: "none"
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <label style={{ fontSize: "10.5px", color: "#64748B" }}>Até:</label>
+                  <input 
+                    type="date" 
+                    value={endDateStr}
+                    onChange={(e) => setEndDateStr(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "6px 8px",
+                      fontSize: "12.5px",
+                      borderRadius: "6px",
+                      border: "1px solid #CBD5E1",
+                      color: "#1E293B",
+                      outline: "none"
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    if (startDateStr && endDateStr) {
+                      const [sy, sm, sd] = startDateStr.split("-").map(Number);
+                      const [ey, em, ed] = endDateStr.split("-").map(Number);
+                      const fromDate = new Date(sy, sm - 1, sd);
+                      const toDate = new Date(ey, em - 1, ed);
+                      onPresetChange("custom", { from: fromDate, to: toDate });
+                      setIsOpen(false);
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    background: "#2563EB",
+                    color: "white",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "center",
+                    marginTop: "4px",
+                    transition: "background 0.2s"
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#1D4ED8"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#2563EB"; }}
+                >
+                  Aplicar Período
+                </button>
+              </div>
             </div>
           </div>
         </>
