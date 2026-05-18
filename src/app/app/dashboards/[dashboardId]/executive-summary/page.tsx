@@ -57,25 +57,28 @@ function KpiCard({
   delta, 
   positive, 
   icon: Icon,
-  description = "vs. período anterior"
+  description = "vs. anterior"
 }: any) {
   const DeltaIcon = positive ? TrendingUp : TrendingDown;
   const deltaColor = positive ? GREEN : RED;
+  const isNeutral = delta === "0.0%" || delta === "0%";
 
   return (
-    <Card className="p-5 flex flex-col justify-between h-[155px]">
-      <div className="flex items-start justify-between">
-        <div className="text-[15px] font-semibold text-slate-600">{label}</div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white flex-shrink-0">
-          <Icon size={18} strokeWidth={2.4} />
+    <Card className="p-4 flex flex-col justify-between min-h-[135px] h-auto transition-all hover:shadow-md">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[11px] font-bold tracking-wider text-slate-500 uppercase truncate" title={label}>{label}</div>
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 flex-shrink-0">
+          <Icon size={15} strokeWidth={2.4} />
         </div>
       </div>
-      <div>
-        <div className="text-2xl font-bold leading-tight text-slate-900">{value}</div>
-        <div className="mt-2 flex items-center gap-1 text-sm font-bold" style={{ color: deltaColor }}>
-          <DeltaIcon size={16} strokeWidth={3} />
+      <div className="mt-2">
+        <div className="text-xl sm:text-2xl font-extrabold leading-tight text-slate-900 tracking-tight">{value}</div>
+        <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap overflow-hidden" style={{ color: isNeutral ? "#64748B" : deltaColor }}>
+          {!isNeutral && <DeltaIcon size={13} strokeWidth={3} />}
           <span>{delta}</span>
-          <span className="ml-1 text-xs font-medium text-slate-400">{description}</span>
+          <span className="text-[9px] font-medium text-slate-400 truncate max-w-[80px]" title={description}>
+            {description}
+          </span>
         </div>
       </div>
     </Card>
@@ -85,7 +88,7 @@ function KpiCard({
 const tooltipFormatter = (value: any, name?: any) => {
   const nameStr = String(name || "");
   if (nameStr.toLowerCase().includes("investimento") || nameStr.toLowerCase().includes("custo") || nameStr.toLowerCase().includes("receita")) {
-    return [formatCurrency(value, true), name];
+    return [formatCurrency(value), name];
   }
   return [value, name];
 };
@@ -103,7 +106,7 @@ export default function ExecutiveSummaryPage() {
   const kpis = [
     {
       label: "Investimento",
-      value: formatCurrency(current.total_spend || 0, true),
+      value: formatCurrency(current.total_spend || 0),
       delta: `${(changes.total_spend || 0).toFixed(1)}%`,
       positive: (changes.total_spend || 0) <= 0,
       icon: DollarSign,
@@ -155,8 +158,8 @@ export default function ExecutiveSummaryPage() {
   // Gráfico de Evolução (Investimento e Cliques)
   const evolutionData = overview.map((row: any) => ({
     date: formatDateShort(row.date),
-    investimento: row.total_spend || 0,
-    cliques: row.total_clicks || 0,
+    investimento: row.cost || row.total_spend || 0,
+    cliques: row.clicks || row.total_clicks || 0,
   }));
 
   // Gráfico Comparativo (Atual x Anterior)
@@ -206,7 +209,7 @@ export default function ExecutiveSummaryPage() {
     >
       <div className="flex flex-col gap-6 animate-fade-in pb-10">
         {/* KPIs Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 gap-4">
           {kpis.map((kpi, idx) => (
             <KpiCard key={idx} {...kpi} />
           ))}
