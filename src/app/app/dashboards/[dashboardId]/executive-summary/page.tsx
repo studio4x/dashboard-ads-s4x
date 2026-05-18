@@ -43,9 +43,12 @@ const RED = "#DC2626";
 const TEXT = "#111827";
 const MUTED = "#6B7280";
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function Card({ children, className = "", style = {} }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden", className)}>
+    <div 
+      className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden", className)}
+      style={{ padding: "24px", ...style }}
+    >
       {children}
     </div>
   );
@@ -64,7 +67,10 @@ function KpiCard({
   const isNeutral = delta === "0.0%" || delta === "0%";
 
   return (
-    <Card className="p-4 flex flex-col justify-between min-h-[135px] h-auto transition-all hover:shadow-md">
+    <Card 
+      style={{ padding: "16px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: "135px" }} 
+      className="transition-all hover:shadow-md"
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="text-[11px] font-bold tracking-wider text-slate-500 uppercase truncate" title={label}>{label}</div>
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 flex-shrink-0">

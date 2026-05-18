@@ -90,7 +90,18 @@ export function DashboardPageShell({
   }
 
   return (
-    <div className={cn("p-6 flex flex-col gap-6 animate-fade-in", className)}>
+    <div 
+      className={cn("animate-fade-in", className)}
+      style={{
+        padding: "24px 24px 40px",
+        maxWidth: "1440px",
+        margin: "0 auto",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        gap: "24px"
+      }}
+    >
       {!hideHeader && (
         <div className="flex justify-between items-start">
           <div>

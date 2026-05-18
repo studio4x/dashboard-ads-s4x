@@ -53,17 +53,19 @@ export default async function DashboardLayout({ children, params }: DashboardLay
           style={{
             background: "white",
             borderBottom: "1px solid #E2E8F0",
-            padding: "10px 24px 0",
+            padding: "10px 0 0",
             position: "sticky",
             top: 60,
             zIndex: 30,
           }}
         >
-          <DashboardTabs dashboardId={dashboardId} />
+          <div style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 24px" }}>
+            <DashboardTabs dashboardId={dashboardId} />
+          </div>
         </div>
 
         {/* Page content */}
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, width: "100%" }}>
           {children}
         </div>
       </div>
