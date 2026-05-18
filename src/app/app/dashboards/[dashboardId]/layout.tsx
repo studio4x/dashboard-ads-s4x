@@ -53,7 +53,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
           style={{
             background: "white",
             borderBottom: "1px solid #E2E8F0",
-            padding: "10px 0 0",
+            padding: "12px 0",
             position: "sticky",
             top: 60,
             zIndex: 30,

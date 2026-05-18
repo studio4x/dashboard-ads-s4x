@@ -63,11 +63,6 @@ export function DashboardHeader({
             <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{dashboardTitle}</span>
             
             {/* Badges de Fonte e Conta */}
-            {metricsSource && (
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wider">
-                Fonte: {metricsSource}
-              </span>
-            )}
             {accountId && (
               <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">
                 ID Conta Google: {accountId}

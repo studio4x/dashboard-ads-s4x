@@ -44,11 +44,6 @@ export function SharedDashboardHeader({
                
                {/* Badges de Fonte e Conta */}
                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                 {metricsSource && (
-                   <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wider">
-                     Fonte: {metricsSource}
-                   </span>
-                 )}
                  {accountId && (
                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">
                      ID Conta Google: {accountId}
