@@ -21,6 +21,9 @@ export function SharedDashboardHeader({
 }: SharedDashboardHeaderProps) {
   const { rangePreset, updateRange, data } = useDashboard();
 
+  const metricsSource = data?.config?.Fonte || data?.config?.fonte || (data?.source === "mock" ? "Mocks" : "Google Sheets");
+  const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
+
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -38,6 +41,20 @@ export function SharedDashboardHeader({
                <p className="text-xs sm:text-sm text-slate-500 font-medium">
                  {clientName} • {dashboardName}
                </p>
+               
+               {/* Badges de Fonte e Conta */}
+               <div className="flex items-center gap-2 mt-1 flex-wrap">
+                 {metricsSource && (
+                   <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wider">
+                     Fonte: {metricsSource}
+                   </span>
+                 )}
+                 {accountId && (
+                   <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">
+                     ID Conta Google: {accountId}
+                   </span>
+                 )}
+               </div>
              </div>
           </div>
         </div>

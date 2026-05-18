@@ -69,7 +69,6 @@ export function getTemplateById(id: string) {
 export const VISIBLE_PAGES_BY_TEMPLATE: Record<string, string[]> = {
   google_ads_s4x: [
     "executive-summary",
-    "google-ads",
     "campaigns",
     "ad-groups",
     "keywords",

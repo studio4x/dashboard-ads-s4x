@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_PAGES } from "@/lib/constants";
+import { useDashboard } from "./DashboardDataContext";
+import { getVisiblePages } from "@/lib/dashboard/templates";
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Search, Facebook: MessageSquare, Target, Users, Globe, X,
@@ -18,6 +20,10 @@ interface DashboardTabsProps {
 
 export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
   const pathname = usePathname();
+  const { data } = useDashboard();
+
+  const visiblePageKeys = getVisiblePages(data?.templateId);
+  const filteredPages = DASHBOARD_PAGES.filter(p => visiblePageKeys.includes(p.key));
 
   return (
     <div
@@ -29,7 +35,7 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
         scrollbarWidth: "none",
       }}
     >
-      {DASHBOARD_PAGES.map((page) => {
+      {filteredPages.map((page) => {
         const href = `/app/dashboards/${dashboardId}/${page.key}`;
         const isActive = pathname === href;
         const Icon = iconMap[page.icon] || LayoutDashboard;
@@ -48,3 +54,4 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
     </div>
   );
 }
+

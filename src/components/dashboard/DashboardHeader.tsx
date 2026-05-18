@@ -19,7 +19,11 @@ export function DashboardHeader({
   dashboardTitle,
   dashboardId,
 }: DashboardHeaderProps) {
-  const { rangePreset, updateRange } = useDashboard();
+  const { rangePreset, updateRange, data } = useDashboard();
+  
+  const metricsSource = data?.config?.Fonte || data?.config?.fonte || (data?.source === "mock" ? "Mocks" : "Google Sheets");
+  const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
+
   return (
     <header
       style={{
@@ -52,10 +56,22 @@ export function DashboardHeader({
             <BarChart3 size={17} color="white" />
           </div>
         </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: 13, color: "#94A3B8" }}>{clientName}</span>
           <span style={{ color: "#CBD5E1" }}>/</span>
           <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{dashboardTitle}</span>
+          
+          {/* Badges de Fonte e Conta */}
+          {metricsSource && (
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wider">
+              Fonte: {metricsSource}
+            </span>
+          )}
+          {accountId && (
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">
+              ID Conta Google: {accountId}
+            </span>
+          )}
         </div>
       </div>
 
