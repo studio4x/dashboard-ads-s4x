@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, ArrowRight, PieChart, X, Loader2, Save, Layout, Link2, RefreshCw, Database } from "lucide-react";
+import { Plus, ArrowRight, PieChart, X, Loader2, Save, Layout, Link2, RefreshCw, Database, Trash2 } from "lucide-react";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 
@@ -211,6 +211,30 @@ export default function AdminDashboardsPage() {
     }
   }
 
+  async function handleDeleteDashboard(id: string, name: string) {
+    if (!confirm(`Deseja realmente EXCLUIR o dashboard "${name}"?\nEsta ação é irreversível e removerá todos os dados sincronizados, conexões com planilhas e links de compartilhamento!`)) {
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/admin/dashboards/${id}`, {
+        method: "DELETE"
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert("Dashboard excluído com sucesso!");
+        fetchData();
+      } else {
+        alert("Erro ao excluir: " + result.error);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      alert("Erro ao conectar com o servidor.");
+      setIsLoading(false);
+    }
+  }
+
   if (isLoading && dashboards.length === 0) {
     return (
       <div style={{ display: "flex", height: "50vh", alignItems: "center", justifyContent: "center" }}>
@@ -313,6 +337,14 @@ export default function AdminDashboardsPage() {
                   style={{ display: "flex", alignItems: "center", padding: "6px 12px", borderRadius: 8, background: "#F0FDF4", fontSize: 13, color: "#16A34A", border: "1px solid #BBF7D0", cursor: "pointer", fontWeight: 500 }}
                 >
                   Compartilhar
+                </button>
+
+                <button 
+                  onClick={() => handleDeleteDashboard(d.id, d.name)}
+                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 8, background: "#FEF2F2", fontSize: 13, color: "#DC2626", border: "1px solid #FEE2E2", cursor: "pointer", fontWeight: 500 }}
+                  title="Excluir Dashboard"
+                >
+                  <Trash2 size={13} /> Excluir
                 </button>
                 
                 <Link href={`/app/dashboards/${d.id}/executive-summary`} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "#EFF6FF", fontSize: 13, color: "#2563EB", textDecoration: "none", fontWeight: 500 }}>
