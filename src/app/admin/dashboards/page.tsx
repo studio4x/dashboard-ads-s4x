@@ -446,6 +446,8 @@ export default function AdminDashboardsPage() {
 
                   <Link 
                     href={`/app/dashboards/${d.id}/executive-summary`} 
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{ 
                       display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", 
                       borderRadius: 8, background: "#2563EB", fontSize: 13, color: "white", 
