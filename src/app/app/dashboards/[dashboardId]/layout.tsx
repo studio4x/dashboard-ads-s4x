@@ -1,5 +1,6 @@
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
+import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { DashboardDataProvider } from "@/components/dashboard/DashboardDataContext";
 import { mockClients, mockDashboards } from "@/data/mock-sheet-overview";
 import { DashboardService } from "@/services/dashboard-service";
@@ -68,7 +69,11 @@ export default async function DashboardLayout({ children, params }: DashboardLay
         <div style={{ flex: 1, width: "100%" }}>
           {children}
         </div>
+
+        {/* Footer */}
+        <DashboardFooter />
       </div>
     </DashboardDataProvider>
   );
 }
+
