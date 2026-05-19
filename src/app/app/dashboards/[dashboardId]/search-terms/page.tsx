@@ -63,8 +63,43 @@ export default function SearchTermsPage() {
   // Destaques: Termos com conversões
   const termsWithConversions = sortedTerms.filter(st => (st.conversions || 0) > 0).slice(0, 5);
 
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2">
+      {/* Filtro de Campanha */}
+      <div className="relative" style={{ width: "160px" }}>
+        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+        <select 
+          value={selectedCampaign}
+          onChange={(e) => setSelectedCampaign(e.target.value)}
+          className="w-full pl-8 pr-4 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium text-slate-600 cursor-pointer"
+          style={{ height: "30px" }}
+        >
+          <option value="all">Campanhas</option>
+          {campaignOptions.map(name => <option key={name} value={name}>{name}</option>)}
+        </select>
+      </div>
+
+      {/* Busca */}
+      <div className="relative" style={{ width: "160px" }}>
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+        <input 
+          type="text" 
+          placeholder="Buscar termo..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-8 pr-3 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ height: "30px" }}
+        />
+      </div>
+    </div>
+  );
+
   return (
-    <DashboardPageShell title="Termos de Pesquisa" subtitle="O que os usuários pesquisaram">
+    <DashboardPageShell 
+      title="Termos de Pesquisa" 
+      subtitle="O que os usuários pesquisaram"
+      headerActions={headerActions}
+    >
       <KpiGrid metrics={kpis} columns={3} />
 
       {/* Destaques de Intenção */}
@@ -92,7 +127,7 @@ export default function SearchTermsPage() {
       </div>
 
       <div className="card mt-6" style={{ padding: 0 }}>
-        <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-center gap-4">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-slate-900">Relatório de Termos</h3>
             <div className="group relative">
@@ -100,31 +135,6 @@ export default function SearchTermsPage() {
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
                 Mostra o que o usuário realmente digitou antes de clicar no seu anúncio.
               </div>
-            </div>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-            <div className="relative w-full sm:w-64">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-              <select 
-                value={selectedCampaign}
-                onChange={(e) => setSelectedCampaign(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium"
-              >
-                <option value="all">Todas as Campanhas</option>
-                {campaignOptions.map(name => <option key={name} value={name}>{name}</option>)}
-              </select>
-            </div>
-
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-              <input 
-                type="text" 
-                placeholder="Buscar termo..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
             </div>
           </div>
         </div>

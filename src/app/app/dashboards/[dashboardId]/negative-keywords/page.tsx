@@ -53,40 +53,54 @@ export default function NegativeKeywordsPage() {
     { label: "Negativas Diretas", value: directNegatives, formatted_value: formatNumber(directNegatives), change_percent: 0, change_direction: "neutral" as const },
   ];
 
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2">
+      {/* Filtro de Origem */}
+      <div className="relative" style={{ width: "160px" }}>
+        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+        <select 
+          value={selectedSource}
+          onChange={(e) => setSelectedSource(e.target.value)}
+          className="w-full pl-8 pr-4 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium text-slate-600 cursor-pointer"
+          style={{ height: "30px" }}
+        >
+          <option value="all">Todas as Origens</option>
+          {sourceOptions.map(src => (
+            <option key={src} value={src}>
+              {src === "CAMPAIGN_LIST" ? "Lista Compartilhada" : src === "CAMPAIGN" ? "Campanha" : src}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Busca */}
+      <div className="relative" style={{ width: "185px" }}>
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+        <input 
+          type="text" 
+          placeholder="Buscar palavra ou campanha..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-8 pr-3 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ height: "30px" }}
+        />
+      </div>
+    </div>
+  );
+
   return (
-    <DashboardPageShell title="Palavras-Chave Negativas" subtitle="Filtros de exclusão de tráfego">
+    <DashboardPageShell 
+      title="Palavras-Chave Negativas" 
+      subtitle="Filtros de exclusão de tráfego"
+      headerActions={headerActions}
+    >
       <KpiGrid metrics={kpis} columns={4} />
 
       <div className="card mt-6" style={{ padding: 0 }}>
-        <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-center gap-4">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <ShieldAlert className="text-red-500" size={16} />
             <h3 className="text-sm font-semibold text-slate-900">Listagem de Exclusões</h3>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-            <div className="relative w-full sm:w-64">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-              <select 
-                value={selectedSource}
-                onChange={(e) => setSelectedSource(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium"
-              >
-                <option value="all">Todas as Origens</option>
-                {sourceOptions.map(src => <option key={src} value={src}>{src}</option>)}
-              </select>
-            </div>
-
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-              <input 
-                type="text" 
-                placeholder="Buscar palavra ou campanha..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
           </div>
         </div>
 

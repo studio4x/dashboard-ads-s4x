@@ -55,8 +55,43 @@ export default function AdsAssetsPage() {
     { label: "Recursos Ativos", value: activeAssets, formatted_value: formatNumber(activeAssets), change_percent: 0, change_direction: "neutral" as const },
   ];
 
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2">
+      {/* Filtro de Tipo */}
+      <div className="relative" style={{ width: "160px" }}>
+        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+        <select 
+          value={selectedType}
+          onChange={(e) => setSelectedType(e.target.value)}
+          className="w-full pl-8 pr-4 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium text-slate-600 cursor-pointer"
+          style={{ height: "30px" }}
+        >
+          <option value="all">Todos os Tipos</option>
+          {typeOptions.map(type => <option key={type} value={type}>{type}</option>)}
+        </select>
+      </div>
+
+      {/* Busca */}
+      <div className="relative" style={{ width: "180px" }}>
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+        <input 
+          type="text" 
+          placeholder="Buscar recurso ou campanha..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-8 pr-3 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ height: "30px" }}
+        />
+      </div>
+    </div>
+  );
+
   return (
-    <DashboardPageShell title="Anúncios e Recursos" subtitle="Performance dos criativos">
+    <DashboardPageShell 
+      title="Anúncios e Recursos" 
+      subtitle="Performance dos criativos"
+      headerActions={headerActions}
+    >
       <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
         <AlertCircle className="text-amber-600 mt-0.5" size={18} />
         <div>
@@ -71,35 +106,10 @@ export default function AdsAssetsPage() {
       <KpiGrid metrics={kpis} columns={4} />
 
       <div className="card mt-6" style={{ padding: 0 }}>
-        <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-center gap-4">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Layers className="text-blue-600" size={16} />
             <h3 className="text-sm font-semibold text-slate-900">Listagem de Recursos e Anúncios</h3>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-            <div className="relative w-full sm:w-64">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-              <select 
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium"
-              >
-                <option value="all">Todos os Tipos</option>
-                {typeOptions.map(type => <option key={type} value={type}>{type}</option>)}
-              </select>
-            </div>
-
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-              <input 
-                type="text" 
-                placeholder="Buscar recurso ou campanha..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
           </div>
         </div>
 

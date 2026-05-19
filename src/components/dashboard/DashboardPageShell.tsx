@@ -12,6 +12,7 @@ interface DashboardPageShellProps {
   children: React.ReactNode;
   className?: string;
   hideHeader?: boolean;
+  headerActions?: React.ReactNode;
 }
 
 export function DashboardPageShell({
@@ -20,6 +21,7 @@ export function DashboardPageShell({
   children,
   className,
   hideHeader = false,
+  headerActions,
 }: DashboardPageShellProps) {
   const { loading, error, needsImport, data, isShared } = useDashboard();
 
@@ -103,19 +105,29 @@ export function DashboardPageShell({
       }}
     >
       {!hideHeader && (
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 style={{ fontSize: "1.375rem", fontWeight: 700, color: "#0F172A", lineHeight: 1.3 }}>
-              {title}
-            </h1>
-            {subtitle && (
-              <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{subtitle}</p>
+        <div 
+          className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-1"
+          style={{ width: "100%" }}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 md:gap-6 flex-1 min-w-0">
+            <div className="flex-shrink-0">
+              <h1 style={{ fontSize: "1.375rem", fontWeight: 700, color: "#0F172A", lineHeight: 1.3 }}>
+                {title}
+              </h1>
+              {subtitle && (
+                <p style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>{subtitle}</p>
+              )}
+            </div>
+            {headerActions && (
+              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                {headerActions}
+              </div>
             )}
           </div>
           
           {/* Indicador de fonte de dados */}
           {data && (
-            <div className="flex flex-col items-end gap-1">
+            <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
               <span className={cn(
                 "text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider",
                 data.source === "mock" ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
@@ -123,7 +135,7 @@ export function DashboardPageShell({
                 {data.source === "mock" ? "Ambiente de Teste (Mock)" : "Dados Reais (Google Sheets)"}
               </span>
               {data.lastUpdated && (
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[10px] text-slate-400 font-medium">
                   Atualizado em: {data.lastUpdated}
                 </span>
               )}
