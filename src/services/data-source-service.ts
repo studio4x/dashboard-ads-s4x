@@ -38,7 +38,8 @@ export const DataSourceService = {
     clientId: string,
     dashboardId: string,
     name: string,
-    spreadsheetId: string
+    spreadsheetId: string,
+    syncInterval?: string
   }) {
     const supabase = await createClient()
 
@@ -50,7 +51,8 @@ export const DataSourceService = {
         dashboard_id: config.dashboardId,
         name: config.name,
         type: 'google_sheets',
-        status: 'active'
+        status: 'active',
+        sync_interval: config.syncInterval || 'daily'
       }])
       .select()
       .single()
@@ -142,14 +144,18 @@ export const DataSourceService = {
    */
   async updateGoogleSheetSource(id: string, config: {
     name: string,
-    spreadsheetId: string
+    spreadsheetId: string,
+    syncInterval?: string
   }) {
     const supabase = await createClient()
 
     // 1. Atualiza a entrada na data_sources
     const { error: sourceError } = await supabase
       .from('data_sources')
-      .update({ name: config.name })
+      .update({ 
+        name: config.name,
+        sync_interval: config.syncInterval
+      })
       .eq('id', id)
 
     if (sourceError) throw sourceError

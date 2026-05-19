@@ -16,6 +16,7 @@ interface GoogleSheetSourceCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   templateId?: string;
+  syncInterval?: string;
 }
 
 export function GoogleSheetSourceCard({
@@ -30,6 +31,7 @@ export function GoogleSheetSourceCard({
   onEdit,
   onDelete,
   templateId,
+  syncInterval,
 }: GoogleSheetSourceCardProps) {
   return (
     <div
@@ -62,10 +64,30 @@ export function GoogleSheetSourceCard({
         <p style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>
           {clientName} {dashboardName && `· ${dashboardName}`}
         </p>
-        <div style={{ display: "flex", gap: 12, marginTop: 4, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
           {templateId && (
             <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#F1F5F9", color: "#475569", textTransform: "uppercase" }}>
               {templateId.replace('_s4x', '').replace('_', ' ')}
+            </span>
+          )}
+          {syncInterval && (
+            <span 
+              title="Frequência de sincronização automática"
+              style={{ 
+                fontSize: 10, 
+                fontWeight: 600, 
+                padding: "2px 6px", 
+                borderRadius: 4, 
+                background: syncInterval === 'manual' ? "#FEF2F2" : "#F0FDF4", 
+                color: syncInterval === 'manual' ? "#EF4444" : "#16A34A",
+                border: `1px solid ${syncInterval === 'manual' ? "#FEE2E2" : "#DCFCE7"}`
+              }}
+            >
+              {syncInterval === 'manual' && 'Sync: Manual'}
+              {syncInterval === 'six_hours' && 'Sync: 6 horas'}
+              {syncInterval === 'twelve_hours' && 'Sync: 12 horas'}
+              {syncInterval === 'daily' && 'Sync: Diária'}
+              {syncInterval === 'weekly' && 'Sync: Semanal'}
             </span>
           )}
           {lastSynced ? (

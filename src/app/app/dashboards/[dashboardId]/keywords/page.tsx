@@ -71,13 +71,13 @@ export default function KeywordsPage() {
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       {/* Filtro de Campanha */}
-      <div className="relative" style={{ width: "150px" }}>
-        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+      <div className="relative" style={{ width: "220px" }}>
+        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
         <select 
           value={selectedCampaign}
           onChange={(e) => setSelectedCampaign(e.target.value)}
-          className="w-full pl-8 pr-4 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium text-slate-600 cursor-pointer"
-          style={{ height: "30px" }}
+          className="w-full pr-4 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium text-slate-600 cursor-pointer"
+          style={{ height: "30px", paddingLeft: "30px" }}
         >
           <option value="all">Campanhas</option>
           {campaignOptions.map(name => <option key={name} value={name}>{name}</option>)}
@@ -85,13 +85,13 @@ export default function KeywordsPage() {
       </div>
 
       {/* Filtro de Correspondência */}
-      <div className="relative" style={{ width: "130px" }}>
-        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+      <div className="relative" style={{ width: "150px" }}>
+        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
         <select 
           value={selectedMatch}
           onChange={(e) => setSelectedMatch(e.target.value)}
-          className="w-full pl-8 pr-4 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium text-slate-600 cursor-pointer"
-          style={{ height: "30px" }}
+          className="w-full pr-4 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium text-slate-600 cursor-pointer"
+          style={{ height: "30px", paddingLeft: "30px" }}
         >
           <option value="all">Correspondência</option>
           {matchOptions.map(m => <option key={m} value={m}>{m}</option>)}
@@ -99,15 +99,15 @@ export default function KeywordsPage() {
       </div>
 
       {/* Busca */}
-      <div className="relative" style={{ width: "150px" }}>
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+      <div className="relative" style={{ width: "180px" }}>
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
         <input 
           type="text" 
           placeholder="Buscar palavra..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-8 pr-3 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-          style={{ height: "30px" }}
+          className="w-full pr-3 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ height: "30px", paddingLeft: "30px" }}
         />
       </div>
     </div>

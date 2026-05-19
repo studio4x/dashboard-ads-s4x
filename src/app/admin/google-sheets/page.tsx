@@ -15,6 +15,7 @@ interface SheetSource {
   dashboard_id: string;
   type: string;
   status: string;
+  sync_interval?: string;
   google_sheet_sources: {
     spreadsheet_id: string;
     last_import_at?: string;
@@ -54,7 +55,8 @@ export default function GoogleSheetsAdminPage() {
     clientId: "",
     dashboardId: "",
     name: "",
-    spreadsheetId: ""
+    spreadsheetId: "",
+    syncInterval: "daily"
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -106,7 +108,8 @@ export default function GoogleSheetsAdminPage() {
       clientId: source.client_id,
       dashboardId: source.dashboard_id,
       name: source.name,
-      spreadsheetId: source.google_sheet_sources.spreadsheet_id
+      spreadsheetId: source.google_sheet_sources.spreadsheet_id,
+      syncInterval: source.sync_interval || "daily"
     });
     // Carrega os dashboards do cliente para o select
     await handleClientChange(source.client_id);
@@ -165,7 +168,7 @@ export default function GoogleSheetsAdminPage() {
       if (result.success) {
         setIsModalOpen(false);
         setEditingSourceId(null);
-        setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "" });
+        setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "", syncInterval: "daily" });
         fetchData();
         toast(editingSourceId ? "Fonte atualizada!" : "Fonte criada com sucesso!", "success");
       } else {
@@ -228,7 +231,7 @@ export default function GoogleSheetsAdminPage() {
         <button 
           onClick={() => {
             setEditingSourceId(null);
-            setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "" });
+            setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "", syncInterval: "daily" });
             setIsModalOpen(true);
           }}
           style={{ 
@@ -266,7 +269,7 @@ export default function GoogleSheetsAdminPage() {
               label: "Nova Planilha",
               onClick: () => {
                 setEditingSourceId(null);
-                setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "" });
+                setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "", syncInterval: "daily" });
                 setIsModalOpen(true);
               },
               icon: Plus
@@ -280,6 +283,7 @@ export default function GoogleSheetsAdminPage() {
               clientName={source.clients.name}
               dashboardName={source.dashboards?.name}
               templateId={source.dashboards?.dashboard_type}
+              syncInterval={source.sync_interval}
               tabsCount={source.google_sheet_sources.last_import_status ? 10 : 0}
               lastSynced={source.google_sheet_sources.last_import_at ? new Date(source.google_sheet_sources.last_import_at).toLocaleString("pt-BR") : undefined}
               status={isSyncing === source.id ? "running" : (source.google_sheet_sources.last_import_status as any || "pending")}
@@ -453,7 +457,22 @@ export default function GoogleSheetsAdminPage() {
                   placeholder="ex: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
                   style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
                 />
-                <p style={{ fontSize: 11, color: "#94A3B8" }}>O ID fica na URL da planilha, entre /d/ e /edit.</p>
+                 <p style={{ fontSize: 11, color: "#94A3B8" }}>O ID fica na URL da planilha, entre /d/ e /edit.</p>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Período de Sincronização Automática</label>
+                <select 
+                  value={formData.syncInterval}
+                  onChange={e => setFormData({ ...formData, syncInterval: e.target.value })}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white", color: "#0F172A" }}
+                >
+                  <option value="manual">Manual (Sem automação)</option>
+                  <option value="six_hours">A cada 6 horas</option>
+                  <option value="twelve_hours">A cada 12 horas</option>
+                  <option value="daily">Diariamente</option>
+                  <option value="weekly">Semanalmente</option>
+                </select>
               </div>
 
               {formData.dashboardId && (

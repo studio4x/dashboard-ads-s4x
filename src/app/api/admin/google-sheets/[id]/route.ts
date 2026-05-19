@@ -11,13 +11,17 @@ export async function PATCH(
     if (authError) return authError;
 
     const { id } = await params;
-    const { name, spreadsheetId } = await request.json();
+    const { name, spreadsheetId, syncInterval } = await request.json();
 
     if (!name || !spreadsheetId) {
       return NextResponse.json({ error: "Nome e ID da planilha são obrigatórios." }, { status: 400 });
     }
 
-    await DataSourceService.updateGoogleSheetSource(id, { name, spreadsheetId });
+    await DataSourceService.updateGoogleSheetSource(id, { 
+      name, 
+      spreadsheetId, 
+      syncInterval 
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

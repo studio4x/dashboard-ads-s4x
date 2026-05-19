@@ -62,6 +62,16 @@ async function handleCron(request: Request) {
         continue;
       }
 
+      // Verifica se a fonte deve ser sincronizada com base no intervalo programado
+      if (!shouldSync(source.sync_interval, gSheetConfig.last_import_at)) {
+        summary.details.push({
+          sourceId: source.id,
+          status: "skipped",
+          message: `Sincronização automática ignorada devido ao agendamento. Intervalo: ${source.sync_interval || 'daily'}. Última importação: ${gSheetConfig.last_import_at ? new Date(gSheetConfig.last_import_at).toLocaleString('pt-BR') : 'Nunca'}`
+        });
+        continue;
+      }
+
       try {
         console.log(`[CRON] Importando: Client ${source.client_id} | Dashboard ${source.dashboard_id} | Sheet ${gSheetConfig.spreadsheet_id}`);
         
@@ -113,5 +123,42 @@ async function handleCron(request: Request) {
       error: "Erro interno durante o processamento do cron.",
       details: error.message 
     }, { status: 500 });
+  }
+}
+
+/**
+ * Função utilitária para verificar se a fonte de dados deve ser sincronizada
+ * baseado no intervalo de sincronização e na data da última importação.
+ */
+function shouldSync(syncInterval: string | null | undefined, lastImportAtStr: string | null | undefined): boolean {
+  // Se for configurado como manual, nunca roda na cron automática
+  if (syncInterval === 'manual') {
+    return false;
+  }
+
+  // Se nunca foi importado, deve sincronizar
+  if (!lastImportAtStr) {
+    return true;
+  }
+
+  const lastImportAt = new Date(lastImportAtStr);
+  const now = new Date();
+  const diffMs = now.getTime() - lastImportAt.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+
+  switch (syncInterval) {
+    case 'six_hours':
+      // Tolerância de 12 minutos (0.2h) para evitar pular por pequenos desvios de segundos
+      return diffHours >= 5.8;
+    case 'twelve_hours':
+      // Tolerância de 12 minutos (0.2h)
+      return diffHours >= 11.8;
+    case 'weekly':
+      // Tolerância de 1 hora
+      return diffHours >= (24 * 7 - 1.0);
+    case 'daily':
+    default:
+      // Padrão: 23 horas de tolerância para sincronizações diárias executadas no mesmo período
+      return diffHours >= 23.0;
   }
 }

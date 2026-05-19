@@ -56,13 +56,13 @@ export default function NegativeKeywordsPage() {
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       {/* Filtro de Origem */}
-      <div className="relative" style={{ width: "160px" }}>
-        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+      <div className="relative" style={{ width: "180px" }}>
+        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
         <select 
           value={selectedSource}
           onChange={(e) => setSelectedSource(e.target.value)}
-          className="w-full pl-8 pr-4 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium text-slate-600 cursor-pointer"
-          style={{ height: "30px" }}
+          className="w-full pr-4 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none bg-white font-medium text-slate-600 cursor-pointer"
+          style={{ height: "30px", paddingLeft: "30px" }}
         >
           <option value="all">Todas as Origens</option>
           {sourceOptions.map(src => (
@@ -74,15 +74,15 @@ export default function NegativeKeywordsPage() {
       </div>
 
       {/* Busca */}
-      <div className="relative" style={{ width: "185px" }}>
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+      <div className="relative" style={{ width: "220px" }}>
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
         <input 
           type="text" 
           placeholder="Buscar palavra ou campanha..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-8 pr-3 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-          style={{ height: "30px" }}
+          className="w-full pr-3 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ height: "30px", paddingLeft: "30px" }}
         />
       </div>
     </div>

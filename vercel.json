@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/import-google-sheets",
-      "schedule": "0 5 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }
