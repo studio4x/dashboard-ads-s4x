@@ -19,7 +19,7 @@ export function DashboardHeader({
   dashboardTitle,
   dashboardId,
 }: DashboardHeaderProps) {
-  const { rangePreset, includeToday, updateRange, data } = useDashboard();
+  const { rangePreset, includeToday, updateRange, from, to, data } = useDashboard();
   
   const metricsSource = data?.config?.Fonte || data?.config?.fonte || (data?.source === "mock" ? "Mocks" : "Google Sheets");
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
@@ -77,6 +77,8 @@ export function DashboardHeader({
             currentPreset={rangePreset} 
             onPresetChange={updateRange} 
             includeToday={includeToday}
+            from={from}
+            to={to}
           />
 
           <button

@@ -11,6 +11,8 @@ interface DateRangeSelectorProps {
   className?: string;
   variant?: "default" | "minimal";
   includeToday?: boolean;
+  from?: string;
+  to?: string;
 }
 
 const presets: { value: DateRangePreset; label: string }[] = [
@@ -27,24 +29,40 @@ export function DateRangeSelector({
   className,
   variant = "default",
   includeToday = false,
+  from,
+  to,
 }: DateRangeSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const currentRange = getDateRangePreset(currentPreset, undefined, includeToday);
+
+  // Parse active custom range from parent props if provided
+  let customRange: { from: Date, to: Date } | undefined = undefined;
+  if (from && to) {
+    const parseDate = (dStr: string) => {
+      const [y, m, d] = dStr.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+    customRange = {
+      from: parseDate(from),
+      to: parseDate(to)
+    };
+  }
+
+  const currentRange = getDateRangePreset(currentPreset, customRange, includeToday);
 
   const [startDateStr, setStartDateStr] = useState("");
   const [endDateStr, setEndDateStr] = useState("");
 
   const isMinimal = variant === "minimal";
 
-  // Sync date inputs only when opening dropdown or when preset or includeToday shifts.
+  // Sync date inputs only when opening dropdown or when preset, includeToday, or custom range shifts.
   // This avoids resetting values on every keystroke when typing custom dates.
   useEffect(() => {
     if (isOpen) {
-      const range = getDateRangePreset(currentPreset, undefined, includeToday);
+      const range = getDateRangePreset(currentPreset, customRange, includeToday);
       setStartDateStr(formatDateISO(range.from));
       setEndDateStr(formatDateISO(range.to));
     }
-  }, [isOpen, currentPreset, includeToday]);
+  }, [isOpen, currentPreset, includeToday, from, to]);
 
   const formatDateRange = (from: Date, to: Date) => {
     const fmt = (d: Date) => {
@@ -66,7 +84,7 @@ export function DateRangeSelector({
       >
         {!isMinimal && <Calendar size={16} className="text-slate-400" />}
         <span>
-          {currentRange.label}{" "}
+          {currentPreset === "custom" ? "Período Personalizado" : currentRange.label}{" "}
           <span className={cn("text-xs font-normal ml-1", isMinimal ? "text-slate-400" : "text-slate-500")}>
             ({formatDateRange(currentRange.from, currentRange.to)})
           </span>
