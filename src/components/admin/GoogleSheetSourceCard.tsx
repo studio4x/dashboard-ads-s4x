@@ -84,6 +84,7 @@ export function GoogleSheetSourceCard({
               }}
             >
               {syncInterval === 'manual' && 'Sync: Manual'}
+              {syncInterval === 'one_hour' && 'Sync: 1 hora'}
               {syncInterval === 'six_hours' && 'Sync: 6 horas'}
               {syncInterval === 'twelve_hours' && 'Sync: 12 horas'}
               {syncInterval === 'daily' && 'Sync: Diária'}

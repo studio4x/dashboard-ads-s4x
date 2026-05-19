@@ -478,6 +478,7 @@ export default function GoogleSheetsAdminPage() {
                   style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white", color: "#0F172A" }}
                 >
                   <option value="manual">Manual (Sem automação)</option>
+                  <option value="one_hour">A cada 1 hora</option>
                   <option value="six_hours">A cada 6 horas</option>
                   <option value="twelve_hours">A cada 12 horas</option>
                   <option value="daily">Diariamente</option>

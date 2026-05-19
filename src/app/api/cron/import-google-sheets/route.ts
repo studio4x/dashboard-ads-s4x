@@ -147,6 +147,9 @@ function shouldSync(syncInterval: string | null | undefined, lastImportAtStr: st
   const diffHours = diffMs / (1000 * 60 * 60);
 
   switch (syncInterval) {
+    case 'one_hour':
+      // Tolerância de 5 minutos (0.08h) para sincronizações horárias
+      return diffHours >= 0.92;
     case 'six_hours':
       // Tolerância de 12 minutos (0.2h) para evitar pular por pequenos desvios de segundos
       return diffHours >= 5.8;
