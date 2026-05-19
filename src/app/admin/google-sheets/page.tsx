@@ -104,6 +104,20 @@ export default function GoogleSheetsAdminPage() {
 
   const handleOpenEdit = async (source: SheetSource) => {
     setEditingSourceId(source.id);
+    
+    // Carrega os dashboards do cliente primeiro para popular o select antes de setar o form
+    if (source.client_id) {
+      try {
+        const res = await fetch(`/api/admin/dashboards?clientId=${source.client_id}`);
+        const data = await res.json();
+        setDashboards(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Erro ao buscar dashboards:", error);
+      }
+    } else {
+      setDashboards([]);
+    }
+
     setFormData({
       clientId: source.client_id,
       dashboardId: source.dashboard_id,
@@ -111,10 +125,6 @@ export default function GoogleSheetsAdminPage() {
       spreadsheetId: source.google_sheet_sources.spreadsheet_id,
       syncInterval: source.sync_interval || "daily"
     });
-    // Carrega os dashboards do cliente para o select
-    await handleClientChange(source.client_id);
-    // Mas garante que o dashboardId correto seja mantido (handleClientChange reseta ele)
-    setFormData(prev => ({ ...prev, dashboardId: source.dashboard_id }));
     setIsModalOpen(true);
   };
 
