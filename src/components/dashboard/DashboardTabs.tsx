@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard, Search, MessageSquare, Target, Users, Globe, X
 } from "lucide-react";
@@ -20,6 +20,7 @@ interface DashboardTabsProps {
 
 export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { data } = useDashboard();
 
   const visiblePageKeys = getVisiblePages(data?.templateId);
@@ -36,8 +37,10 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
       }}
     >
       {filteredPages.map((page) => {
-        const href = `/app/dashboards/${dashboardId}/${page.key}`;
-        const isActive = pathname === href;
+        const basePath = `/app/dashboards/${dashboardId}/${page.key}`;
+        const isActive = pathname === basePath;
+        const paramsString = searchParams.toString();
+        const href = paramsString ? `${basePath}?${paramsString}` : basePath;
         const Icon = iconMap[page.icon] || LayoutDashboard;
 
         return (
@@ -54,4 +57,5 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
     </div>
   );
 }
+
 
