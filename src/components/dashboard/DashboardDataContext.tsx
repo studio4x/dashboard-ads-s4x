@@ -45,7 +45,12 @@ interface DashboardDataContextType {
   from: string;
   to: string;
   rangePreset: DateRangePreset;
-  updateRange: (preset: DateRangePreset, customDates?: { from: Date; to: Date }) => void;
+  includeToday: boolean;
+  updateRange: (
+    preset: DateRangePreset, 
+    customDates?: { from: Date; to: Date },
+    includeTodayOverride?: boolean
+  ) => void;
   refresh: () => Promise<void>;
   isShared: boolean;
 }
@@ -64,10 +69,9 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
   const params = useParams();
   const dashboardId = overrideDashboardId || (params.dashboardId as string);
 
-  // 1. Resolve o período inicial (URL ou Default)
-  const [rangePreset, setRangePreset] = useState<DateRangePreset>(
-    (searchParams.get("period") as DateRangePreset) || "last_30_days"
-  );
+  // Derive presets directly from URL search params (prevents state-sync issues)
+  const rangePreset = (searchParams.get("period") as DateRangePreset) || "last_30_days";
+  const includeToday = searchParams.get("include_today") === "true";
 
   // We read the query parameters:
   const urlFrom = searchParams.get("from");
@@ -86,7 +90,7 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
     };
   }
 
-  const range = getDateRangePreset(rangePreset, customDates);
+  const range = getDateRangePreset(rangePreset, customDates, includeToday);
   const from = urlFrom || formatDateISO(range.from);
   const to = urlTo || formatDateISO(range.to);
   
@@ -127,20 +131,30 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
     }
   }, [dashboardId, from, to]);
 
-  const updateRange = (preset: DateRangePreset, customDatesOverride?: { from: Date; to: Date }) => {
+  const updateRange = (
+    preset: DateRangePreset, 
+    customDatesOverride?: { from: Date; to: Date },
+    includeTodayOverride?: boolean
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("period", preset);
+    
+    const activeIncludeToday = includeTodayOverride !== undefined ? includeTodayOverride : includeToday;
+    params.set("include_today", activeIncludeToday ? "true" : "false");
     
     if (preset === "custom" && customDatesOverride) {
       params.set("from", formatDateISO(customDatesOverride.from));
       params.set("to", formatDateISO(customDatesOverride.to));
+    } else if (preset === "custom") {
+      // Preserve current from/to if we are just switching/saving custom without new parameters
+      params.set("from", from);
+      params.set("to", to);
     } else {
-      const newRange = getDateRangePreset(preset);
+      const newRange = getDateRangePreset(preset, undefined, activeIncludeToday);
       params.set("from", formatDateISO(newRange.from));
       params.set("to", formatDateISO(newRange.to));
     }
     
-    setRangePreset(preset);
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
@@ -157,6 +171,7 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
       from, 
       to, 
       rangePreset, 
+      includeToday,
       updateRange, 
       refresh: fetchData,
       isShared: !!shareToken

@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils";
 
 interface DateRangeSelectorProps {
   currentPreset?: DateRangePreset;
-  onPresetChange: (preset: DateRangePreset, customDates?: { from: Date, to: Date }) => void;
+  onPresetChange: (preset: DateRangePreset, customDates?: { from: Date, to: Date }, includeTodayOverride?: boolean) => void;
   className?: string;
   variant?: "default" | "minimal";
+  includeToday?: boolean;
 }
 
 const presets: { value: DateRangePreset; label: string }[] = [
@@ -25,21 +26,25 @@ export function DateRangeSelector({
   onPresetChange,
   className,
   variant = "default",
+  includeToday = false,
 }: DateRangeSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const currentRange = getDateRangePreset(currentPreset);
+  const currentRange = getDateRangePreset(currentPreset, undefined, includeToday);
 
   const [startDateStr, setStartDateStr] = useState("");
   const [endDateStr, setEndDateStr] = useState("");
 
   const isMinimal = variant === "minimal";
 
+  // Sync date inputs only when opening dropdown or when preset or includeToday shifts.
+  // This avoids resetting values on every keystroke when typing custom dates.
   useEffect(() => {
-    if (isOpen && currentRange) {
-      setStartDateStr(formatDateISO(currentRange.from));
-      setEndDateStr(formatDateISO(currentRange.to));
+    if (isOpen) {
+      const range = getDateRangePreset(currentPreset, undefined, includeToday);
+      setStartDateStr(formatDateISO(range.from));
+      setEndDateStr(formatDateISO(range.to));
     }
-  }, [isOpen, currentRange]);
+  }, [isOpen, currentPreset, includeToday]);
 
   const formatDateRange = (from: Date, to: Date) => {
     const fmt = (d: Date) => {
@@ -81,13 +86,13 @@ export function DateRangeSelector({
           >
             <div className="flex flex-col gap-1">
               {presets.map((preset) => {
-                const range = getDateRangePreset(preset.value);
+                const range = getDateRangePreset(preset.value, undefined, includeToday);
                 const isSelected = currentPreset === preset.value;
                 return (
                   <button
                     key={preset.value}
                     onClick={() => {
-                      onPresetChange(preset.value);
+                      onPresetChange(preset.value, undefined, includeToday);
                       setIsOpen(false);
                     }}
                     style={{
@@ -128,6 +133,31 @@ export function DateRangeSelector({
                 );
               })}
             </div>
+
+            {/* Checkbox "Incluir dados de hoje" */}
+            <div style={{ borderTop: "1px solid #F1F5F9", marginTop: "6px", paddingTop: "8px", paddingBottom: "2px", paddingLeft: "12px", paddingRight: "12px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", userSelect: "none" }}>
+                <input 
+                  type="checkbox" 
+                  checked={includeToday} 
+                  onChange={(e) => {
+                    onPresetChange(currentPreset, undefined, e.target.checked);
+                  }}
+                  style={{
+                    width: "14px",
+                    height: "14px",
+                    borderRadius: "4px",
+                    border: "1px solid #CBD5E1",
+                    accentColor: "#2563EB",
+                    cursor: "pointer"
+                  }}
+                />
+                <span style={{ fontSize: "12px", fontWeight: 500, color: "#475569" }}>
+                  Incluir dados de hoje
+                </span>
+              </label>
+            </div>
+
             <div style={{ borderTop: "1px solid #E2E8F0", marginTop: "8px", paddingTop: "8px", paddingLeft: "4px", paddingRight: "4px" }}>
               <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B", textTransform: "uppercase", display: "block", marginBottom: "8px", paddingLeft: "8px" }}>
                 Período Personalizado
@@ -174,7 +204,7 @@ export function DateRangeSelector({
                       const [ey, em, ed] = endDateStr.split("-").map(Number);
                       const fromDate = new Date(sy, sm - 1, sd);
                       const toDate = new Date(ey, em - 1, ed);
-                      onPresetChange("custom", { from: fromDate, to: toDate });
+                      onPresetChange("custom", { from: fromDate, to: toDate }, includeToday);
                       setIsOpen(false);
                     }
                   }}

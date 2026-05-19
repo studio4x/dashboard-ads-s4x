@@ -4,13 +4,14 @@ import { DateRangeSelector } from "@/components/dashboard/DateRangeSelector";
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 
 export function SharedHeaderActions() {
-  const { rangePreset, updateRange } = useDashboard();
+  const { rangePreset, includeToday, updateRange } = useDashboard();
   
   return (
     <div className="flex items-center gap-4">
       <DateRangeSelector 
         currentPreset={rangePreset} 
         onPresetChange={updateRange} 
+        includeToday={includeToday}
       />
       <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
       <div className="hidden sm:flex flex-col items-end">

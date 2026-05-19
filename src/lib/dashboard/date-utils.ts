@@ -24,36 +24,41 @@ export interface DateRange {
   label: string;
 }
 
-export function getDateRangePreset(preset: DateRangePreset, customRange?: { from: Date, to: Date }): DateRange {
+export function getDateRangePreset(
+  preset: DateRangePreset, 
+  customRange?: { from: Date, to: Date },
+  includeToday = false
+): DateRange {
   const today = new Date();
+  const referenceDate = includeToday ? today : subDays(today, 1);
   
   switch (preset) {
     case "last_7_days":
       return {
-        from: subDays(today, 7),
-        to: today,
+        from: subDays(referenceDate, 7),
+        to: referenceDate,
         label: "Últimos 7 dias"
       };
     case "last_14_days":
       return {
-        from: subDays(today, 14),
-        to: today,
+        from: subDays(referenceDate, 14),
+        to: referenceDate,
         label: "Últimos 14 dias"
       };
     case "last_30_days":
       return {
-        from: subDays(today, 30),
-        to: today,
+        from: subDays(referenceDate, 30),
+        to: referenceDate,
         label: "Últimos 30 dias"
       };
     case "this_month":
       return {
-        from: startOfMonth(today),
-        to: endOfMonth(today),
+        from: startOfMonth(referenceDate),
+        to: referenceDate,
         label: "Mês atual"
       };
     case "last_month": {
-      const lastMonth = subMonths(today, 1);
+      const lastMonth = subMonths(referenceDate, 1);
       return {
         from: startOfMonth(lastMonth),
         to: endOfMonth(lastMonth),
@@ -67,9 +72,9 @@ export function getDateRangePreset(preset: DateRangePreset, customRange?: { from
           label: `${format(customRange.from, "dd/MM/yyyy")} - ${format(customRange.to, "dd/MM/yyyy")}`
         };
       }
-      return getDateRangePreset("last_30_days");
+      return getDateRangePreset("last_30_days", undefined, includeToday);
     default:
-      return getDateRangePreset("last_30_days");
+      return getDateRangePreset("last_30_days", undefined, includeToday);
   }
 }
 
