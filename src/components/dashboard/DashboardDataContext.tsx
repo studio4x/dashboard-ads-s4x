@@ -33,6 +33,7 @@ interface DashboardData {
   templateId?: string;
   templateVersion?: string;
   platform?: string;
+  viewerRole?: string;
   source: "mock" | "google_sheets" | "google_sheets_cache";
   lastUpdated?: string;
 }

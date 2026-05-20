@@ -6,9 +6,25 @@ import { mockClients, mockDashboards } from "@/data/mock-sheet-overview";
 import { DashboardService } from "@/services/dashboard-service";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: { default: "Dashboard", template: "%s | Dashboard ADS S4X" },
-};
+export async function generateMetadata(
+  { params }: { params: Promise<{ dashboardId: string }> }
+): Promise<Metadata> {
+  const { dashboardId } = await params;
+  let dashboardTitle = "Dashboard";
+
+  try {
+    const dbDashboard = await DashboardService.getDashboardById(dashboardId);
+    if (dbDashboard) {
+      dashboardTitle = dbDashboard.name || dbDashboard.title || "Dashboard";
+    }
+  } catch {
+    // fallback silencioso
+  }
+
+  return {
+    title: `Dashboard Ads S4x | ${dashboardTitle}`,
+  };
+}
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -76,4 +92,3 @@ export default async function DashboardLayout({ children, params }: DashboardLay
     </DashboardDataProvider>
   );
 }
-

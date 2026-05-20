@@ -105,8 +105,14 @@ export default function ExecutiveSummaryPage() {
   if (!data) return null;
 
   const { summary, overview, audience, insights } = data;
+  const isAdminView = data.viewerRole === "admin" || data.viewerRole === "owner";
   const current = summary?.current || {};
   const changes = summary?.change || {};
+  const availableMetrics = data?.diagnostics?.availableMetrics?.fields || null;
+  const hasMetric = (metric: string) => {
+    if (!availableMetrics) return true;
+    return Boolean(availableMetrics[metric]);
+  };
 
   // Mapeamento de KPIs (7 principais da referência)
   const kpis = [
@@ -190,22 +196,41 @@ export default function ExecutiveSummaryPage() {
   
   const totalDeviceValue = deviceData.reduce((acc, curr) => acc + curr.value, 0);
 
-  // Fallback para Insights baseados em regras (Fase 6.5)
-  const displayInsights = insights.length > 0 ? insights : [
-    ...(changes.total_impressions < 0 ? [{ type: 'negative', text: 'O alcance das campanhas diminuiu em comparação ao período anterior.' }] : []),
-    ...(changes.ctr > 5 ? [{ type: 'positive', text: 'A taxa de cliques (CTR) subiu, indicando anúncios mais relevantes para o público.' }] : []),
-    ...(current.total_conversions === 0 ? [{ type: 'negative', text: 'Atenção: Nenhuma conversão registrada. Verifique o rastreamento ou a oferta.' }] : []),
-    ...(changes.cpc < 0 ? [{ type: 'positive', text: 'O custo por clique (CPC) médio caiu, melhorando a eficiência do investimento.' }] : []),
-    ...(insights.length === 0 && overview.length > 0 && changes.total_spend > 0 ? [{ type: 'neutral', text: 'O investimento foi ampliado neste período para buscar maior volume.' }] : [])
-  ].slice(0, 3);
-
-  // Fallback para Próximos Passos
-  const nextSteps = [
-    "Revisar eventos de conversão e rastreamento",
-    "Analisar termos de pesquisa para negativar palavras irrelevantes",
-    "Ajustar lances em campanhas com melhor CTR",
-    "Otimizar a página de destino para dispositivos móveis"
+  const fallbackInsights = insights.length > 0 ? insights.map((i: any) => ({ type: i.type || "neutral", text: i.text || i.description || "" })) : [];
+  const dynamicInsights = [
+    ...(hasMetric("impressions") && (changes.total_impressions || 0) < -5
+      ? [{ type: "negative", text: "O volume de impressões caiu no período. Avalie orçamento, público e competitividade do leilão." }]
+      : []),
+    ...(hasMetric("ctr") && (changes.ctr || 0) > 3
+      ? [{ type: "positive", text: "O CTR evoluiu positivamente, indicando melhora de relevância entre criativo, oferta e público." }]
+      : []),
+    ...(hasMetric("cpc") && (changes.cpc || 0) < -3
+      ? [{ type: "positive", text: "O CPC médio reduziu, aumentando eficiência de tráfego para o mesmo nível de investimento." }]
+      : []),
+    ...(hasMetric("conversions") && Number(current.total_conversions || 0) <= 0
+      ? [{ type: "negative", text: "Não houve conversões no período. Revise objetivo, evento de conversão e proposta da campanha." }]
+      : []),
+    ...(hasMetric("cost") && (changes.total_spend || 0) > 10
+      ? [{ type: "neutral", text: "O investimento subiu no período. Monitore se o ganho de volume veio com manutenção de eficiência." }]
+      : []),
   ];
+  const displayInsights = (fallbackInsights.length > 0 ? fallbackInsights : dynamicInsights).filter(i => i.text).slice(0, 4);
+
+  const nextSteps = [
+    ...(hasMetric("conversions") ? ["Revisar campanhas e conjuntos com baixo volume de conversões para redistribuir orçamento."] : []),
+    ...(hasMetric("ctr") ? ["Priorizar criativos com CTR superior e pausar variações com baixa taxa de clique."] : []),
+    ...(hasMetric("cpc") ? ["Ajustar segmentação e posicionamentos para reduzir CPC em grupos menos eficientes."] : []),
+    ...(hasMetric("frequency") ? ["Controlar frequência em públicos saturados para reduzir desgaste e queda de resposta."] : []),
+    ...(hasMetric("postEngagement") ? ["Usar peças com maior engajamento como base para novas variações de anúncio."] : []),
+  ].slice(0, 5);
+
+  const adminRecommendations = [
+    ...(hasMetric("cost") && hasMetric("conversions") ? ["Rebalancear orçamento entre campanhas por custo por resultado e tendência de volume."] : []),
+    ...(hasMetric("ctr") && hasMetric("cpc") ? ["Rodar teste A/B contínuo de criativos para elevar CTR e reduzir CPC de forma sustentada."] : []),
+    ...(hasMetric("frequency") ? ["Implementar rotina de renovação criativa quando frequência ultrapassar limite de fadiga."] : []),
+    ...(hasMetric("reach") ? ["Separar prospecting e remarketing com metas de alcance e eficiência independentes."] : []),
+    ...(hasMetric("postEngagement") ? ["Cruzar engajamento com resultados de negócio para evitar escalar campanhas vaidosas."] : []),
+  ].slice(0, 5);
 
   return (
     <DashboardPageShell
@@ -359,7 +384,7 @@ export default function ExecutiveSummaryPage() {
               <h2 className="text-lg font-bold text-slate-900">Próximos passos sugeridos</h2>
             </div>
             <div className="space-y-3">
-              {nextSteps.map((step, idx) => (
+              {(nextSteps.length > 0 ? nextSteps : ["Conecte mais métricas na planilha para recomendações mais precisas."]).map((step, idx) => (
                 <div key={idx} className="flex items-center gap-3 p-3 border-b border-slate-100 last:border-0 group">
                   <CheckCircle2 size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
                   <span className="text-[15px] font-medium text-slate-700">{step}</span>
@@ -368,6 +393,25 @@ export default function ExecutiveSummaryPage() {
             </div>
           </Card>
         </div>
+
+        {isAdminView && (
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white">
+                <ClipboardCheck size={18} />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900">Recomendações para Gestor de Tráfego</h2>
+            </div>
+            <div className="space-y-3">
+              {(adminRecommendations.length > 0 ? adminRecommendations : ["Sem métricas suficientes para recomendações avançadas neste período."]).map((step, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-3 border-b border-slate-100 last:border-0">
+                  <CheckCircle2 size={24} className="text-slate-800" />
+                  <span className="text-[15px] font-medium text-slate-700">{step}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </DashboardPageShell>
   );

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
-import { requireDashboardAccess } from "@/lib/auth/guards";
+import { getSessionProfile, requireDashboardAccess } from "@/lib/auth/guards";
 
 export async function GET(
   request: Request,
@@ -8,6 +8,7 @@ export async function GET(
 ) {
   try {
     const { dashboardId } = await params;
+    let viewerRole: string = "viewer";
     
     const { searchParams } = new URL(request.url);
     const shareToken = searchParams.get("share_token");
@@ -19,9 +20,12 @@ export async function GET(
       if (!shareData.isValid || shareData.link?.dashboard_id !== dashboardId) {
         return NextResponse.json({ error: "Token inválido, expirado ou não autorizado para este dashboard." }, { status: 403 });
       }
+      viewerRole = "viewer";
     } else {
       const authError = await requireDashboardAccess(dashboardId);
       if (authError) return authError;
+      const profile = await getSessionProfile();
+      viewerRole = profile?.role || "viewer";
     }
 
     const from = searchParams.get("from");
@@ -37,7 +41,7 @@ export async function GET(
       }, { status: 404 });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({ ...data, viewerRole });
   } catch (error: any) {
     console.error("Dashboard Data API Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
