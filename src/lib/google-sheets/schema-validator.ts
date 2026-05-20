@@ -22,6 +22,8 @@ export class SchemaValidator {
       return { isValid: true, errors: [], warnings: [] }; // Se não tem schema, pula (dashboards antigos)
     }
 
+    const warnMissingOptionalTabs = templateId !== "meta_ads_s4x";
+
     // 1. Validar Abas Obrigatórias
     Object.entries(schema.tabs).forEach(([tabName, tabSchema]) => {
       if (tabSchema.required && !spreadsheetTabs.includes(tabName)) {
@@ -31,7 +33,7 @@ export class SchemaValidator {
           sheet: tabName,
           message: `Aba obrigatória ausente: ${tabName}`
         });
-      } else if (!tabSchema.required && !spreadsheetTabs.includes(tabName)) {
+      } else if (warnMissingOptionalTabs && !tabSchema.required && !spreadsheetTabs.includes(tabName)) {
         warnings.push({
           severity: "warning",
           stage: "schema_validation",

@@ -39,9 +39,19 @@ export const DataSourceService = {
     dashboardId: string,
     name: string,
     spreadsheetId: string,
-    syncInterval?: string
+    syncInterval?: string,
+    dashboardType?: string
   }) {
     const supabase = await createClient()
+
+    if (config.dashboardType) {
+      const { error: dashboardError } = await supabase
+        .from('dashboards')
+        .update({ dashboard_type: config.dashboardType })
+        .eq('id', config.dashboardId);
+
+      if (dashboardError) throw dashboardError;
+    }
 
     // 1. Cria a entrada na data_sources
     const { data: source, error: sourceError } = await supabase

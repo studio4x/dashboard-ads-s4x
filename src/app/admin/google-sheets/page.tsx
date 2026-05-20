@@ -54,6 +54,7 @@ export default function GoogleSheetsAdminPage() {
   const [formData, setFormData] = useState({
     clientId: "",
     dashboardId: "",
+    dashboardType: "",
     name: "",
     spreadsheetId: "",
     syncInterval: "daily"
@@ -88,7 +89,7 @@ export default function GoogleSheetsAdminPage() {
   }
 
   const handleClientChange = async (clientId: string) => {
-    setFormData({ ...formData, clientId, dashboardId: "" });
+    setFormData({ ...formData, clientId, dashboardId: "", dashboardType: "" });
     if (!clientId) {
       setDashboards([]);
       return;
@@ -121,6 +122,7 @@ export default function GoogleSheetsAdminPage() {
     setFormData({
       clientId: source.client_id,
       dashboardId: source.dashboard_id,
+      dashboardType: source.dashboards?.dashboard_type || "",
       name: source.name,
       spreadsheetId: source.google_sheet_sources.spreadsheet_id,
       syncInterval: source.sync_interval || "daily"
@@ -178,7 +180,7 @@ export default function GoogleSheetsAdminPage() {
       if (result.success) {
         setIsModalOpen(false);
         setEditingSourceId(null);
-        setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "", syncInterval: "daily" });
+        setFormData({ clientId: "", dashboardId: "", dashboardType: "", name: "", spreadsheetId: "", syncInterval: "daily" });
         fetchData();
         toast(editingSourceId ? "Fonte atualizada!" : "Fonte criada com sucesso!", "success");
       } else {
@@ -241,7 +243,7 @@ export default function GoogleSheetsAdminPage() {
         <button 
           onClick={() => {
             setEditingSourceId(null);
-            setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "", syncInterval: "daily" });
+            setFormData({ clientId: "", dashboardId: "", dashboardType: "", name: "", spreadsheetId: "", syncInterval: "daily" });
             setIsModalOpen(true);
           }}
           style={{ 
@@ -279,7 +281,7 @@ export default function GoogleSheetsAdminPage() {
               label: "Nova Planilha",
               onClick: () => {
                 setEditingSourceId(null);
-                setFormData({ clientId: "", dashboardId: "", name: "", spreadsheetId: "", syncInterval: "daily" });
+                setFormData({ clientId: "", dashboardId: "", dashboardType: "", name: "", spreadsheetId: "", syncInterval: "daily" });
                 setIsModalOpen(true);
               },
               icon: Plus
@@ -450,12 +452,41 @@ export default function GoogleSheetsAdminPage() {
                   required
                   disabled={!formData.clientId || !!editingSourceId}
                   value={formData.dashboardId}
-                  onChange={e => setFormData({ ...formData, dashboardId: e.target.value })}
+                  onChange={e => {
+                    const dashboardId = e.target.value;
+                    const selectedDashboard = dashboards.find(d => d.id === dashboardId);
+                    setFormData({
+                      ...formData,
+                      dashboardId,
+                      dashboardType: selectedDashboard?.dashboard_type || ""
+                    });
+                  }}
                   style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: (editingSourceId || !formData.clientId) ? "#F8FAFC" : "white" }}
                 >
                   <option value="">Selecione um dashboard...</option>
                   {dashboards.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Modelo de Dashboard</label>
+                <select
+                  required
+                  disabled={!formData.dashboardId || !!editingSourceId}
+                  value={formData.dashboardType}
+                  onChange={e => setFormData({ ...formData, dashboardType: e.target.value })}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: (!formData.dashboardId || !!editingSourceId) ? "#F8FAFC" : "white" }}
+                >
+                  <option value="">Selecione um modelo...</option>
+                  <option value="google_ads_s4x">Google Ads S4X</option>
+                  <option value="meta_ads_s4x">Meta Ads S4X</option>
+                  <option value="google_ads">Google Ads (Legado)</option>
+                  <option value="meta_ads">Meta Ads (Legado)</option>
+                  <option value="custom">Custom / Legado</option>
+                </select>
+                {editingSourceId && (
+                  <p style={{ fontSize: 11, color: "#94A3B8" }}>Para alterar o modelo, edite o dashboard vinculado.</p>
+                )}
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -486,9 +517,8 @@ export default function GoogleSheetsAdminPage() {
                 </select>
               </div>
 
-              {formData.dashboardId && (() => {
-                const selectedDashboard = dashboards.find(d => d.id === formData.dashboardId);
-                const dashboardType = selectedDashboard?.dashboard_type;
+              {formData.dashboardType && (() => {
+                const dashboardType = formData.dashboardType;
                 const isGoogleS4X = dashboardType === 'google_ads_s4x';
                 const isMetaS4X = dashboardType === 'meta_ads_s4x';
 
@@ -531,16 +561,9 @@ export default function GoogleSheetsAdminPage() {
                       </div>
                     ) : (
                       <div style={{ padding: "12px 16px", background: "white" }}>
-                        <p style={{ fontSize: 11, color: "#15803D", marginBottom: 6, fontWeight: 700 }}>✓ ABA OBRIGATÓRIA</p>
-                        <div style={{ padding: "6px 10px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 6, fontSize: 12, color: "#15803D", fontWeight: 600, marginBottom: 12, display: "inline-block" }}>
-                          Performance Diária
-                        </div>
-                        <p style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6, fontWeight: 700 }}>ABAS OPCIONAIS (se existirem, são lidas)</p>
-                        <ul style={{ fontSize: 11, color: "#94A3B8", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
-                          <li>Meta</li>
-                          <li>Dashboard_Config</li>
-                          <li>Export_Logs</li>
-                        </ul>
+                        <p style={{ fontSize: 12, color: "#0369A1", fontWeight: 600 }}>
+                          Sem requisitos de abas no momento. A importação usa a aba que contiver as colunas obrigatórias de Meta Ads.
+                        </p>
                       </div>
                     )}
                   </div>

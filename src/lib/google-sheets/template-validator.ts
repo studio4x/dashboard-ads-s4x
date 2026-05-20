@@ -15,6 +15,10 @@ export class TemplateValidator {
     const errors: ImportError[] = [];
     const warnings: ImportError[] = [];
 
+    if (expectedTemplateId === "meta_ads_s4x") {
+      return { isValid: true, errors: [], warnings: [] };
+    }
+
     // Verifica se Dashboard_Config é obrigatória para este template
     const templateDef = getTemplateById(expectedTemplateId);
     const isConfigRequired = templateDef?.requiredSheets?.includes("Dashboard_Config") ?? true;

@@ -147,11 +147,6 @@ export const GoogleSheetsImportService = {
         }
 
         if (detectedTab) {
-          warnings.push({
-            severity: "warning",
-            stage: "template_validation",
-            message: `Aba "Performance Diária" não encontrada. Usando aba detectada automaticamente: "${detectedTab}".`
-          });
           // Substitui o reader para apontar para a aba detectada
           const perfIdx = metaS4xTabsToRead.findIndex(t => t.name === "Performance Diária");
           if (perfIdx !== -1) {
