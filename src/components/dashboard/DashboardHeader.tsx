@@ -33,9 +33,41 @@ export function DashboardHeader({
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
 
   async function waitForRender() {
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1500));
     await new Promise(requestAnimationFrame);
     await new Promise(requestAnimationFrame);
+  }
+
+  async function navigateAndWait(targetPathWithQuery: string) {
+    router.replace(targetPathWithQuery, { scroll: false });
+
+    const timeoutMs = 8000;
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const current = `${window.location.pathname}${window.location.search}`;
+      if (current === targetPathWithQuery) {
+        await waitForRender();
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 120));
+    }
+
+    throw new Error(`Timeout ao navegar para ${targetPathWithQuery}`);
+  }
+
+  async function getExportRoot(): Promise<HTMLElement> {
+    const timeoutMs = 6000;
+    const start = Date.now();
+
+    while (Date.now() - start < timeoutMs) {
+      const root = document.querySelector('[data-export-root="true"]') as HTMLElement | null;
+      if (root && root.offsetWidth > 0 && root.scrollHeight > 0) {
+        return root;
+      }
+      await new Promise((r) => setTimeout(r, 120));
+    }
+
+    throw new Error("Container de exportação não encontrado.");
   }
 
   async function handleExportPdf() {
@@ -59,34 +91,46 @@ export function DashboardHeader({
       const pageH = 210 - margin * 2;
 
       let isFirstPage = true;
+      let capturedPages = 0;
 
       for (const page of pages) {
         const targetPath = `/app/dashboards/${dashboardId}/${page.key}${paramsString}`;
-        await router.replace(targetPath, { scroll: false });
-        await waitForRender();
 
-        const root = document.querySelector('[data-export-root="true"]') as HTMLElement | null;
-        if (!root) continue;
+        try {
+          await navigateAndWait(targetPath);
+          const root = await getExportRoot();
 
-        const canvas = await html2canvas(root, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#FFFFFF",
-          windowWidth: Math.max(document.documentElement.clientWidth, 1440),
-          windowHeight: root.scrollHeight,
-        });
+          const canvas = await html2canvas(root, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#FFFFFF",
+            windowWidth: Math.max(document.documentElement.clientWidth, 1440),
+            windowHeight: root.scrollHeight,
+          });
 
-        const imgData = canvas.toDataURL("image/png");
-        const imgProps = pdf.getImageProperties(imgData);
-        const ratio = Math.min(pageW / imgProps.width, pageH / imgProps.height);
-        const renderW = imgProps.width * ratio;
-        const renderH = imgProps.height * ratio;
-        const x = margin + (pageW - renderW) / 2;
-        const y = margin + (pageH - renderH) / 2;
+          if (!canvas.width || !canvas.height) {
+            throw new Error(`Canvas inválido para aba ${page.label}`);
+          }
 
-        if (!isFirstPage) pdf.addPage("a4", "landscape");
-        pdf.addImage(imgData, "PNG", x, y, renderW, renderH, undefined, "FAST");
-        isFirstPage = false;
+          const imgData = canvas.toDataURL("image/png");
+          const imgProps = pdf.getImageProperties(imgData);
+          const ratio = Math.min(pageW / imgProps.width, pageH / imgProps.height);
+          const renderW = imgProps.width * ratio;
+          const renderH = imgProps.height * ratio;
+          const x = margin + (pageW - renderW) / 2;
+          const y = margin + (pageH - renderH) / 2;
+
+          if (!isFirstPage) pdf.addPage("a4", "landscape");
+          pdf.addImage(imgData, "PNG", x, y, renderW, renderH, undefined, "FAST");
+          isFirstPage = false;
+          capturedPages += 1;
+        } catch (pageErr) {
+          console.warn(`Falha ao capturar aba "${page.label}"`, pageErr);
+        }
+      }
+
+      if (capturedPages === 0) {
+        throw new Error("Nenhuma aba pôde ser capturada para o PDF.");
       }
 
       const safeName = (dashboardTitle || "dashboard").replace(/[\\/:*?"<>|]/g, "-");
@@ -96,7 +140,7 @@ export function DashboardHeader({
       alert("Não foi possível gerar o PDF do dashboard.");
     } finally {
       const restore = currentQuery ? `${currentPath}?${currentQuery}` : currentPath;
-      await router.replace(restore, { scroll: false });
+      router.replace(restore, { scroll: false });
       setIsExportingPdf(false);
     }
   }
