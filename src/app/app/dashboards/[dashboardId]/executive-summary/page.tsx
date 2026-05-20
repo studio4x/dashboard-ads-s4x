@@ -167,6 +167,13 @@ export default function ExecutiveSummaryPage() {
       icon: Target,
     },
     {
+      label: "Engajamentos",
+      value: formatNumber(current.postEngagement || current.total_engagement || 0),
+      delta: `${(changes.postEngagement || changes.engagement || 0).toFixed(1)}%`,
+      positive: (changes.postEngagement || changes.engagement || 0) >= 0,
+      icon: BarChart3,
+    },
+    {
       label: "Custo/conv.",
       value: formatCurrency(current.cpa || 0),
       delta: `${(changes.cpa || 0).toFixed(1)}%`,
