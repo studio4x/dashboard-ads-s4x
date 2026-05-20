@@ -20,6 +20,7 @@ import {
   MousePointerClick,
   Eye,
   Target,
+  Users,
   DollarSign,
   Percent,
   TrendingUp,
@@ -129,6 +130,13 @@ export default function ExecutiveSummaryPage() {
       delta: `${(changes.total_impressions || 0).toFixed(1)}%`,
       positive: (changes.total_impressions || 0) >= 0,
       icon: Eye,
+    },
+    {
+      label: "Alcance",
+      value: formatNumber(current.total_reach || current.reach || 0),
+      delta: `${(changes.reach || 0).toFixed(1)}%`,
+      positive: (changes.reach || 0) >= 0,
+      icon: Users,
     },
     {
       label: "Cliques",
