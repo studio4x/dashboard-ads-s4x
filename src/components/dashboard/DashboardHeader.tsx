@@ -82,6 +82,42 @@ export function DashboardHeader({
     throw new Error("Container de exportação não encontrado.");
   }
 
+  async function captureTabCanvas(
+    html2canvas: (element: HTMLElement, options: Record<string, unknown>) => Promise<HTMLCanvasElement>,
+    root: HTMLElement,
+    fallbackMode = false
+  ) {
+    return html2canvas(root, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: "#FFFFFF",
+      windowWidth: Math.max(document.documentElement.clientWidth, 1440),
+      windowHeight: root.scrollHeight,
+      imageTimeout: 15000,
+      onclone: fallbackMode
+        ? (clonedDoc: Document) => {
+            const clonedRoot = clonedDoc.querySelector('[data-export-root="true"]');
+            if (!clonedRoot) return;
+
+            // Remove elementos que frequentemente causam falha na serialização.
+            clonedRoot
+              .querySelectorAll("iframe, video, canvas")
+              .forEach((node) => ((node as HTMLElement).style.display = "none"));
+
+            // Oculta imagens externas (geralmente bloqueadas por CORS) apenas no fallback.
+            clonedRoot.querySelectorAll("img").forEach((node) => {
+              const img = node as HTMLImageElement;
+              const src = img.getAttribute("src") || "";
+              if (src.startsWith("http") && !src.includes(window.location.host)) {
+                img.style.display = "none";
+              }
+            });
+          }
+        : undefined,
+    });
+  }
+
   async function handleExportPdf() {
     if (isExportingPdf) return;
     setIsExportingPdf(true);
@@ -112,15 +148,13 @@ export function DashboardHeader({
           await navigateAndWait(targetPath);
           const root = await getExportRoot();
 
-          const canvas = await html2canvas(root, {
-            scale: 2,
-            useCORS: true,
-            allowTaint: false,
-            backgroundColor: "#FFFFFF",
-            windowWidth: Math.max(document.documentElement.clientWidth, 1440),
-            windowHeight: root.scrollHeight,
-            imageTimeout: 15000,
-          });
+          let canvas: HTMLCanvasElement;
+          try {
+            canvas = await captureTabCanvas(html2canvas, root, false);
+          } catch (firstCaptureErr) {
+            console.warn(`Tentativa padrão falhou na aba "${page.label}". Aplicando fallback.`, firstCaptureErr);
+            canvas = await captureTabCanvas(html2canvas, root, true);
+          }
 
           if (!canvas.width || !canvas.height) {
             throw new Error(`Canvas inválido para aba ${page.label}`);
