@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export const ClientService = {
   /**
@@ -70,5 +70,38 @@ export const ClientService = {
     
     if (error) throw error
     return data
+  },
+
+  /**
+   * Exclui um cliente pelo ID.
+   */
+  async deleteClient(id: string) {
+    const supabase = await createClient()
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
+    return true
+  },
+
+  /**
+   * Faz upload do logotipo do cliente para o Supabase Storage
+   * e retorna a URL pública.
+   */
+  async uploadLogo(clientId: string, file: Buffer, mimeType: string, ext: string): Promise<string> {
+    // Usa o cliente admin (service_role) para bypass de RLS no Storage
+    const supabase = await createAdminClient()
+    const path = `clients/${clientId}/logo.${ext}`
+    const { error: uploadError } = await supabase.storage
+      .from('logos')
+      .upload(path, file, { contentType: mimeType, upsert: true })
+    
+    if (uploadError) throw uploadError
+
+    const { data } = supabase.storage.from('logos').getPublicUrl(path)
+    // Adiciona cache-buster para forçar re-render após upload
+    return `${data.publicUrl}?t=${Date.now()}`
   }
 }

@@ -1,10 +1,11 @@
 import { readSheetRange } from "./read-sheet-range";
 import { ImportResult, ImportError } from "@/types/import";
+import { getTemplateById } from "@/lib/dashboard/templates";
 
 export class TemplateValidator {
   /**
    * Valida se a planilha corresponde ao template esperado.
-   * Checa a aba Dashboard_Config.
+   * Checa a aba Dashboard_Config quando ela é obrigatória no template.
    */
   static async validate(
     spreadsheetId: string, 
@@ -13,22 +14,38 @@ export class TemplateValidator {
   ): Promise<{ isValid: boolean; errors: ImportError[]; warnings: ImportError[]; templateId?: string; version?: string }> {
     const errors: ImportError[] = [];
     const warnings: ImportError[] = [];
+
+    // Verifica se Dashboard_Config é obrigatória para este template
+    const templateDef = getTemplateById(expectedTemplateId);
+    const isConfigRequired = templateDef?.requiredSheets?.includes("Dashboard_Config") ?? true;
     
     try {
       // Tenta ler a aba Dashboard_Config
       const rows = await readSheetRange(spreadsheetId, "Dashboard_Config!A1:B10");
       
       if (!rows || rows.length === 0) {
-        return {
-          isValid: false,
-          errors: [{
-            severity: "blocking",
+        // Se a aba é obrigatória, bloqueia. Se for opcional, apenas avisa.
+        if (isConfigRequired) {
+          return {
+            isValid: false,
+            errors: [{
+              severity: "blocking",
+              stage: "template_validation",
+              sheet: "Dashboard_Config",
+              message: "Aba 'Dashboard_Config' não encontrada ou está vazia."
+            }],
+            warnings: []
+          };
+        } else {
+          // Aba opcional ausente — continua sem ela
+          warnings.push({
+            severity: "warning",
             stage: "template_validation",
             sheet: "Dashboard_Config",
-            message: "Aba 'Dashboard_Config' não encontrada ou está vazia."
-          }],
-          warnings: []
-        };
+            message: "Aba opcional 'Dashboard_Config' não encontrada. Importação prosseguirá sem ela."
+          });
+          return { isValid: true, errors: [], warnings };
+        }
       }
 
       // Converte para objeto chave-valor
@@ -83,6 +100,26 @@ export class TemplateValidator {
       };
 
     } catch (err: any) {
+      // Se a aba não foi encontrada e ela é opcional, não bloqueamos
+      // O erro "Aba não encontrada: ..." vem de google-sheets-errors.ts (code TAB_NOT_FOUND)
+      const isNotFound = err.code === "TAB_NOT_FOUND" ||
+                         err.message?.toLowerCase().includes("aba não encontrada") ||
+                         err.message?.toLowerCase().includes("not found") ||
+                         err.message?.toLowerCase().includes("unable to parse range");
+
+      if (!isConfigRequired && isNotFound) {
+        return {
+          isValid: true,
+          errors: [],
+          warnings: [{
+            severity: "warning",
+            stage: "template_validation",
+            sheet: "Dashboard_Config",
+            message: "Aba opcional 'Dashboard_Config' não encontrada. Importação prosseguirá sem ela."
+          }]
+        };
+      }
+
       return {
         isValid: false,
         errors: [{

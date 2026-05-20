@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, ArrowRight, PieChart, X, Loader2, Save, Layout, Link2, RefreshCw, Database, Trash2 } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2 } from "lucide-react";
+import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
+
+// Somente os templates ativos aparecem no dropdown
+const ACTIVE_TEMPLATES = DASHBOARD_TEMPLATES.filter(t => t.status === "active");
 
 export default function AdminDashboardsPage() {
   const [dashboards, setDashboards] = useState<any[]>([]);
@@ -529,11 +533,10 @@ export default function AdminDashboardsPage() {
                     onChange={e => setFormData({ ...formData, dashboard_type: e.target.value })}
                     style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
                   >
-                    <option value="google_ads_s4x">Google Ads — S4X (Oficial)</option>
-                    <option value="meta_ads_s4x">Meta Ads — S4X (Oficial)</option>
-                    <option value="google_ads">Google Ads (Legado)</option>
-                    <option value="google_ads_meta_ads" disabled>Google Ads + Meta Ads (Em breve)</option>
-                    <option value="custom">Em branco (Customizado)</option>
+                    <option value="">Selecione um modelo...</option>
+                    {ACTIVE_TEMPLATES.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
                   </select>
                 </div>
 
