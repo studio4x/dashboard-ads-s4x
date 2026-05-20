@@ -507,32 +507,41 @@ export default function GoogleSheetsAdminPage() {
                 }
 
                 return (
-                  <div style={{ padding: 16, borderRadius: 12, background: "#F0F9FF", border: "1px solid #BAE6FD" }}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ borderRadius: 12, border: "1px solid #BAE6FD", overflow: "hidden" }}>
+                    <div style={{ padding: "12px 16px", background: "#F0F9FF", display: "flex", gap: 8, alignItems: "center" }}>
                       <Info size={16} style={{ color: "#2563EB" }} />
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#0369A1" }}>
-                        Requisitos do Modelo: {isGoogleS4X ? 'Google Ads S4X' : 'Meta Ads S4X'}
+                        Estrutura da Planilha — {isGoogleS4X ? 'Google Ads S4X' : 'Meta Ads S4X'}
                       </span>
                     </div>
                     {isGoogleS4X ? (
-                      <ul style={{ fontSize: 11, color: "#0369A1", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
-                        <li>Meta</li>
-                        <li>Dashboard_Config</li>
-                        <li>Performance Diária</li>
-                        <li>Campanhas</li>
-                        <li>Grupos de Anúncios</li>
-                        <li>Palavras-Chave</li>
-                        <li>Termos de Pesquisa</li>
-                        <li>Negativas</li>
-                        <li>Anúncios (Recursos)</li>
-                      </ul>
+                      <div style={{ padding: "12px 16px", background: "white" }}>
+                        <p style={{ fontSize: 11, color: "#64748B", marginBottom: 8, fontWeight: 600 }}>ABAS OBRIGATÓRIAS</p>
+                        <ul style={{ fontSize: 11, color: "#0369A1", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
+                          <li>Meta</li>
+                          <li>Dashboard_Config</li>
+                          <li>Performance Diária</li>
+                          <li>Campanhas</li>
+                          <li>Grupos de Anúncios</li>
+                          <li>Palavras-Chave</li>
+                          <li>Termos de Pesquisa</li>
+                          <li>Negativas</li>
+                          <li>Anúncios (Recursos)</li>
+                        </ul>
+                      </div>
                     ) : (
-                      <ul style={{ fontSize: 11, color: "#0369A1", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
-                        <li>Meta</li>
-                        <li>Dashboard_Config</li>
-                        <li>Performance Diária</li>
-                        <li>Export_Logs</li>
-                      </ul>
+                      <div style={{ padding: "12px 16px", background: "white" }}>
+                        <p style={{ fontSize: 11, color: "#15803D", marginBottom: 6, fontWeight: 700 }}>✓ ABA OBRIGATÓRIA</p>
+                        <div style={{ padding: "6px 10px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 6, fontSize: 12, color: "#15803D", fontWeight: 600, marginBottom: 12, display: "inline-block" }}>
+                          Performance Diária
+                        </div>
+                        <p style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6, fontWeight: 700 }}>ABAS OPCIONAIS (se existirem, são lidas)</p>
+                        <ul style={{ fontSize: 11, color: "#94A3B8", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
+                          <li>Meta</li>
+                          <li>Dashboard_Config</li>
+                          <li>Export_Logs</li>
+                        </ul>
+                      </div>
                     )}
                   </div>
                 );

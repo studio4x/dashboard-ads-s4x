@@ -5,14 +5,14 @@ export const META_ADS_S4X_SCHEMA: TemplateSchema = {
   version: "1.0",
   tabs: {
     "Meta": {
-      required: true,
+      required: false,
       criticalColumns: ["Chave", "Valor"],
       expectedColumns: [],
       type: "key_value",
       criticalKeys: ["Conta_ID", "Data_Inicial", "Data_Final", "Timezone"]
     },
     "Dashboard_Config": {
-      required: true,
+      required: false,
       criticalColumns: ["Chave", "Valor"],
       expectedColumns: [],
       type: "key_value",

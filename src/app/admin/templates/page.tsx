@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
-import { FileSpreadsheet, Layers, CheckCircle2 } from "lucide-react";
+import { FileSpreadsheet, Layers, CheckCircle2, Circle } from "lucide-react";
 
 export const metadata: Metadata = { title: "Templates" };
 
@@ -34,8 +34,8 @@ export default function TemplatesPage() {
                   fontSize: 10, 
                   padding: "3px 10px", 
                   borderRadius: 99, 
-                  background: "#E0F2FE", 
-                  color: "#0369A1", 
+                  background: t.platform === "meta_ads" ? "#FDF2F8" : "#E0F2FE", 
+                  color: t.platform === "meta_ads" ? "#9D174D" : "#0369A1", 
                   fontWeight: 700, 
                   textTransform: "uppercase",
                   letterSpacing: "0.5px",
@@ -51,7 +51,9 @@ export default function TemplatesPage() {
                 width: 42, 
                 height: 42, 
                 borderRadius: 10, 
-                background: "linear-gradient(135deg, #3B82F6, #1D4ED8)", 
+                background: t.platform === "meta_ads" 
+                  ? "linear-gradient(135deg, #1877F2, #0A5DC8)" 
+                  : "linear-gradient(135deg, #3B82F6, #1D4ED8)", 
                 display: "flex", 
                 alignItems: "center", 
                 justifyContent: "center",
@@ -62,39 +64,75 @@ export default function TemplatesPage() {
             </div>
 
             <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, marginBottom: 24 }}>
-              {t.description} Este modelo foi desenhado para importar dados detalhados diretamente do script coletor S4X do Google Ads.
+              {t.description}
             </p>
 
             <hr style={{ border: 0, borderTop: "1px solid #F1F5F9", marginBottom: 20 }} />
 
-            <div>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: "#334155", display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
-                <FileSpreadsheet size={16} className="text-emerald-500" />
-                Estrutura de Abas Obrigatórias ({t.requiredSheets?.length || 0} abas)
-              </h3>
-              
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-                {t.requiredSheets?.map((sheet) => (
-                  <div 
-                    key={sheet} 
-                    style={{ 
-                      display: "flex", 
-                      alignItems: "center", 
-                      gap: 8, 
-                      padding: "8px 12px", 
-                      background: "#F8FAFC", 
-                      border: "1px solid #F1F5F9", 
-                      borderRadius: 8,
-                      fontSize: 12,
-                      color: "#475569",
-                      fontWeight: 500
-                    }}
-                  >
-                    <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" />
-                    <span>{sheet}</span>
-                  </div>
-                ))}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Abas Obrigatórias */}
+              <div>
+                <h3 style={{ fontSize: 13, fontWeight: 700, color: "#334155", display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                  <FileSpreadsheet size={16} style={{ color: "#10B981" }} />
+                  Abas Obrigatórias ({t.requiredSheets?.length || 0} {(t.requiredSheets?.length || 0) === 1 ? "aba" : "abas"})
+                </h3>
+                
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8 }}>
+                  {t.requiredSheets?.map((sheet) => (
+                    <div 
+                      key={sheet} 
+                      style={{ 
+                        display: "flex", 
+                        alignItems: "center", 
+                        gap: 8, 
+                        padding: "8px 12px", 
+                        background: "#F0FDF4", 
+                        border: "1px solid #BBF7D0", 
+                        borderRadius: 8,
+                        fontSize: 12,
+                        color: "#15803D",
+                        fontWeight: 600
+                      }}
+                    >
+                      <CheckCircle2 size={13} style={{ color: "#10B981", flexShrink: 0 }} />
+                      <span>{sheet}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              {/* Abas Opcionais */}
+              {t.optionalSheets && t.optionalSheets.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: "#334155", display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                    <Circle size={16} style={{ color: "#94A3B8" }} />
+                    Abas Opcionais ({t.optionalSheets.length} {t.optionalSheets.length === 1 ? "aba" : "abas"})
+                  </h3>
+                  
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8 }}>
+                    {t.optionalSheets.map((sheet) => (
+                      <div 
+                        key={sheet} 
+                        style={{ 
+                          display: "flex", 
+                          alignItems: "center", 
+                          gap: 8, 
+                          padding: "8px 12px", 
+                          background: "#F8FAFC", 
+                          border: "1px solid #E2E8F0", 
+                          borderRadius: 8,
+                          fontSize: 12,
+                          color: "#94A3B8",
+                          fontWeight: 500
+                        }}
+                      >
+                        <Circle size={13} style={{ color: "#CBD5E1", flexShrink: 0 }} />
+                        <span>{sheet}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}

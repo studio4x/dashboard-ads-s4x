@@ -10,6 +10,7 @@ export interface DashboardTemplateDefinition {
   sourceType: DataSourceType;
   description: string;
   requiredSheets?: string[];
+  optionalSheets?: string[];
 }
 
 export const DASHBOARD_TEMPLATES: DashboardTemplateDefinition[] = [
@@ -40,11 +41,14 @@ export const DASHBOARD_TEMPLATES: DashboardTemplateDefinition[] = [
     version: "1.0",
     status: "active",
     sourceType: "google_sheets",
-    description: "Dashboard Meta Ads baseado no coletor S4X.",
+    description: "Dashboard Meta Ads com dados exportados diretamente do Gerenciador de Anúncios do Meta. A aba de dados de performance é a única obrigatória.",
     requiredSheets: [
+      "Performance Diária"
+    ],
+    optionalSheets: [
       "Meta",
       "Dashboard_Config",
-      "Performance Diária"
+      "Export_Logs"
     ]
   },
   {
