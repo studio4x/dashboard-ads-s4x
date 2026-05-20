@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dashboard Ads S4X
 
-## Getting Started
+Plataforma de dashboards de marketing com ingestão via Google Sheets, snapshots de dados e compartilhamento de dashboards.
 
-First, run the development server:
+## Stack
+
+- Next.js (App Router)
+- TypeScript
+- Supabase
+- Vercel
+
+## Setup local
+
+1. Instale dependências:
+
+```bash
+npm install
+```
+
+2. Configure variáveis de ambiente em `.env.local` (base em `.env.example` e `docs/ENVIRONMENT_VARIABLES.md`).
+
+3. Rode o projeto:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Acesse `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run dev` inicia ambiente local.
+- `npm run build` gera build de produção.
+- `npm run start` sobe build local.
+- `npm run lint` executa lint do projeto.
 
-## Learn More
+## Documentação principal
 
-To learn more about Next.js, take a look at the following resources:
+- `docs/APP_SPEC.md`
+- `docs/EXECUTION_PLAN.md`
+- `docs/DATA_IMPORT_PLAN.md`
+- `docs/GOOGLE_SHEETS_SETUP.md`
+- `docs/DEPLOYMENT.md`
+- `docs/VERCEL_SETUP.md`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Observação sobre Next.js
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Este projeto usa uma versão com mudanças relevantes.  
+Antes de alterações estruturais, consulte `node_modules/next/dist/docs/` e respeite avisos de depreciação.
 
-## Deploy on Vercel
+## Deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Deploy principal em Vercel: `https://dashboard-ads-s4x.vercel.app`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Para detalhes de publicação e validação, consulte:
+
+- `docs/DEPLOYMENT.md`
+- `docs/VERCEL_SETUP.md`
