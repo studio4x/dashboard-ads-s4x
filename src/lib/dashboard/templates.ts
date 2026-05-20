@@ -41,11 +41,10 @@ export const DASHBOARD_TEMPLATES: DashboardTemplateDefinition[] = [
     version: "1.0",
     status: "active",
     sourceType: "google_sheets",
-    description: "Dashboard Meta Ads com dados exportados diretamente do Gerenciador de Anúncios do Meta. A aba de dados de performance é a única obrigatória.",
-    requiredSheets: [
-      "Performance Diária"
-    ],
+    description: "Dashboard Meta Ads com dados exportados diretamente do Gerenciador de Anúncios do Meta. Suporta qualquer nome de aba (Página1, Performance Diária, etc.) desde que as colunas obrigatórias estejam presentes.",
+    requiredSheets: [],
     optionalSheets: [
+      "Performance Diária",
       "Meta",
       "Dashboard_Config",
       "Export_Logs"

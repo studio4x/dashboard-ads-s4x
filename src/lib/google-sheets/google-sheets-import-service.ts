@@ -9,7 +9,7 @@ import { DataSourceService } from "@/services/data-source-service";
 import { TemplateValidator } from "./template-validator";
 import { SchemaValidator } from "./schema-validator";
 import { GOOGLE_ADS_S4X_SCHEMA } from "./schemas/google-ads-s4x";
-import { META_ADS_S4X_SCHEMA } from "./schemas/meta-ads-s4x";
+import { META_ADS_S4X_SCHEMA, META_ADS_REQUIRED_COLUMNS } from "./schemas/meta-ads-s4x";
 import { getSpreadsheetMetadata, readMultipleRanges } from "./read-sheet-range";
 import { MetricsHelper } from "./metrics-helper";
 import { SheetNormalizer } from "./sheet-normalizer";
@@ -130,6 +130,46 @@ export const GoogleSheetsImportService = {
         { name: "Dashboard_Config", key: "config", reader: (rows: any[][]) => SheetTabReader.readConfig(rows) },
         { name: "Export_Logs", key: "export_logs", reader: (rows: any[][]) => ({ tabName: "Export_Logs", data: rows, errors: [] }) },
       ];
+
+      // Para meta_ads_s4x: se "Performance Diária" não existir na planilha,
+      // detecta automaticamente a aba que contém as colunas obrigatórias do Meta Ads.
+      if (expectedTemplateId === "meta_ads_s4x" && !spreadsheetTabs.includes("Performance Diária")) {
+        const requiredCols = META_ADS_REQUIRED_COLUMNS;
+        let detectedTab: string | null = null;
+
+        for (const tabName of spreadsheetTabs) {
+          try {
+            const headerRow = await readSheetRange(spreadsheetId, `${tabName}!1:1`);
+            const headers = (headerRow?.[0] || []).map((h: any) => String(h).trim());
+            const hasAll = requiredCols.every(col => headers.includes(col));
+            if (hasAll) { detectedTab = tabName; break; }
+          } catch { /* ignora erros de leitura de header */ }
+        }
+
+        if (detectedTab) {
+          warnings.push({
+            severity: "warning",
+            stage: "template_validation",
+            message: `Aba "Performance Diária" não encontrada. Usando aba detectada automaticamente: "${detectedTab}".`
+          });
+          // Substitui o reader para apontar para a aba detectada
+          const perfIdx = metaS4xTabsToRead.findIndex(t => t.name === "Performance Diária");
+          if (perfIdx !== -1) {
+            metaS4xTabsToRead[perfIdx] = {
+              name: detectedTab,
+              key: "dailyPerformance",
+              reader: (rows: any[][]) => SheetTabReader.readPerformanceDailyMetaS4X(rows)
+            };
+          }
+        } else {
+          errors.push({
+            severity: "blocking",
+            stage: "schema_validation",
+            message: `Nenhuma aba com as colunas obrigatórias do Meta Ads foi encontrada. Colunas necessárias: ${requiredCols.join(", ")}.`
+          });
+          return this.finishImport({ success: false, stage: "schema_validation", errors, warnings, clientId, dashboardId, spreadsheetId, startedAt, logId, dataSourceId });
+        }
+      }
 
       const tabsToProcess = expectedTemplateId === "google_ads_s4x" 
         ? s4xTabsToRead 
