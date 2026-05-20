@@ -486,31 +486,57 @@ export default function GoogleSheetsAdminPage() {
                 </select>
               </div>
 
-              {formData.dashboardId && (
-                <div style={{ padding: 16, borderRadius: 12, background: "#F0F9FF", border: "1px solid #BAE6FD" }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                    <Info size={16} className="text-blue-600" />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#0369A1" }}>
-                      Requisitos do Modelo: {dashboards.find(d => d.id === formData.dashboardId)?.dashboard_type === 'google_ads_s4x' ? 'Google Ads S4X' : 'Custom'}
-                    </span>
+              {formData.dashboardId && (() => {
+                const selectedDashboard = dashboards.find(d => d.id === formData.dashboardId);
+                const dashboardType = selectedDashboard?.dashboard_type;
+                const isGoogleS4X = dashboardType === 'google_ads_s4x';
+                const isMetaS4X = dashboardType === 'meta_ads_s4x';
+
+                if (!isGoogleS4X && !isMetaS4X) {
+                  return (
+                    <div style={{ padding: 16, borderRadius: 12, background: "#F0F9FF", border: "1px solid #BAE6FD" }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                        <Info size={16} style={{ color: "#2563EB" }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#0369A1" }}>
+                          Requisitos do Modelo: Custom / Legado
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 11, color: "#0369A1" }}>Este modelo aceita qualquer estrutura de planilha.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ padding: 16, borderRadius: 12, background: "#F0F9FF", border: "1px solid #BAE6FD" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                      <Info size={16} style={{ color: "#2563EB" }} />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#0369A1" }}>
+                        Requisitos do Modelo: {isGoogleS4X ? 'Google Ads S4X' : 'Meta Ads S4X'}
+                      </span>
+                    </div>
+                    {isGoogleS4X ? (
+                      <ul style={{ fontSize: 11, color: "#0369A1", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
+                        <li>Meta</li>
+                        <li>Dashboard_Config</li>
+                        <li>Performance Diária</li>
+                        <li>Campanhas</li>
+                        <li>Grupos de Anúncios</li>
+                        <li>Palavras-Chave</li>
+                        <li>Termos de Pesquisa</li>
+                        <li>Negativas</li>
+                        <li>Anúncios (Recursos)</li>
+                      </ul>
+                    ) : (
+                      <ul style={{ fontSize: 11, color: "#0369A1", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
+                        <li>Meta</li>
+                        <li>Dashboard_Config</li>
+                        <li>Performance Diária</li>
+                        <li>Export_Logs</li>
+                      </ul>
+                    )}
                   </div>
-                  {dashboards.find(d => d.id === formData.dashboardId)?.dashboard_type === 'google_ads_s4x' ? (
-                    <ul style={{ fontSize: 11, color: "#0369A1", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
-                      <li>Meta</li>
-                      <li>Dashboard_Config</li>
-                      <li>Performance Diária</li>
-                      <li>Campanhas</li>
-                      <li>Grupos de Anúncios</li>
-                      <li>Palavras-Chave</li>
-                      <li>Termos de Pesquisa</li>
-                      <li>Negativas</li>
-                      <li>Anúncios (Recursos)</li>
-                    </ul>
-                  ) : (
-                    <p style={{ fontSize: 11, color: "#0369A1" }}>Este modelo aceita qualquer estrutura de planilha.</p>
-                  )}
-                </div>
-              )}
+                );
+              })()}
 
               <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
                 <button 

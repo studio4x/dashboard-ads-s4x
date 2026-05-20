@@ -10,7 +10,9 @@ import {
   GoogleAdsS4XNegativeKeyword, 
   GoogleAdsS4XAdAsset 
 } from "@/types/google-ads-s4x";
+import { MetaAdsS4XDailyPerformance } from "@/types/meta-ads-s4x";
 import { GOOGLE_ADS_S4X_SCHEMA } from "./schemas/google-ads-s4x";
+import { META_ADS_S4X_SCHEMA } from "./schemas/meta-ads-s4x";
 
 /**
  * Mapeia as colunas da planilha para o objeto do sistema.
@@ -375,7 +377,7 @@ export const SheetTabReader = {
     });
 
     // Valida chaves críticas se houver schema
-    const tabSchema = GOOGLE_ADS_S4X_SCHEMA.tabs[tabName];
+    const tabSchema = GOOGLE_ADS_S4X_SCHEMA.tabs[tabName] || META_ADS_S4X_SCHEMA.tabs[tabName];
     if (tabSchema?.criticalKeys) {
       tabSchema.criticalKeys.forEach(key => {
         if (!presentKeys.includes(key)) {
@@ -622,6 +624,39 @@ export const SheetTabReader = {
         roas: SheetNormalizer.toNumber(raw["ROAS"]),
         aiKey: SheetNormalizer.toString(raw["Chave_IA"]),
         isAggregatable: false,
+      })));
+    return { tabName, data, errors: validator.getErrors() };
+  },
+
+  /**
+   * Aba: Performance Diária (Meta Ads S4X)
+   */
+  readPerformanceDailyMetaS4X(rows: any[][]): NormalizedSheetData<MetaAdsS4XDailyPerformance> {
+    const tabName = "Performance Diária";
+    const validator = new SheetValidator(tabName);
+    if (rows.length === 0) return { tabName, data: [], errors: [] };
+    const headers = rows[0].map((h: any) => String(h).trim());
+    const data = rows.slice(1)
+      .filter(row => row[0] && !SheetNormalizer.shouldIgnoreRow(row[0]))
+      .map((row) => mapRowToModel(headers, row, (raw) => ({
+        date: SheetNormalizer.toDate(raw["Day"]) || "",
+        campaignName: SheetNormalizer.toString(raw["Campaign Name"]) || "",
+        adSetName: SheetNormalizer.toString(raw["Ad Set Name"]) || "",
+        adName: SheetNormalizer.toString(raw["Ad Name"]) || "",
+        reach: SheetNormalizer.toInteger(raw["Reach"]),
+        impressions: SheetNormalizer.toInteger(raw["Impressions"]),
+        frequency: SheetNormalizer.toNumber(raw["Frequency"]),
+        cost: SheetNormalizer.toNumber(raw["Amount Spent"]),
+        cpm: SheetNormalizer.toNumber(raw["CPM (Cost per 1,000 Impressions)"]),
+        clicks: SheetNormalizer.toInteger(raw["Link Clicks"]),
+        cpc: SheetNormalizer.toNumber(raw["CPC (All)"]),
+        ctr: SheetNormalizer.toPercent(raw["CTR (All)"]),
+        conversions: SheetNormalizer.toInteger(raw["Messaging Conversations Started"]),
+        costPerConversion: SheetNormalizer.toNumber(raw["Cost per Messaging Conversations Started"]),
+        postEngagement: SheetNormalizer.toInteger(raw["Post Engagement"]),
+        postComments: SheetNormalizer.toInteger(raw["Post Comments"]),
+        postReactions: SheetNormalizer.toInteger(raw["Post Reactions"]),
+        postShares: SheetNormalizer.toInteger(raw["Post Shares"]),
       })));
     return { tabName, data, errors: validator.getErrors() };
   }

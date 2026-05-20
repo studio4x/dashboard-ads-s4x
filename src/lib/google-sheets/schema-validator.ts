@@ -1,5 +1,6 @@
 import { ImportError } from "@/types/import";
 import { GOOGLE_ADS_S4X_SCHEMA, TemplateSchema, TabSchema } from "./schemas/google-ads-s4x";
+import { META_ADS_S4X_SCHEMA } from "./schemas/meta-ads-s4x";
 
 export class SchemaValidator {
   static validate(
@@ -10,8 +11,12 @@ export class SchemaValidator {
     const errors: ImportError[] = [];
     const warnings: ImportError[] = [];
     
-    // Por enquanto só suportamos google_ads_s4x
-    const schema = templateId === "google_ads_s4x" ? GOOGLE_ADS_S4X_SCHEMA : null;
+    // Suporte aos templates s4x (Google Ads e Meta Ads)
+    const schema = templateId === "google_ads_s4x" 
+      ? GOOGLE_ADS_S4X_SCHEMA 
+      : templateId === "meta_ads_s4x"
+        ? META_ADS_S4X_SCHEMA
+        : null;
     
     if (!schema) {
       return { isValid: true, errors: [], warnings: [] }; // Se não tem schema, pula (dashboards antigos)

@@ -124,3 +124,88 @@ export function generateGoogleAdsKpis(adsRows: any[], summary?: any): KpiSummary
 export function generateMetaAdsKpis(adsRows: any[], summary?: any): KpiSummary[] {
   return generateGoogleAdsKpis(adsRows, summary);
 }
+
+/**
+ * Gera os KPIs específicos para o template Meta Ads S4X.
+ */
+export function generateMetaAdsS4XKpis(dailyRows: any[], summary?: any): KpiSummary[] {
+  if (!dailyRows || dailyRows.length === 0) return [];
+
+  const current = summary ? summary.current : dailyRows.reduce((acc, curr) => ({
+    total_spend: acc.total_spend + Number(curr.cost || 0),
+    total_conversions: acc.total_conversions + Number(curr.conversions || 0),
+    total_clicks: acc.total_clicks + Number(curr.clicks || 0),
+    total_impressions: acc.total_impressions + Number(curr.impressions || 0),
+    total_reach: acc.total_reach + Number(curr.reach || 0),
+  }), { total_spend: 0, total_conversions: 0, total_clicks: 0, total_impressions: 0, total_reach: 0 });
+
+  const cpa = summary?.current?.cpa !== undefined ? summary.current.cpa : (current.total_conversions > 0 ? current.total_spend / current.total_conversions : 0);
+  const ctr = summary?.current?.ctr !== undefined ? summary.current.ctr : (current.total_impressions > 0 ? (current.total_clicks / current.total_impressions) * 100 : 0);
+  const frequency = summary?.current?.frequency !== undefined ? summary.current.frequency : (current.total_reach > 0 ? current.total_impressions / current.total_reach : 0);
+  const cpm = summary?.current?.avgCpm !== undefined ? summary.current.avgCpm : (current.total_impressions > 0 ? (current.total_spend / current.total_impressions) * 1000 : 0);
+  
+  const changes = summary?.change || {};
+  const getDirection = (value: number, inverse = false) => {
+    if (Math.abs(value) < 0.01) return "neutral";
+    if (inverse) return value > 0 ? "down" : "up";
+    return value > 0 ? "up" : "down";
+  };
+
+  return [
+    { 
+      label: "Investimento", 
+      value: current.total_spend, 
+      formatted_value: formatCurrency(current.total_spend, true), 
+      change_percent: changes.total_spend || changes.cost || 0, 
+      change_direction: getDirection(changes.total_spend || changes.cost || 0), 
+      unit: "currency", 
+      description: "Gasto total em anúncios" 
+    },
+    { 
+      label: "Conversas Iniciadas", 
+      value: current.total_conversions, 
+      formatted_value: formatNumber(current.total_conversions), 
+      change_percent: changes.total_conversions || changes.conversions || 0, 
+      change_direction: getDirection(changes.total_conversions || changes.conversions || 0), 
+      unit: "number", 
+      description: "Mensagens iniciadas" 
+    },
+    { 
+      label: "Custo por Conversa", 
+      value: cpa, 
+      formatted_value: cpa ? formatCurrency(cpa) : "R$ 0,00", 
+      change_percent: changes.cpa || 0, 
+      change_direction: getDirection(changes.cpa || 0, true), // CPA menor é melhor
+      unit: "currency", 
+      description: "Custo médio por conversa" 
+    },
+    { 
+      label: "Alcance", 
+      value: current.total_reach, 
+      formatted_value: formatNumber(current.total_reach), 
+      change_percent: changes.reach || 0, 
+      change_direction: getDirection(changes.reach || 0), 
+      unit: "number", 
+      description: "Usuários únicos alcançados" 
+    },
+    { 
+      label: "Frequência", 
+      value: frequency, 
+      formatted_value: `${Number(frequency || 0).toFixed(2)}x`, 
+      change_percent: changes.frequency || 0, 
+      change_direction: getDirection(changes.frequency || 0), 
+      unit: "ratio", 
+      description: "Média de exibições por usuário" 
+    },
+    { 
+      label: "Cliques no Link", 
+      value: current.total_clicks, 
+      formatted_value: formatNumber(current.total_clicks), 
+      change_percent: changes.total_clicks || changes.clicks || 0, 
+      change_direction: getDirection(changes.total_clicks || changes.clicks || 0), 
+      unit: "number", 
+      description: "Cliques de saída" 
+    },
+  ];
+}
+

@@ -310,7 +310,7 @@ export default function AdminDashboardsPage() {
                     {d.status === "active" ? "Ativo" : "Inativo"}
                   </span>
                   <span style={{ fontSize: 11, color: "#475569", background: "#F1F5F9", padding: "4px 10px", borderRadius: 99, fontWeight: 600, border: "1px solid #E2E8F0" }}>
-                    {d.dashboard_type === "google_ads_s4x" ? "Google Ads — S4X" : d.dashboard_type === "google_ads" ? "Google Ads (Legado)" : d.dashboard_type || "Custom"}
+                    {d.dashboard_type === "google_ads_s4x" ? "Google Ads — S4X" : d.dashboard_type === "meta_ads_s4x" ? "Meta Ads — S4X" : d.dashboard_type === "google_ads" ? "Google Ads (Legado)" : d.dashboard_type || "Custom"}
                   </span>
                 </div>
               </div>
@@ -530,8 +530,8 @@ export default function AdminDashboardsPage() {
                     style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
                   >
                     <option value="google_ads_s4x">Google Ads — S4X (Oficial)</option>
+                    <option value="meta_ads_s4x">Meta Ads — S4X (Oficial)</option>
                     <option value="google_ads">Google Ads (Legado)</option>
-                    <option value="meta_ads_s4x" disabled>Meta Ads — S4X (Em breve)</option>
                     <option value="google_ads_meta_ads" disabled>Google Ads + Meta Ads (Em breve)</option>
                     <option value="custom">Em branco (Customizado)</option>
                   </select>

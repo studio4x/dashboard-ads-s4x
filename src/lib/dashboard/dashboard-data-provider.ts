@@ -8,6 +8,7 @@ import * as mockAudience from "@/data/mock-sheet-audience";
 import * as mockSC from "@/data/mock-sheet-search-console";
 import * as mockInsights from "@/data/mock-sheet-insights";
 import { mockGoogleAdsS4XPayload } from "@/data/mock-sheet-google-ads-s4x";
+import { MOCK_META_ADS_S4X_PAYLOAD } from "@/data/mock-sheet-meta-ads-s4x";
 
 import { DashboardAggregator } from "./dashboard-aggregator";
 import { parseISO } from "date-fns";
@@ -33,7 +34,8 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
 
       // Identifica se é o novo payload S4X
       const isS4X = data.diagnostics?.snapshotVersion?.startsWith("google_ads_s4x");
-
+      const isMetaS4X = data.diagnostics?.snapshotVersion?.startsWith("meta_ads_s4x");
+      
       if (range) {
         if (isS4X) {
           // No novo payload, usamos dailyPerformance para o sumário geral
@@ -42,6 +44,13 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
             data.dailyPerformance = data.dailyPerformance.filter((row: any) => isDateInRange(row.date, range));
             data.overview = data.dailyPerformance; // Garantir que overview tenha dados para gráficos
             summary = google_ads_summary; // O sumário geral do dashboard é o do Google Ads no template S4X
+          }
+        } else if (isMetaS4X) {
+          if (data.dailyPerformance) {
+            meta_ads_summary = DashboardAggregator.compare(data.dailyPerformance, range);
+            data.dailyPerformance = data.dailyPerformance.filter((row: any) => isDateInRange(row.date, range));
+            data.overview = data.dailyPerformance;
+            summary = meta_ads_summary;
           }
         } else {
           // Legado
@@ -78,6 +87,24 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
         };
         google_ads_summary = summary;
         data.overview = data.dailyPerformance || []; // Fallback sem range
+      } else if (isMetaS4X) {
+        summary = { 
+          current: {
+            total_spend: data.summary.cost,
+            total_revenue: 0,
+            total_conversions: data.summary.conversions,
+            total_clicks: data.summary.clicks,
+            total_impressions: data.summary.impressions,
+            ctr: data.summary.ctr,
+            cpc: data.summary.avgCpc,
+            cpa: data.summary.cpa,
+            roas: 0,
+          },
+          previous: null,
+          change: {}
+        };
+        meta_ads_summary = summary;
+        data.overview = data.dailyPerformance || [];
       }
 
       // 2. Busca informações do dashboard para o template
@@ -128,6 +155,50 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
         templateId: "google_ads_s4x",
         templateVersion: "1.0",
         platform: "google_ads"
+      };
+    }
+
+    if (templateId === "meta_ads_s4x") {
+      let mockPayload = JSON.parse(JSON.stringify(MOCK_META_ADS_S4X_PAYLOAD));
+      let metaSummary = null;
+      if (range) {
+        metaSummary = DashboardAggregator.compare(mockPayload.dailyPerformance, range);
+        mockPayload.dailyPerformance = mockPayload.dailyPerformance.filter((row: any) => isDateInRange(row.date, range));
+      } else {
+        metaSummary = {
+          current: {
+            total_spend: mockPayload.summary.cost,
+            total_revenue: 0,
+            total_conversions: mockPayload.summary.conversions,
+            total_clicks: mockPayload.summary.clicks,
+            total_impressions: mockPayload.summary.impressions,
+            ctr: mockPayload.summary.ctr,
+            cpc: mockPayload.summary.avgCpc,
+            cpa: mockPayload.summary.cpa,
+            roas: 0,
+          },
+          previous: null,
+          change: {}
+        };
+      }
+      return {
+        ...mockPayload,
+        overview: mockPayload.dailyPerformance,
+        meta_ads: mockPayload.dailyPerformance,
+        google_ads: [],
+        ga4_events: [],
+        audience: [],
+        search_console: [],
+        insights: [],
+        campaigns: [],
+        keywords: [],
+        summary: metaSummary,
+        meta_ads_summary: metaSummary,
+        google_ads_summary: null,
+        source: "mock",
+        templateId: "meta_ads_s4x",
+        templateVersion: "1.0",
+        platform: "meta_ads"
       };
     }
 

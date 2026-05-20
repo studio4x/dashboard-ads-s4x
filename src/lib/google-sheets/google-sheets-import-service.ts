@@ -9,11 +9,13 @@ import { DataSourceService } from "@/services/data-source-service";
 import { TemplateValidator } from "./template-validator";
 import { SchemaValidator } from "./schema-validator";
 import { GOOGLE_ADS_S4X_SCHEMA } from "./schemas/google-ads-s4x";
+import { META_ADS_S4X_SCHEMA } from "./schemas/meta-ads-s4x";
 import { getSpreadsheetMetadata, readMultipleRanges } from "./read-sheet-range";
 import { MetricsHelper } from "./metrics-helper";
 import { SheetNormalizer } from "./sheet-normalizer";
 import { ImportResult, ImportError } from "@/types/import";
 import { GoogleAdsS4XPayload, GoogleAdsS4XSummary, GoogleAdsS4XDiagnostics } from "@/types/google-ads-s4x";
+import { MetaAdsS4XPayload } from "@/types/meta-ads-s4x";
 
 export const GoogleSheetsImportService = {
   /**
@@ -72,7 +74,11 @@ export const GoogleSheetsImportService = {
       
       // Coleta cabeçalhos para o SchemaValidator
       // Lemos a primeira linha de todas as abas que o schema espera
-      const schemaTabs = Object.keys(GOOGLE_ADS_S4X_SCHEMA.tabs);
+      const schemaTabs = expectedTemplateId === "google_ads_s4x" 
+        ? Object.keys(GOOGLE_ADS_S4X_SCHEMA.tabs)
+        : expectedTemplateId === "meta_ads_s4x"
+          ? Object.keys(META_ADS_S4X_SCHEMA.tabs)
+          : [];
       const rangesToFetch = spreadsheetTabs
         .filter(t => schemaTabs.includes(t))
         .map(t => `${t}!1:1`);
@@ -118,10 +124,21 @@ export const GoogleSheetsImportService = {
         { name: "Export_Logs", key: "export_logs", reader: (rows: any[][]) => ({ tabName: "Export_Logs", data: rows, errors: [] }) },
       ];
 
-      const tabsToProcess = expectedTemplateId === "google_ads_s4x" ? s4xTabsToRead : [
-        { name: "overview", key: "overview", reader: (rows: any[][]) => SheetTabReader.readOverview(rows) },
-        { name: "google_ads", key: "google_ads", reader: (rows: any[][]) => SheetTabReader.readGoogleAds(rows) },
+      const metaS4xTabsToRead = [
+        { name: "Performance Diária", key: "dailyPerformance", reader: (rows: any[][]) => SheetTabReader.readPerformanceDailyMetaS4X(rows) },
+        { name: "Meta", key: "meta", reader: (rows: any[][]) => SheetTabReader.readMeta(rows) },
+        { name: "Dashboard_Config", key: "config", reader: (rows: any[][]) => SheetTabReader.readConfig(rows) },
+        { name: "Export_Logs", key: "export_logs", reader: (rows: any[][]) => ({ tabName: "Export_Logs", data: rows, errors: [] }) },
       ];
+
+      const tabsToProcess = expectedTemplateId === "google_ads_s4x" 
+        ? s4xTabsToRead 
+        : expectedTemplateId === "meta_ads_s4x"
+          ? metaS4xTabsToRead
+          : [
+              { name: "overview", key: "overview", reader: (rows: any[][]) => SheetTabReader.readOverview(rows) },
+              { name: "google_ads", key: "google_ads", reader: (rows: any[][]) => SheetTabReader.readGoogleAds(rows) },
+            ];
 
       for (const tab of tabsToProcess) {
         try {
@@ -226,6 +243,53 @@ export const GoogleSheetsImportService = {
         };
 
         finalPayload = s4xPayload;
+      } else if (expectedTemplateId === "meta_ads_s4x") {
+        const dailyPerformance = resultData.dailyPerformance || [];
+        const summary = MetricsHelper.calculateMetaSummary(dailyPerformance);
+        
+        const configData = resultData.config?.[0] || {};
+        const metaData = resultData.meta?.[0] || {};
+
+        const diagnostics: any = {
+          templateValidation: templateVal,
+          schemaValidation: schemaVal,
+          warnings: warnings.map(w => w.message),
+          errors: errors.map(e => e.message),
+          exportLogs: resultData.export_logs,
+          rowCounts,
+          ignoredRows: 0,
+          sourceSpreadsheetId: spreadsheetId,
+          importedAt: new Date().toISOString(),
+          snapshotVersion: "meta_ads_s4x_v1"
+        };
+
+        const s4xMetaPayload: MetaAdsS4XPayload = {
+          meta: {
+            accountName: metaData["Conta"] || metaData["accountName"],
+            accountId: metaData["Conta_ID"] || metaData["accountId"],
+            periodToken: metaData["Periodo_Token"] || metaData["periodToken"],
+            dateStart: SheetNormalizer.toDate(metaData["Data_Inicial"]),
+            dateEnd: SheetNormalizer.toDate(metaData["Data_Final"]),
+            queryCondition: metaData["Condicao_Query"],
+            executedAt: metaData["Executado_Em"],
+            timezone: metaData["Timezone"]
+          },
+          config: {
+            templateId: configData["Template"] || "meta_ads_s4x",
+            templateLabel: configData["Template_Label"] || "Meta Ads S4X",
+            templateVersion: configData["Versao_Template"] || "1.0",
+            source: configData["Fonte"] || "Google Sheets",
+            periodToken: configData["Periodo_Token"],
+            dateStart: SheetNormalizer.toDate(configData["Data_Inicial"]),
+            dateEnd: SheetNormalizer.toDate(configData["Data_Final"]),
+            notes: configData["Notas"]
+          },
+          summary: summary as any,
+          dailyPerformance: resultData.dailyPerformance || [],
+          diagnostics
+        };
+
+        finalPayload = s4xMetaPayload;
       }
 
       const success = errors.length === 0;

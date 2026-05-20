@@ -5,8 +5,8 @@ import { FileSpreadsheet, Layers, CheckCircle2 } from "lucide-react";
 export const metadata: Metadata = { title: "Templates" };
 
 export default function TemplatesPage() {
-  // Filtra para exibir apenas o Google Ads S4X que está em uso
-  const templates = DASHBOARD_TEMPLATES.filter(t => t.id === "google_ads_s4x");
+  // Filtra para exibir apenas os templates S4X ativos (Google Ads e Meta Ads)
+  const templates = DASHBOARD_TEMPLATES.filter(t => t.id === "google_ads_s4x" || t.id === "meta_ads_s4x");
 
   return (
     <div style={{ padding: 32, maxWidth: 800 }}>

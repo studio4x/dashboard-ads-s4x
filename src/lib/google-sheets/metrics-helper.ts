@@ -78,5 +78,46 @@ export const MetricsHelper = {
       roas: safeDiv(summary.conversionValue, summary.cost),
       avgCpm: summary.impressions > 0 ? (summary.cost / summary.impressions) * 1000 : null,
     };
+  },
+
+  /**
+   * Calcula o sumário geral específico de Meta Ads a partir de dados diários.
+   */
+  calculateMetaSummary(items: any[]) {
+    const summary = {
+      impressions: 0,
+      clicks: 0,
+      cost: 0,
+      conversions: 0, // Conversas Iniciadas
+      reach: 0,
+      postEngagement: 0,
+      postComments: 0,
+      postReactions: 0,
+      postShares: 0,
+    };
+
+    items.forEach(item => {
+      summary.impressions += Number(item.impressions || 0);
+      summary.clicks += Number(item.clicks || 0);
+      summary.cost += Number(item.cost || 0);
+      summary.conversions += Number(item.conversions || 0);
+      summary.reach += Number(item.reach || 0);
+      summary.postEngagement += Number(item.postEngagement || 0);
+      summary.postComments += Number(item.postComments || 0);
+      summary.postReactions += Number(item.postReactions || 0);
+      summary.postShares += Number(item.postShares || 0);
+    });
+
+    const safeDiv = (num: number, den: number) => (den > 0 ? num / den : null);
+    const safePercent = (num: number, den: number) => (den > 0 ? (num / den) * 100 : null);
+
+    return {
+      ...summary,
+      ctr: safePercent(summary.clicks, summary.impressions),
+      avgCpc: safeDiv(summary.cost, summary.clicks),
+      cpa: safeDiv(summary.cost, summary.conversions),
+      frequency: summary.reach > 0 ? summary.impressions / summary.reach : null,
+      avgCpm: summary.impressions > 0 ? (summary.cost / summary.impressions) * 1000 : null,
+    };
   }
 };

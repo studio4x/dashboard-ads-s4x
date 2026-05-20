@@ -38,9 +38,14 @@ export const DASHBOARD_TEMPLATES: DashboardTemplateDefinition[] = [
     name: "Meta Ads — S4X",
     platform: "meta_ads",
     version: "1.0",
-    status: "coming_soon",
+    status: "active",
     sourceType: "google_sheets",
-    description: "Dashboard Meta Ads baseado no coletor S4X (Em breve)."
+    description: "Dashboard Meta Ads baseado no coletor S4X.",
+    requiredSheets: [
+      "Meta",
+      "Dashboard_Config",
+      "Performance Diária"
+    ]
   },
   {
     id: "google_ads",
@@ -81,6 +86,10 @@ export const VISIBLE_PAGES_BY_TEMPLATE: Record<string, string[]> = {
     "google-ads",
     "campaigns",
     "keywords"
+  ],
+  meta_ads_s4x: [
+    "executive-summary",
+    "meta-ads"
   ],
   meta_ads: [
     "executive-summary",
