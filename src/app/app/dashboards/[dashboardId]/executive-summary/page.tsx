@@ -44,10 +44,11 @@ const RED = "#DC2626";
 const TEXT = "#111827";
 const MUTED = "#6B7280";
 
-function Card({ children, className = "", style = {} }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+function Card({ children, className = "", style = {}, title }: { children: React.ReactNode; className?: string; style?: React.CSSProperties; title?: string }) {
   return (
     <div 
       className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden", className)}
+      title={title}
       style={{ padding: "24px", ...style }}
     >
       {children}
@@ -61,7 +62,8 @@ function KpiCard({
   delta, 
   positive, 
   icon: Icon,
-  description = "vs. anterior"
+  description = "vs. anterior",
+  tooltip = ""
 }: any) {
   const DeltaIcon = positive ? TrendingUp : TrendingDown;
   const deltaColor = positive ? GREEN : RED;
@@ -69,6 +71,7 @@ function KpiCard({
 
   return (
     <Card 
+      title={tooltip || label}
       style={{ padding: "16px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: "135px" }} 
       className="transition-all hover:shadow-md"
     >
