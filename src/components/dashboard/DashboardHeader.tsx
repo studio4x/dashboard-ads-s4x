@@ -31,6 +31,8 @@ export function DashboardHeader({
   
   const metricsSource = data?.config?.Fonte || data?.config?.fonte || (data?.source === "mock" ? "Mocks" : "Google Sheets");
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
+  const MAX_NAVIGATION_WAIT_MS = 20000;
+  const MAX_ROOT_WAIT_MS = 12000;
 
   async function waitForRender() {
     if (document.fonts?.ready) {
@@ -49,7 +51,7 @@ export function DashboardHeader({
     const targetUrl = new URL(targetPathWithQuery, window.location.origin);
     router.replace(`${targetUrl.pathname}${targetUrl.search}`, { scroll: false });
 
-    const timeoutMs = 8000;
+    const timeoutMs = MAX_NAVIGATION_WAIT_MS;
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const currentUrl = new URL(window.location.href);
@@ -68,13 +70,20 @@ export function DashboardHeader({
   }
 
   async function getExportRoot(): Promise<HTMLElement> {
-    const timeoutMs = 6000;
+    const timeoutMs = MAX_ROOT_WAIT_MS;
     const start = Date.now();
 
     while (Date.now() - start < timeoutMs) {
       const root = document.querySelector('[data-export-root="true"]') as HTMLElement | null;
       if (root && root.offsetWidth > 0 && root.scrollHeight > 0) {
-        return root;
+        // Aguarda estabilização rápida de layout para reduzir capturas parciais.
+        const h1 = root.scrollHeight;
+        await new Promise((r) => setTimeout(r, 120));
+        const h2 = root.scrollHeight;
+        if (h2 >= h1) {
+          await new Promise(requestAnimationFrame);
+          return root;
+        }
       }
       await new Promise((r) => setTimeout(r, 120));
     }
@@ -82,40 +91,59 @@ export function DashboardHeader({
     throw new Error("Container de exportação não encontrado.");
   }
 
+  function resolveCaptureScale(root: HTMLElement, relaxed = false) {
+    const width = Math.max(root.scrollWidth, root.clientWidth, document.documentElement.clientWidth, 1280);
+    const height = Math.max(root.scrollHeight, root.clientHeight, 800);
+    const area = width * height;
+    const pixelBudget = relaxed ? 8_000_000 : 16_000_000;
+    const baseScale = Math.sqrt(pixelBudget / Math.max(area, 1));
+    const capped = Math.min(2, Math.max(relaxed ? 0.75 : 1, baseScale));
+    if (!Number.isFinite(capped)) return 1;
+    return capped;
+  }
+
+  function buildCaptureOptions(root: HTMLElement, fallbackMode: boolean) {
+    const scale = resolveCaptureScale(root, fallbackMode);
+    const host = window.location.host;
+
+    return {
+      scale,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: "#FFFFFF",
+      logging: false,
+      windowWidth: Math.max(document.documentElement.clientWidth, 1280),
+      windowHeight: root.scrollHeight,
+      imageTimeout: 15000,
+      ignoreElements: (node: Element) => {
+        const tag = node.tagName?.toUpperCase?.();
+        if (tag === "IFRAME" || tag === "VIDEO" || tag === "CANVAS") return true;
+        if (fallbackMode && tag === "IMG") {
+          const src = (node as HTMLImageElement).getAttribute("src") || "";
+          if (src.startsWith("http") && !src.includes(host)) return true;
+        }
+        return false;
+      },
+      onclone: fallbackMode
+        ? (clonedDoc: Document) => {
+            const clonedRoot = clonedDoc.querySelector('[data-export-root="true"]') as HTMLElement | null;
+            if (!clonedRoot) return;
+            clonedRoot.querySelectorAll("[style*='position: sticky'], [style*='position: fixed']").forEach((el) => {
+              const element = el as HTMLElement;
+              element.style.position = "static";
+              element.style.top = "auto";
+            });
+          }
+        : undefined,
+    };
+  }
+
   async function captureTabCanvas(
     html2canvas: (element: HTMLElement, options: Record<string, unknown>) => Promise<HTMLCanvasElement>,
     root: HTMLElement,
     fallbackMode = false
   ) {
-    return html2canvas(root, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: false,
-      backgroundColor: "#FFFFFF",
-      windowWidth: Math.max(document.documentElement.clientWidth, 1440),
-      windowHeight: root.scrollHeight,
-      imageTimeout: 15000,
-      onclone: fallbackMode
-        ? (clonedDoc: Document) => {
-            const clonedRoot = clonedDoc.querySelector('[data-export-root="true"]');
-            if (!clonedRoot) return;
-
-            // Remove elementos que frequentemente causam falha na serialização.
-            clonedRoot
-              .querySelectorAll("iframe, video, canvas")
-              .forEach((node) => ((node as HTMLElement).style.display = "none"));
-
-            // Oculta imagens externas (geralmente bloqueadas por CORS) apenas no fallback.
-            clonedRoot.querySelectorAll("img").forEach((node) => {
-              const img = node as HTMLImageElement;
-              const src = img.getAttribute("src") || "";
-              if (src.startsWith("http") && !src.includes(window.location.host)) {
-                img.style.display = "none";
-              }
-            });
-          }
-        : undefined,
-    });
+    return html2canvas(root, buildCaptureOptions(root, fallbackMode));
   }
 
   async function handleExportPdf() {
@@ -132,6 +160,16 @@ export function DashboardHeader({
       const visiblePageKeys = getVisiblePages(data?.templateId);
       const pages = DASHBOARD_PAGES.filter((p) => visiblePageKeys.includes(p.key));
       const paramsString = currentQuery ? `?${currentQuery}` : "";
+      const pageErrors: string[] = [];
+
+      for (const page of pages) {
+        const prefetchPath = `/app/dashboards/${dashboardId}/${page.key}${paramsString}`;
+        try {
+          router.prefetch(prefetchPath);
+        } catch {
+          // Non-blocking: prefetch é otimização e pode falhar silenciosamente.
+        }
+      }
 
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       const margin = 6;
@@ -173,19 +211,21 @@ export function DashboardHeader({
           isFirstPage = false;
           capturedPages += 1;
         } catch (pageErr) {
+          pageErrors.push(`${page.label}: ${pageErr instanceof Error ? pageErr.message : "erro desconhecido"}`);
           console.warn(`Falha ao capturar aba "${page.label}"`, pageErr);
         }
       }
 
       if (capturedPages === 0) {
-        throw new Error("Nenhuma aba pôde ser capturada para o PDF.");
+        throw new Error(`Nenhuma aba pôde ser capturada para o PDF. ${pageErrors.join(" | ")}`.trim());
       }
 
       const safeName = (dashboardTitle || "dashboard").replace(/[\\/:*?"<>|]/g, "-");
       pdf.save(`${safeName}.pdf`);
     } catch (err) {
       console.error("Erro ao gerar PDF:", err);
-      alert("Não foi possível gerar o PDF do dashboard.");
+      const details = err instanceof Error ? err.message : "erro desconhecido";
+      alert(`Não foi possível gerar o PDF do dashboard.\n\nDetalhe técnico: ${details}`);
     } finally {
       const restore = currentQuery ? `${currentPath}?${currentQuery}` : currentPath;
       router.replace(restore, { scroll: false });
