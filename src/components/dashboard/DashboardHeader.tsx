@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, Bell, Settings, LogOut } from "lucide-react";
+import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { BarChart3, Bell, Settings, LogOut, Download, Loader2 } from "lucide-react";
 import { logout } from "@/app/login/actions";
 import { DateRangeSelector } from "./DateRangeSelector";
 import { useDashboard } from "./DashboardDataContext";
+import { DASHBOARD_PAGES } from "@/lib/constants";
+import { getVisiblePages } from "@/lib/dashboard/templates";
 
 interface DashboardHeaderProps {
   clientName: string;
@@ -19,10 +23,83 @@ export function DashboardHeader({
   dashboardTitle,
   dashboardId,
 }: DashboardHeaderProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { rangePreset, includeToday, updateRange, from, to, data } = useDashboard();
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   
   const metricsSource = data?.config?.Fonte || data?.config?.fonte || (data?.source === "mock" ? "Mocks" : "Google Sheets");
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
+
+  async function waitForRender() {
+    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+  }
+
+  async function handleExportPdf() {
+    if (isExportingPdf) return;
+    setIsExportingPdf(true);
+
+    const currentPath = pathname;
+    const currentQuery = searchParams.toString();
+
+    try {
+      const { jsPDF } = await import("jspdf");
+      const html2canvas = (await import("html2canvas")).default;
+
+      const visiblePageKeys = getVisiblePages(data?.templateId);
+      const pages = DASHBOARD_PAGES.filter((p) => visiblePageKeys.includes(p.key));
+      const paramsString = currentQuery ? `?${currentQuery}` : "";
+
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const margin = 6;
+      const pageW = 297 - margin * 2;
+      const pageH = 210 - margin * 2;
+
+      let isFirstPage = true;
+
+      for (const page of pages) {
+        const targetPath = `/app/dashboards/${dashboardId}/${page.key}${paramsString}`;
+        await router.replace(targetPath, { scroll: false });
+        await waitForRender();
+
+        const root = document.querySelector('[data-export-root="true"]') as HTMLElement | null;
+        if (!root) continue;
+
+        const canvas = await html2canvas(root, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#FFFFFF",
+          windowWidth: Math.max(document.documentElement.clientWidth, 1440),
+          windowHeight: root.scrollHeight,
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+        const imgProps = pdf.getImageProperties(imgData);
+        const ratio = Math.min(pageW / imgProps.width, pageH / imgProps.height);
+        const renderW = imgProps.width * ratio;
+        const renderH = imgProps.height * ratio;
+        const x = margin + (pageW - renderW) / 2;
+        const y = margin + (pageH - renderH) / 2;
+
+        if (!isFirstPage) pdf.addPage("a4", "landscape");
+        pdf.addImage(imgData, "PNG", x, y, renderW, renderH, undefined, "FAST");
+        isFirstPage = false;
+      }
+
+      const safeName = (dashboardTitle || "dashboard").replace(/[\\/:*?"<>|]/g, "-");
+      pdf.save(`${safeName}.pdf`);
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+      alert("Não foi possível gerar o PDF do dashboard.");
+    } finally {
+      const restore = currentQuery ? `${currentPath}?${currentQuery}` : currentPath;
+      await router.replace(restore, { scroll: false });
+      setIsExportingPdf(false);
+    }
+  }
 
   return (
     <header
@@ -73,6 +150,31 @@ export function DashboardHeader({
 
         {/* Right: Period + actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={handleExportPdf}
+            disabled={isExportingPdf}
+            style={{
+              height: 34,
+              borderRadius: 8,
+              border: "1px solid #DBEAFE",
+              background: "#EFF6FF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: isExportingPdf ? "wait" : "pointer",
+              color: "#1D4ED8",
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "0 10px",
+              gap: 6,
+              whiteSpace: "nowrap",
+            }}
+            title="Baixar dashboard em PDF"
+          >
+            {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            {isExportingPdf ? "Gerando PDF..." : "Baixar PDF"}
+          </button>
+
           <DateRangeSelector 
             currentPreset={rangePreset} 
             onPresetChange={updateRange} 

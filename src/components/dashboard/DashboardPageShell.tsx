@@ -93,6 +93,7 @@ export function DashboardPageShell({
 
   return (
     <div 
+      data-export-root="true"
       className={cn("animate-fade-in", className)}
       style={{
         padding: "24px 24px 40px",
