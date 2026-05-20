@@ -6,6 +6,8 @@ interface AggregatedMetrics {
   total_conversions: number;
   total_clicks: number;
   total_impressions: number;
+  reach: number;
+  postEngagement: number;
   ctr: number;
   cpc: number;
   cpa: number;
@@ -21,6 +23,8 @@ interface ComparisonResult {
     total_conversions: number;
     total_clicks: number;
     total_impressions: number;
+    reach: number;
+    postEngagement: number;
     ctr: number;
     cpc: number;
     cpa: number;
@@ -41,7 +45,9 @@ export const DashboardAggregator = {
       conversions: acc.conversions + (row.total_conversions || row.conversions || 0),
       clicks: acc.clicks + (row.total_clicks || row.clicks || 0),
       impressions: acc.impressions + (row.total_impressions || row.impressions || 0),
-    }), { spend: 0, revenue: 0, conversions: 0, clicks: 0, impressions: 0 });
+      reach: acc.reach + (row.total_reach || row.reach || 0),
+      postEngagement: acc.postEngagement + (row.total_engagement || row.postEngagement || row.engagement || 0),
+    }), { spend: 0, revenue: 0, conversions: 0, clicks: 0, impressions: 0, reach: 0, postEngagement: 0 });
 
     return {
       total_spend: totals.spend,
@@ -49,6 +55,8 @@ export const DashboardAggregator = {
       total_conversions: totals.conversions,
       total_clicks: totals.clicks,
       total_impressions: totals.impressions,
+      reach: totals.reach,
+      postEngagement: totals.postEngagement,
       ctr: totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0,
       cpc: totals.clicks > 0 ? totals.spend / totals.clicks : 0,
       cpa: totals.conversions > 0 ? totals.spend / totals.conversions : 0,
@@ -82,6 +90,8 @@ export const DashboardAggregator = {
         total_conversions: this.calculateChange(current.total_conversions, previous.total_conversions),
         total_clicks: this.calculateChange(current.total_clicks, previous.total_clicks),
         total_impressions: this.calculateChange(current.total_impressions, previous.total_impressions),
+        reach: this.calculateChange(current.reach, previous.reach),
+        postEngagement: this.calculateChange(current.postEngagement, previous.postEngagement),
         ctr: this.calculateChange(current.ctr, previous.ctr),
         cpc: this.calculateChange(current.cpc, previous.cpc),
         cpa: this.calculateChange(current.cpa, previous.cpa),
