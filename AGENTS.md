@@ -168,6 +168,17 @@ Antes de encerrar, confirmar:
 - domínio canônico apontando para release correta;
 - comportamento básico validado em produção.
 
+### Regra obrigatória por solicitação
+
+Para toda solicitação concluída que gere alteração no projeto:
+
+1. fazer commit;
+2. fazer push;
+3. executar o deploy necessário;
+4. confirmar que produção está correta.
+
+Não encerrar resposta com alterações apenas locais.
+
 ---
 
 ## Resposta esperada do Codex

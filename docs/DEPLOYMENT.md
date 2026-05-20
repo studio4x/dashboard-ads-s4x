@@ -25,6 +25,18 @@ npx vercel --prod
 - [x] Verificar se as Environment Variables estão sincronizadas na Vercel.
 - [x] Validar que `GOOGLE_SHEETS_USE_MOCKS` está de acordo com o desejado (true para testes, false para real).
 
+## Regra Operacional Obrigatória
+
+Sempre que uma nova solicitação for concluída com alteração de código/documentação:
+
+1. realizar commit;
+2. realizar push;
+3. publicar deploy necessário;
+4. validar que o deploy de produção está `READY`;
+5. validar que o domínio canônico `dashboard-ads-s4x.vercel.app` aponta para a versão recém-publicada.
+
+Não considerar tarefa concluída se a mudança estiver apenas local.
+
 ## Resolução de Problemas
 - **Erro de Build**: Verifique se todas as variáveis `NEXT_PUBLIC_*` estão configuradas na Vercel.
 - **Erro de Auth**: Verifique se a URL do site na Vercel está listada nos "Redirect URLs" do Supabase Auth.

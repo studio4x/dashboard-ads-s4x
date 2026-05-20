@@ -18,6 +18,35 @@ import { GoogleAdsS4XPayload, GoogleAdsS4XSummary, GoogleAdsS4XDiagnostics } fro
 import { MetaAdsS4XPayload } from "@/types/meta-ads-s4x";
 
 export const GoogleSheetsImportService = {
+  getMetaAdsAvailableMetrics(headers: string[]) {
+    const normalizedHeaders = headers.map(h => String(h).trim());
+    const has = (name: string) => normalizedHeaders.includes(name);
+
+    return {
+      sourceTabHeaders: normalizedHeaders,
+      fields: {
+        campaignName: has("Campaign Name"),
+        adSetName: has("Ad Set Name"),
+        adName: has("Ad Name"),
+        date: has("Day"),
+        reach: has("Reach"),
+        impressions: has("Impressions"),
+        frequency: has("Frequency"),
+        cost: has("Amount Spent"),
+        cpm: has("CPM (Cost per 1,000 Impressions)"),
+        clicks: has("Link Clicks"),
+        cpc: has("CPC (All)"),
+        ctr: has("CTR (All)"),
+        conversions: has("Messaging Conversations Started"),
+        costPerConversion: has("Cost per Messaging Conversations Started"),
+        postEngagement: has("Post Engagement"),
+        postComments: has("Post Comments"),
+        postReactions: has("Post Reactions"),
+        postShares: has("Post Shares")
+      }
+    };
+  },
+
   /**
    * Executa a importação completa de uma planilha.
    */
@@ -166,6 +195,23 @@ export const GoogleSheetsImportService = {
         }
       }
 
+      let metaAvailableMetrics: any = undefined;
+      if (expectedTemplateId === "meta_ads_s4x") {
+        const selectedPerformanceTab = metaS4xTabsToRead.find(t => t.key === "dailyPerformance")?.name;
+        if (selectedPerformanceTab) {
+          try {
+            const headerRow = await readSheetRange(spreadsheetId, `${selectedPerformanceTab}!1:1`);
+            const headers = (headerRow?.[0] || []).map((h: any) => String(h).trim());
+            metaAvailableMetrics = {
+              sourceTab: selectedPerformanceTab,
+              ...this.getMetaAdsAvailableMetrics(headers)
+            };
+          } catch {
+            metaAvailableMetrics = undefined;
+          }
+        }
+      }
+
       const tabsToProcess = expectedTemplateId === "google_ads_s4x" 
         ? s4xTabsToRead 
         : expectedTemplateId === "meta_ads_s4x"
@@ -290,6 +336,7 @@ export const GoogleSheetsImportService = {
           schemaValidation: schemaVal,
           warnings: warnings.map(w => w.message),
           errors: errors.map(e => e.message),
+          availableMetrics: metaAvailableMetrics,
           exportLogs: resultData.export_logs,
           rowCounts,
           ignoredRows: 0,
