@@ -12,6 +12,7 @@ import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters"
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateMetaAdsKpis, generateMetaAdsS4XKpis } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
+import { ResponsiveContainer, FunnelChart, Funnel, Tooltip, LabelList } from "recharts";
 
 export default function MetaAdsPage() {
   const { data } = useDashboard();
@@ -24,6 +25,8 @@ export default function MetaAdsPage() {
     return "campaigns";
   };
   const [activeTab, setActiveTab] = useState<"campaigns" | "adSets" | "ads" | "performance" | "engagement">(resolveTabFromPath(pathname));
+  const [campaignFilter, setCampaignFilter] = useState<string>("all");
+  const [adSetFilter, setAdSetFilter] = useState<string>("all");
   useEffect(() => {
     setActiveTab(resolveTabFromPath(pathname));
   }, [pathname]);
@@ -266,9 +269,62 @@ export default function MetaAdsPage() {
     ? pageSubtitleByTab[activeTab]
     : (isMetaS4X ? "Visão integrada baseada no coletor S4X" : "Campanhas, conjuntos de anúncios e desempenho por objetivo");
 
+  const campaignsOptions = metaCampaigns.map((c: any) => String(c.campaignName || "")).filter(Boolean);
+  const adSetOptions = adSets
+    .filter((a: any) => campaignFilter === "all" || a.campaignName === campaignFilter)
+    .map((a: any) => String(a.adSetName || ""))
+    .filter(Boolean);
+
+  const filteredAdSets = adSets.filter((row: any) => campaignFilter === "all" || row.campaignName === campaignFilter);
+  const filteredAds = ads.filter((row: any) => {
+    const campaignMatch = campaignFilter === "all" || row.campaignName === campaignFilter;
+    const adSetMatch = adSetFilter === "all" || row.adSetName === adSetFilter;
+    return campaignMatch && adSetMatch;
+  });
+  const filteredCampaigns = metaCampaigns.filter((row: any) => {
+    const campaignMatch = campaignFilter === "all" || row.campaignName === campaignFilter;
+    return campaignMatch;
+  });
+
+  const perfRows = filteredAds;
+  const perfTotals = perfRows.reduce((acc: any, row: any) => {
+    acc.impressions += Number(row.impressions || 0);
+    acc.reach += Number(row.reach || 0);
+    acc.clicks += Number(row.clicks || 0);
+    acc.conversions += Number(row.conversions || 0);
+    acc.engagement += Number(row.postEngagement || 0);
+    acc.cost += Number(row.cost || 0);
+    return acc;
+  }, { impressions: 0, reach: 0, clicks: 0, conversions: 0, engagement: 0, cost: 0 });
+
+  const funnelData = [
+    { name: "Impressões", value: perfTotals.impressions },
+    { name: "Alcance", value: perfTotals.reach },
+    { name: "Cliques", value: perfTotals.clicks },
+    { name: "Conversas", value: perfTotals.conversions },
+    { name: "Engajamento", value: perfTotals.engagement },
+  ].filter((s) => s.value > 0);
+
+  const funnelCtr = perfTotals.impressions > 0 ? (perfTotals.clicks / perfTotals.impressions) * 100 : 0;
+  const funnelCpc = perfTotals.clicks > 0 ? perfTotals.cost / perfTotals.clicks : 0;
+  const funnelCpm = perfTotals.impressions > 0 ? (perfTotals.cost / perfTotals.impressions) * 1000 : 0;
+
+  const campaignBarDataFiltered = filteredCampaigns.slice(0, 10).map((c: any) => ({
+    label: String(c.campaignName || "").substring(0, 24) + (String(c.campaignName || "").length > 24 ? "..." : ""),
+    value: Number(c.cost || 0),
+  }));
+  const adSetBarDataFiltered = filteredAdSets.slice(0, 10).map((a: any) => ({
+    label: String(a.adSetName || "").substring(0, 24) + (String(a.adSetName || "").length > 24 ? "..." : ""),
+    value: Number(a.cost || 0),
+  }));
+  const adBarDataFiltered = filteredAds.slice(0, 10).map((a: any) => ({
+    label: String(a.adName || "").substring(0, 24) + (String(a.adName || "").length > 24 ? "..." : ""),
+    value: Number(a.cost || 0),
+  }));
+
   return (
     <DashboardPageShell title={pageTitle} subtitle={pageSubtitle}>
-      <KpiGrid metrics={kpis} columns={isMetaS4X ? 3 : 3} />
+      {!isDedicatedMetaRoute && <KpiGrid metrics={kpis} columns={isMetaS4X ? 3 : 3} />}
 
       {!isDedicatedMetaRoute && (
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
@@ -342,39 +398,71 @@ export default function MetaAdsPage() {
           )}
 
           {activeTab === "adSets" && (
-            <DataTableWidget
-              data={adSets as unknown as Record<string, unknown>[]}
-              columns={[
-                { key: "adSetName", label: "Conjunto de Anúncios", render: (v: unknown) => <span style={{ fontWeight: 600, color: "#1E293B", maxWidth: 240, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
-                { key: "campaignName", label: "Campanha", render: (v: unknown) => <span style={{ color: "#64748B", maxWidth: 200, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
-                ...(hasMetric("impressions") ? [{ key: "impressions", label: "Impressões", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
-                ...(hasMetric("reach") ? [{ key: "reach", label: "Alcance", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
-                ...((hasMetric("frequency") || (hasMetric("reach") && hasMetric("impressions"))) ? [{ key: "frequency", label: "Frequência", align: "right", render: (v: any) => `${Number(v).toFixed(2)}x` }] : []),
-                ...(hasMetric("cost") ? [{ key: "cost", label: "Custo", align: "right", render: (v: any) => formatCurrency(Number(v)) }] : []),
-                ...(hasMetric("conversions") ? [{ key: "conversions", label: "Conversas", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
-                ...((hasMetric("cost") && hasMetric("conversions")) ? [{ key: "cpa", label: "Custo/Conversa", align: "right", render: (v: any) => v ? formatCurrency(Number(v)) : "-" }] : []),
-              ] as any}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <select value={campaignFilter} onChange={(e) => setCampaignFilter(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12 }}>
+                  <option value="all">Todas as campanhas</option>
+                  {campaignsOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <DataTableWidget
+                data={filteredAdSets as unknown as Record<string, unknown>[]}
+                columns={[
+                  { key: "adSetName", label: "Conjunto de Anúncios", render: (v: unknown) => <span style={{ fontWeight: 600, color: "#1E293B", maxWidth: 240, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
+                  { key: "campaignName", label: "Campanha", render: (v: unknown) => <span style={{ color: "#64748B", maxWidth: 200, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
+                  ...(hasMetric("impressions") ? [{ key: "impressions", label: "Impressões", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
+                  ...(hasMetric("reach") ? [{ key: "reach", label: "Alcance", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
+                  ...((hasMetric("frequency") || (hasMetric("reach") && hasMetric("impressions"))) ? [{ key: "frequency", label: "Frequência", align: "right", render: (v: any) => `${Number(v).toFixed(2)}x` }] : []),
+                  ...(hasMetric("cost") ? [{ key: "cost", label: "Custo", align: "right", render: (v: any) => formatCurrency(Number(v)) }] : []),
+                  ...(hasMetric("conversions") ? [{ key: "conversions", label: "Conversas", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
+                  ...(hasMetric("postEngagement") ? [{ key: "postEngagement", label: "Engajamento", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
+                  ...((hasMetric("cost") && hasMetric("conversions")) ? [{ key: "cpa", label: "Custo/Conversa", align: "right", render: (v: any) => v ? formatCurrency(Number(v)) : "-" }] : []),
+                ] as any}
+              />
+            </div>
           )}
 
           {activeTab === "ads" && (
-            <DataTableWidget
-              data={ads as unknown as Record<string, unknown>[]}
-              columns={[
-                { key: "adName", label: "Anúncio", render: (v: unknown) => <span style={{ fontWeight: 600, color: "#1E293B", maxWidth: 240, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
-                { key: "adSetName", label: "Conjunto", render: (v: unknown) => <span style={{ color: "#64748B", maxWidth: 160, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
-                ...(hasMetric("impressions") ? [{ key: "impressions", label: "Impressões", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
-                ...(hasMetric("reach") ? [{ key: "reach", label: "Alcance", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
-                ...((hasMetric("frequency") || (hasMetric("reach") && hasMetric("impressions"))) ? [{ key: "frequency", label: "Frequência", align: "right", render: (v: any) => `${Number(v).toFixed(2)}x` }] : []),
-                ...(hasMetric("cost") ? [{ key: "cost", label: "Custo", align: "right", render: (v: any) => formatCurrency(Number(v)) }] : []),
-                ...(hasMetric("conversions") ? [{ key: "conversions", label: "Conversas", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
-                ...((hasMetric("cost") && hasMetric("conversions")) ? [{ key: "cpa", label: "Custo/Conversa", align: "right", render: (v: any) => v ? formatCurrency(Number(v)) : "-" }] : []),
-              ] as any}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <select value={campaignFilter} onChange={(e) => { setCampaignFilter(e.target.value); setAdSetFilter("all"); }} style={{ padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12 }}>
+                  <option value="all">Todas as campanhas</option>
+                  {campaignsOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select value={adSetFilter} onChange={(e) => setAdSetFilter(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12 }}>
+                  <option value="all">Todos os conjuntos</option>
+                  {adSetOptions.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <DataTableWidget
+                data={filteredAds as unknown as Record<string, unknown>[]}
+                columns={[
+                  { key: "adName", label: "Anúncio", render: (v: unknown) => <span style={{ fontWeight: 600, color: "#1E293B", maxWidth: 240, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
+                  { key: "adSetName", label: "Conjunto", render: (v: unknown) => <span style={{ color: "#64748B", maxWidth: 160, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
+                  ...(hasMetric("impressions") ? [{ key: "impressions", label: "Impressões", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
+                  ...(hasMetric("reach") ? [{ key: "reach", label: "Alcance", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
+                  ...((hasMetric("frequency") || (hasMetric("reach") && hasMetric("impressions"))) ? [{ key: "frequency", label: "Frequência", align: "right", render: (v: any) => `${Number(v).toFixed(2)}x` }] : []),
+                  ...(hasMetric("cost") ? [{ key: "cost", label: "Custo", align: "right", render: (v: any) => formatCurrency(Number(v)) }] : []),
+                  ...(hasMetric("conversions") ? [{ key: "conversions", label: "Conversas", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
+                  ...(hasMetric("postEngagement") ? [{ key: "postEngagement", label: "Engajamento", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
+                  ...((hasMetric("cost") && hasMetric("conversions")) ? [{ key: "cpa", label: "Custo/Conversa", align: "right", render: (v: any) => v ? formatCurrency(Number(v)) : "-" }] : []),
+                ] as any}
+              />
+            </div>
           )}
 
           {activeTab === "performance" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <select value={campaignFilter} onChange={(e) => { setCampaignFilter(e.target.value); setAdSetFilter("all"); }} style={{ padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12 }}>
+                  <option value="all">Todas as campanhas</option>
+                  {campaignsOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select value={adSetFilter} onChange={(e) => setAdSetFilter(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12 }}>
+                  <option value="all">Todos os conjuntos</option>
+                  {adSetOptions.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
               <ChartCard title="Funil Diário" subtitle="Investimento, Cliques e Conversas" height={300}>
                 <LineChartWidget
                   data={dailySeries}
@@ -388,44 +476,48 @@ export default function MetaAdsPage() {
                   height={260}
                 />
               </ChartCard>
-              <DataTableWidget
-                data={metaCampaigns as unknown as Record<string, unknown>[]}
-                columns={[
-                  { key: "campaignName", label: "Campanha", render: (v: unknown) => <span style={{ fontWeight: 600, color: "#1E293B", maxWidth: 280, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
-                  ...(hasMetric("impressions") ? [{ key: "impressions", label: "Impressões", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
-                  ...(hasMetric("clicks") ? [{ key: "clicks", label: "Cliques", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
-                  ...(hasMetric("ctr") ? [{ key: "ctr", label: "CTR", align: "right", render: (v: any) => `${Number(v).toFixed(2)}%` }] : []),
-                  ...(hasMetric("cpc") ? [{ key: "cpc", label: "CPC", align: "right", render: (v: any) => formatCurrency(Number(v)) }] : []),
-                  ...(hasMetric("cpm") ? [{ key: "cpm", label: "CPM", align: "right", render: (v: any) => formatCurrency(Number(v)) }] : []),
-                  ...(hasMetric("conversions") ? [{ key: "conversions", label: "Conversas", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
-                ] as any}
-              />
+              <ChartCard title="Funil de Performance" subtitle="Impressões > Alcance > Cliques > Conversas > Engajamento" height={360}>
+                <div style={{ height: 260 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <FunnelChart>
+                      <Tooltip formatter={(v: any) => formatNumber(Number(v), true)} />
+                      <Funnel dataKey="value" data={funnelData} isAnimationActive>
+                        <LabelList position="right" fill="#334155" stroke="none" dataKey="name" />
+                      </Funnel>
+                    </FunnelChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 8 }}>
+                  <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CTR: <strong style={{ color: "#0F172A" }}>{funnelCtr.toFixed(2)}%</strong></div>
+                  <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CPC: <strong style={{ color: "#0F172A" }}>{formatCurrency(funnelCpc)}</strong></div>
+                  <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CPM: <strong style={{ color: "#0F172A" }}>{formatCurrency(funnelCpm)}</strong></div>
+                </div>
+              </ChartCard>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                <ChartCard title="Campanhas" subtitle="Investimento por campanha" height={280}>
+                  <HorizontalBarChartWidget data={campaignBarDataFiltered} formatValue={(v) => formatCurrency(v, true)} height={230} />
+                </ChartCard>
+                <ChartCard title="Conjuntos" subtitle="Investimento por conjunto" height={280}>
+                  <HorizontalBarChartWidget data={adSetBarDataFiltered} formatValue={(v) => formatCurrency(v, true)} height={230} />
+                </ChartCard>
+                <ChartCard title="Anúncios" subtitle="Investimento por anúncio" height={280}>
+                  <HorizontalBarChartWidget data={adBarDataFiltered} formatValue={(v) => formatCurrency(v, true)} height={230} />
+                </ChartCard>
+              </div>
             </div>
           )}
 
           {activeTab === "engagement" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
-              <ChartCard title="Top Campanhas por Engajamento" subtitle="Maiores volumes de interação" height={280}>
-                <HorizontalBarChartWidget
-                  data={engagementCampaigns.slice(0, 10).map((c: any) => ({
-                    label: String(c.campaignName || "").substring(0, 24) + (String(c.campaignName || "").length > 24 ? "..." : ""),
-                    value: Number(c.postEngagement || 0),
-                  }))}
-                  formatValue={(v) => formatNumber(Number(v), true)}
-                  height={240}
-                />
-              </ChartCard>
-              <DataTableWidget
-                data={engagementCampaigns as unknown as Record<string, unknown>[]}
-                columns={[
-                  { key: "campaignName", label: "Campanha", render: (v: unknown) => <span style={{ fontWeight: 600, color: "#1E293B", maxWidth: 280, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
-                  ...(hasMetric("postEngagement") ? [{ key: "postEngagement", label: "Engajamento", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
-                  ...(hasMetric("postReactions") ? [{ key: "postReactions", label: "Reações", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
-                  ...(hasMetric("postComments") ? [{ key: "postComments", label: "Comentários", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
-                  ...(hasMetric("postShares") ? [{ key: "postShares", label: "Compart.", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
-                ] as any}
-              />
-            </div>
+            <DataTableWidget
+              data={engagementCampaigns as unknown as Record<string, unknown>[]}
+              columns={[
+                { key: "campaignName", label: "Campanha", render: (v: unknown) => <span style={{ fontWeight: 600, color: "#1E293B", maxWidth: 280, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(v)}</span> },
+                ...(hasMetric("postEngagement") ? [{ key: "postEngagement", label: "Engajamento", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
+                ...(hasMetric("postReactions") ? [{ key: "postReactions", label: "Reações", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
+                ...(hasMetric("postComments") ? [{ key: "postComments", label: "Comentários", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
+                ...(hasMetric("postShares") ? [{ key: "postShares", label: "Compart.", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
+              ] as any}
+            />
           )}
         </div>
       ) : (
