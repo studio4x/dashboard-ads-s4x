@@ -92,7 +92,11 @@ export const VISIBLE_PAGES_BY_TEMPLATE: Record<string, string[]> = {
   ],
   meta_ads_s4x: [
     "executive-summary",
-    "meta-ads"
+    "campanhas",
+    "conjuntos",
+    "anuncios",
+    "funil",
+    "engajamento"
   ],
   meta_ads: [
     "executive-summary",

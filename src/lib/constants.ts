@@ -38,6 +38,36 @@ export const DASHBOARD_PAGES: {
     description: "Campanhas e conjuntos de anúncios Meta",
   },
   {
+    key: "campanhas",
+    label: "Campanhas",
+    icon: "Target",
+    description: "Visão de campanhas",
+  },
+  {
+    key: "conjuntos",
+    label: "Conjuntos",
+    icon: "Target",
+    description: "Visão por conjunto de anúncios",
+  },
+  {
+    key: "anuncios",
+    label: "Anúncios",
+    icon: "LayoutDashboard",
+    description: "Visão por criativo/anúncio",
+  },
+  {
+    key: "funil",
+    label: "Funil",
+    icon: "Target",
+    description: "Métricas de performance e funil",
+  },
+  {
+    key: "engajamento",
+    label: "Engajamento",
+    icon: "Users",
+    description: "Interações sociais e engajamento",
+  },
+  {
     key: "conversions",
     label: "Conversões",
     icon: "Target",

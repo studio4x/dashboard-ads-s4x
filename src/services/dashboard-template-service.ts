@@ -35,7 +35,11 @@ const TEMPLATE_PAGES: Record<string, { key: string; title: string; sort: number 
   ],
   meta_ads_s4x: [
     { key: "executive-summary", title: "Resumo Executivo", sort: 10 },
-    { key: "meta-ads", title: "Meta Ads", sort: 20 }
+    { key: "campanhas", title: "Campanhas", sort: 20 },
+    { key: "conjuntos", title: "Conjuntos", sort: 30 },
+    { key: "anuncios", title: "Anúncios", sort: 40 },
+    { key: "funil", title: "Funil", sort: 50 },
+    { key: "engajamento", title: "Engajamento", sort: 60 }
   ]
 };
 

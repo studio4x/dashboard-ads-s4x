@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { KpiGrid } from "@/components/dashboard/MetricCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
@@ -14,7 +15,18 @@ import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 
 export default function MetaAdsPage() {
   const { data } = useDashboard();
-  const [activeTab, setActiveTab] = useState<"campaigns" | "adSets" | "ads" | "performance" | "engagement">("campaigns");
+  const pathname = usePathname();
+  const resolveTabFromPath = (path: string): "campaigns" | "adSets" | "ads" | "performance" | "engagement" => {
+    if (path.endsWith("/conjuntos")) return "adSets";
+    if (path.endsWith("/anuncios")) return "ads";
+    if (path.endsWith("/funil")) return "performance";
+    if (path.endsWith("/engajamento")) return "engagement";
+    return "campaigns";
+  };
+  const [activeTab, setActiveTab] = useState<"campaigns" | "adSets" | "ads" | "performance" | "engagement">(resolveTabFromPath(pathname));
+  useEffect(() => {
+    setActiveTab(resolveTabFromPath(pathname));
+  }, [pathname]);
 
   if (!data) return null;
 

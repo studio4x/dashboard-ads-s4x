@@ -3,6 +3,11 @@ import { DashboardDataProvider } from "@/components/dashboard/DashboardDataConte
 import ExecutiveSummaryPage from "@/app/app/dashboards/[dashboardId]/executive-summary/page";
 import GoogleAdsPage from "@/app/app/dashboards/[dashboardId]/google-ads/page";
 import MetaAdsPage from "@/app/app/dashboards/[dashboardId]/meta-ads/page";
+import CampanhasPage from "@/app/app/dashboards/[dashboardId]/campanhas/page";
+import ConjuntosPage from "@/app/app/dashboards/[dashboardId]/conjuntos/page";
+import AnunciosPage from "@/app/app/dashboards/[dashboardId]/anuncios/page";
+import FunilPage from "@/app/app/dashboards/[dashboardId]/funil/page";
+import EngajamentoPage from "@/app/app/dashboards/[dashboardId]/engajamento/page";
 import ConversionsPage from "@/app/app/dashboards/[dashboardId]/conversions/page";
 import AudiencePage from "@/app/app/dashboards/[dashboardId]/audience/page";
 import SearchConsolePage from "@/app/app/dashboards/[dashboardId]/search-console/page";
@@ -21,6 +26,11 @@ const pageTitles: Record<string, string> = {
   "executive-summary": "Resumo Executivo",
   "google-ads": "Google Ads",
   "meta-ads": "Meta Ads",
+  "campanhas": "Campanhas",
+  "conjuntos": "Conjuntos",
+  "anuncios": "Anúncios",
+  "funil": "Funil",
+  "engajamento": "Engajamento",
   "conversions": "Conversões",
   "audience": "Público e Canais",
   "search-console": "Google Search Console",
@@ -98,6 +108,11 @@ export default async function SharedDashboardPage(
           {currentPage === "executive-summary" && <ExecutiveSummaryPage />}
           {currentPage === "google-ads" && <GoogleAdsPage />}
           {currentPage === "meta-ads" && <MetaAdsPage />}
+          {currentPage === "campanhas" && <CampanhasPage />}
+          {currentPage === "conjuntos" && <ConjuntosPage />}
+          {currentPage === "anuncios" && <AnunciosPage />}
+          {currentPage === "funil" && <FunilPage />}
+          {currentPage === "engajamento" && <EngajamentoPage />}
           {currentPage === "conversions" && <ConversionsPage />}
           {currentPage === "audience" && <AudiencePage />}
           {currentPage === "search-console" && <SearchConsolePage />}
