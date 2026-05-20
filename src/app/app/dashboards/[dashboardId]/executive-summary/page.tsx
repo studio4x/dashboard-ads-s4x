@@ -123,6 +123,7 @@ export default function ExecutiveSummaryPage() {
       delta: `${(changes.total_spend || 0).toFixed(1)}%`,
       positive: (changes.total_spend || 0) <= 0,
       icon: DollarSign,
+      tooltip: "Valor total investido em mídia paga no período selecionado.",
     },
     {
       label: "Impressões",
@@ -130,6 +131,7 @@ export default function ExecutiveSummaryPage() {
       delta: `${(changes.total_impressions || 0).toFixed(1)}%`,
       positive: (changes.total_impressions || 0) >= 0,
       icon: Eye,
+      tooltip: "Quantidade total de vezes que os anúncios foram exibidos.",
     },
     {
       label: "Alcance",
@@ -137,6 +139,7 @@ export default function ExecutiveSummaryPage() {
       delta: `${(changes.reach || 0).toFixed(1)}%`,
       positive: (changes.reach || 0) >= 0,
       icon: Users,
+      tooltip: "Número de pessoas únicas impactadas pelos anúncios.",
     },
     {
       label: "Cliques",
@@ -144,6 +147,7 @@ export default function ExecutiveSummaryPage() {
       delta: `${(changes.total_clicks || 0).toFixed(1)}%`,
       positive: (changes.total_clicks || 0) >= 0,
       icon: MousePointerClick,
+      tooltip: "Quantidade de cliques recebidos nos anúncios.",
     },
     {
       label: "CTR",
@@ -151,6 +155,7 @@ export default function ExecutiveSummaryPage() {
       delta: `${(changes.ctr || 0).toFixed(1)}%`,
       positive: (changes.ctr || 0) >= 0,
       icon: Percent,
+      tooltip: "Taxa de cliques: percentual de impressões que viraram clique.",
     },
     {
       label: "CPC médio",
@@ -158,6 +163,7 @@ export default function ExecutiveSummaryPage() {
       delta: `${(changes.cpc || 0).toFixed(1)}%`,
       positive: (changes.cpc || 0) <= 0,
       icon: DollarSign,
+      tooltip: "Custo médio pago por clique no período.",
     },
     {
       label: "Conversões",
@@ -165,6 +171,7 @@ export default function ExecutiveSummaryPage() {
       delta: `${(changes.total_conversions || 0).toFixed(1)}%`,
       positive: (changes.total_conversions || 0) >= 0,
       icon: Target,
+      tooltip: "Quantidade total de conversões (resultado principal da campanha).",
     },
     {
       label: "Engajamentos",
@@ -179,6 +186,7 @@ export default function ExecutiveSummaryPage() {
       delta: `${(changes.cpa || 0).toFixed(1)}%`,
       positive: (changes.cpa || 0) <= 0,
       icon: DollarSign,
+      tooltip: "Custo médio para gerar uma conversão.",
     },
   ];
 
