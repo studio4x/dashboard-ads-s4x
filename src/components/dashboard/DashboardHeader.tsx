@@ -33,19 +33,31 @@ export function DashboardHeader({
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
 
   async function waitForRender() {
+    if (document.fonts?.ready) {
+      try {
+        await document.fonts.ready;
+      } catch {
+        // Ignore font readiness failures and continue export.
+      }
+    }
     await new Promise((r) => setTimeout(r, 1500));
     await new Promise(requestAnimationFrame);
     await new Promise(requestAnimationFrame);
   }
 
   async function navigateAndWait(targetPathWithQuery: string) {
-    router.replace(targetPathWithQuery, { scroll: false });
+    const targetUrl = new URL(targetPathWithQuery, window.location.origin);
+    router.replace(`${targetUrl.pathname}${targetUrl.search}`, { scroll: false });
 
     const timeoutMs = 8000;
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
-      const current = `${window.location.pathname}${window.location.search}`;
-      if (current === targetPathWithQuery) {
+      const currentUrl = new URL(window.location.href);
+      const samePath = currentUrl.pathname === targetUrl.pathname;
+      const targetParamsMatch = [...targetUrl.searchParams.entries()].every(
+        ([key, value]) => currentUrl.searchParams.get(key) === value
+      );
+      if (samePath && targetParamsMatch) {
         await waitForRender();
         return;
       }
@@ -103,9 +115,11 @@ export function DashboardHeader({
           const canvas = await html2canvas(root, {
             scale: 2,
             useCORS: true,
+            allowTaint: false,
             backgroundColor: "#FFFFFF",
             windowWidth: Math.max(document.documentElement.clientWidth, 1440),
             windowHeight: root.scrollHeight,
+            imageTimeout: 15000,
           });
 
           if (!canvas.width || !canvas.height) {
