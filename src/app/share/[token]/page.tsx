@@ -89,7 +89,7 @@ export default async function SharedDashboardPage(
 
   return (
     <DashboardDataProvider overrideDashboardId={link?.dashboard_id} shareToken={token}>
-      <div className="min-h-screen bg-[#F7F9FC]">
+      <div className="shared-dashboard-shell min-h-screen bg-[#F7F9FC]">
         {/* Header Executivo (Fase 6.5) */}
         <SharedDashboardHeader 
           clientName={link?.dashboards?.clients?.name}

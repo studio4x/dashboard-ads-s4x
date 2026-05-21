@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { KpiGrid } from "@/components/dashboard/MetricCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
@@ -16,25 +16,44 @@ import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 export default function MetaAdsPage() {
   const { data } = useDashboard();
   const pathname = usePathname();
-  const resolveTabFromPath = (path: string): "campaigns" | "adSets" | "ads" | "performance" | "engagement" => {
+  const searchParams = useSearchParams();
+  const sharedPage = searchParams.get("page");
+
+  const resolveTabFromPath = (
+    path: string,
+    pageParam?: string | null
+  ): "campaigns" | "adSets" | "ads" | "performance" | "engagement" => {
+    if (path.startsWith("/share/")) {
+      if (pageParam === "conjuntos") return "adSets";
+      if (pageParam === "anuncios") return "ads";
+      if (pageParam === "funil") return "performance";
+      if (pageParam === "engajamento") return "engagement";
+      if (pageParam === "campanhas") return "campaigns";
+      return "campaigns";
+    }
     if (path.endsWith("/conjuntos")) return "adSets";
     if (path.endsWith("/anuncios")) return "ads";
     if (path.endsWith("/funil")) return "performance";
     if (path.endsWith("/engajamento")) return "engagement";
     return "campaigns";
   };
-  const [activeTab, setActiveTab] = useState<"campaigns" | "adSets" | "ads" | "performance" | "engagement">(resolveTabFromPath(pathname));
+  const [activeTab, setActiveTab] = useState<"campaigns" | "adSets" | "ads" | "performance" | "engagement">(
+    resolveTabFromPath(pathname, sharedPage)
+  );
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
   const [adSetFilter, setAdSetFilter] = useState<string>("all");
   useEffect(() => {
-    setActiveTab(resolveTabFromPath(pathname));
-  }, [pathname]);
+    setActiveTab(resolveTabFromPath(pathname, sharedPage));
+  }, [pathname, sharedPage]);
+
+  const isSharedDedicatedMetaRoute = pathname.startsWith("/share/") && ["campanhas", "conjuntos", "anuncios", "funil", "engajamento"].includes(sharedPage || "");
   const isDedicatedMetaRoute =
     pathname.endsWith("/campanhas") ||
     pathname.endsWith("/conjuntos") ||
     pathname.endsWith("/anuncios") ||
     pathname.endsWith("/funil") ||
-    pathname.endsWith("/engajamento");
+    pathname.endsWith("/engajamento") ||
+    isSharedDedicatedMetaRoute;
 
   if (!data) return null;
 
