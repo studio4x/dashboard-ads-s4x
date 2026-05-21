@@ -155,7 +155,7 @@ export function DashboardHeader({
 
     try {
       const { jsPDF } = await import("jspdf");
-      const html2canvas = (await import("html2canvas")).default;
+      const html2canvas = (await import("html2canvas-pro")).default;
 
       const visiblePageKeys = getVisiblePages(data?.templateId);
       const pages = DASHBOARD_PAGES.filter((p) => visiblePageKeys.includes(p.key));
