@@ -104,7 +104,8 @@ export default async function SharedDashboardPage(
         </div>
 
         {/* Content */}
-        <main className="max-w-[1720px] mx-auto p-4 sm:p-6 lg:p-8">
+        <main className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="max-w-[1720px] mx-auto">
           {currentPage === "executive-summary" && <ExecutiveSummaryPage />}
           {currentPage === "google-ads" && <GoogleAdsPage />}
           {currentPage === "meta-ads" && <MetaAdsPage />}
@@ -122,6 +123,7 @@ export default async function SharedDashboardPage(
           {currentPage === "search-terms" && <SearchTermsPage />}
           {currentPage === "ads-assets" && <AdsAssetsPage />}
           {currentPage === "negative-keywords" && <NegativeKeywordsPage />}
+          </div>
         </main>
 
         {/* Rodapé Executivo */}

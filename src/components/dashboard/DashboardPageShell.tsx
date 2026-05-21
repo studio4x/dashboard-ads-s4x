@@ -24,7 +24,7 @@ export function DashboardPageShell({
   headerActions,
 }: DashboardPageShellProps) {
   const { loading, error, needsImport, data, isShared } = useDashboard();
-  const containerMaxWidth = isShared ? "1720px" : "1440px";
+  const containerMaxWidth = isShared ? "100%" : "1440px";
 
   // Loading State
   if (loading) {
