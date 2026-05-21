@@ -128,13 +128,50 @@ export function DashboardHeader({
         ? (clonedDoc: Document) => {
             const clonedRoot = clonedDoc.querySelector('[data-export-root="true"]') as HTMLElement | null;
             if (!clonedRoot) return;
+            const style = clonedDoc.createElement("style");
+            style.setAttribute("data-pdf-export-style", "true");
+            style.textContent = `
+              *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+              }
+              [data-export-root="true"], [data-export-root="true"] * {
+                opacity: 1 !important;
+                filter: none !important;
+              }
+              .animate-fade-in, .animate-pulse-soft {
+                opacity: 1 !important;
+                transform: none !important;
+              }
+            `;
+            clonedDoc.head.appendChild(style);
             clonedRoot.querySelectorAll("[style*='position: sticky'], [style*='position: fixed']").forEach((el) => {
               const element = el as HTMLElement;
               element.style.position = "static";
               element.style.top = "auto";
             });
           }
-        : undefined,
+        : (clonedDoc: Document) => {
+            const clonedRoot = clonedDoc.querySelector('[data-export-root="true"]') as HTMLElement | null;
+            if (!clonedRoot) return;
+            const style = clonedDoc.createElement("style");
+            style.setAttribute("data-pdf-export-style", "true");
+            style.textContent = `
+              *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+              }
+              [data-export-root="true"], [data-export-root="true"] * {
+                opacity: 1 !important;
+                filter: none !important;
+              }
+              .animate-fade-in, .animate-pulse-soft {
+                opacity: 1 !important;
+                transform: none !important;
+              }
+            `;
+            clonedDoc.head.appendChild(style);
+          },
     };
   }
 
