@@ -46,8 +46,8 @@ export const DashboardService = {
   /**
    * Obtém dashboard por ID (incluindo abas).
    */
-  async getDashboardById(id: string) {
-    const supabase = await createClient()
+  async getDashboardById(id: string, options?: { bypassRls?: boolean }) {
+    const supabase = options?.bypassRls ? await createAdminClient() : await createClient()
     const { data, error } = await supabase
       .from('dashboards')
       .select('*, dashboard_pages(*), clients(name)')
@@ -91,8 +91,8 @@ export const DashboardService = {
   /**
    * Obtém o snapshot mais recente de um dashboard.
    */
-  async getLatestSnapshot(dashboardId: string) {
-    const supabase = await createClient()
+  async getLatestSnapshot(dashboardId: string, options?: { bypassRls?: boolean }) {
+    const supabase = options?.bypassRls ? await createAdminClient() : await createClient()
     const { data, error } = await supabase
       .from('dashboard_data_snapshots')
       .select('*')

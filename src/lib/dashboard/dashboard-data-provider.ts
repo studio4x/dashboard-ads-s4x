@@ -14,7 +14,10 @@ import { DashboardAggregator } from "./dashboard-aggregator";
 import { parseISO } from "date-fns";
 import { isDateInRange } from "./date-utils";
 
-export async function getDashboardData(dashboardId: string, options?: { from?: string, to?: string }) {
+export async function getDashboardData(
+  dashboardId: string,
+  options?: { from?: string, to?: string, bypassRls?: boolean }
+) {
   const useMocks = process.env.GOOGLE_SHEETS_USE_MOCKS === "true";
   const range = options?.from && options?.to ? { 
     from: parseISO(options.from), 
@@ -23,7 +26,7 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
 
   // 1. Tenta buscar snapshot no Banco de Dados (Supabase) primeiro
   try {
-    const snapshot = await DashboardService.getLatestSnapshot(dashboardId);
+    const snapshot = await DashboardService.getLatestSnapshot(dashboardId, { bypassRls: options?.bypassRls });
     if (snapshot && snapshot.payload_json) {
       let data = snapshot.payload_json;
       
@@ -110,7 +113,7 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
       }
 
       // 2. Busca informações do dashboard para o template
-      const dashboard = await DashboardService.getDashboardById(dashboardId);
+      const dashboard = await DashboardService.getDashboardById(dashboardId, { bypassRls: options?.bypassRls });
 
       return {
         ...data,
@@ -139,7 +142,7 @@ export async function getDashboardData(dashboardId: string, options?: { from?: s
 
   // 2. Se não houver snapshot, verifica se deve usar mocks
   if (useMocks) {
-    const dashboard = await DashboardService.getDashboardById(dashboardId).catch(() => null);
+    const dashboard = await DashboardService.getDashboardById(dashboardId, { bypassRls: options?.bypassRls }).catch(() => null);
     const templateId = dashboard?.dashboard_type || "google_ads_s4x";
 
     if (templateId === "google_ads_s4x") {
