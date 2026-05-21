@@ -12,7 +12,6 @@ import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters"
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateMetaAdsKpis, generateMetaAdsS4XKpis } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
-import { ResponsiveContainer, FunnelChart, Funnel, Tooltip, LabelList } from "recharts";
 
 export default function MetaAdsPage() {
   const { data } = useDashboard();
@@ -308,6 +307,23 @@ export default function MetaAdsPage() {
   const funnelCtr = perfTotals.impressions > 0 ? (perfTotals.clicks / perfTotals.impressions) * 100 : 0;
   const funnelCpc = perfTotals.clicks > 0 ? perfTotals.cost / perfTotals.clicks : 0;
   const funnelCpm = perfTotals.impressions > 0 ? (perfTotals.cost / perfTotals.impressions) * 1000 : 0;
+  const funnelPalette = ["#1D4ED8", "#2563EB", "#3B82F6", "#60A5FA", "#93C5FD"];
+  const funnelMax = Math.max(...funnelData.map((s) => Number(s.value || 0)), 1);
+  const funnelStages = funnelData.map((stage, index) => {
+    const prevValue = index === 0 ? null : Number(funnelData[index - 1]?.value || 0);
+    const stageValue = Number(stage.value || 0);
+    const conversionRate = prevValue && prevValue > 0 ? (stageValue / prevValue) * 100 : null;
+    const dropRate = conversionRate !== null ? Math.max(0, 100 - conversionRate) : null;
+    const barWidth = Math.max(18, Math.round((stageValue / funnelMax) * 100));
+    return {
+      ...stage,
+      prevValue,
+      conversionRate,
+      dropRate,
+      barWidth,
+      color: funnelPalette[index] || "#93C5FD",
+    };
+  });
 
   const campaignBarDataFiltered = filteredCampaigns.slice(0, 10).map((c: any) => ({
     label: String(c.campaignName || "").substring(0, 24) + (String(c.campaignName || "").length > 24 ? "..." : ""),
@@ -476,16 +492,41 @@ export default function MetaAdsPage() {
                   height={260}
                 />
               </ChartCard>
-              <ChartCard title="Funil de Performance" subtitle="Impressões > Alcance > Cliques > Conversas > Engajamento" height={360}>
-                <div style={{ height: 260 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <FunnelChart>
-                      <Tooltip formatter={(v: any) => formatNumber(Number(v), true)} />
-                      <Funnel dataKey="value" data={funnelData} isAnimationActive>
-                        <LabelList position="right" fill="#334155" stroke="none" dataKey="name" />
-                      </Funnel>
-                    </FunnelChart>
-                  </ResponsiveContainer>
+              <ChartCard title="Funil de Performance" subtitle="Impressões > Alcance > Cliques > Conversas > Engajamento" height={420}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 304 }}>
+                  {funnelStages.length === 0 ? (
+                    <div style={{ height: 228, display: "flex", alignItems: "center", justifyContent: "center", color: "#94A3B8", fontSize: 13 }}>
+                      Sem dados para montar o funil no período selecionado.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 4 }}>
+                      {funnelStages.map((stage) => (
+                        <div key={stage.name} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                            <span style={{ color: "#0F172A", fontWeight: 700 }}>{stage.name}</span>
+                            <span style={{ color: "#0F172A", fontWeight: 700 }}>{formatNumber(stage.value, true)}</span>
+                          </div>
+                          <div style={{ width: "100%", height: 20, borderRadius: 999, background: "#E2E8F0", overflow: "hidden" }}>
+                            <div
+                              style={{
+                                width: `${stage.barWidth}%`,
+                                height: "100%",
+                                borderRadius: 999,
+                                background: `linear-gradient(90deg, ${stage.color}, ${stage.color}CC)`,
+                                transition: "width 0.3s ease",
+                              }}
+                            />
+                          </div>
+                          {stage.conversionRate !== null && (
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748B" }}>
+                              <span>Conversão vs etapa anterior: <strong style={{ color: "#0F172A" }}>{stage.conversionRate.toFixed(1)}%</strong></span>
+                              <span>Perda: <strong style={{ color: "#0F172A" }}>{stage.dropRate?.toFixed(1)}%</strong></span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 8 }}>
                   <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CTR: <strong style={{ color: "#0F172A" }}>{funnelCtr.toFixed(2)}%</strong></div>
