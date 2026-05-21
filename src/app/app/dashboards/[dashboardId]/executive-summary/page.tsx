@@ -264,11 +264,13 @@ export default function ExecutiveSummaryPage() {
       subtitle="Visão consolidada de todas as fontes de tráfego"
       hideHeader
     >
-      <div className="flex flex-col gap-6 animate-fade-in pb-10">
+      <div className="flex flex-col gap-6 animate-fade-in pb-10 max-w-[1680px] mx-auto">
         {/* KPIs Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        <div className="flex flex-wrap justify-center gap-4">
           {kpis.map((kpi, idx) => (
-            <KpiCard key={idx} {...kpi} />
+            <div key={idx} className="w-[160px] sm:w-[170px] md:w-[180px]">
+              <KpiCard {...kpi} />
+            </div>
           ))}
         </div>
 
