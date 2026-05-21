@@ -24,6 +24,7 @@ export function DashboardPageShell({
   headerActions,
 }: DashboardPageShellProps) {
   const { loading, error, needsImport, data, isShared } = useDashboard();
+  const containerMaxWidth = isShared ? "1720px" : "1440px";
 
   // Loading State
   if (loading) {
@@ -97,7 +98,7 @@ export function DashboardPageShell({
       className={cn("animate-fade-in", className)}
       style={{
         padding: "24px 24px 40px",
-        maxWidth: "1440px",
+        maxWidth: containerMaxWidth,
         margin: "0 auto",
         width: "100%",
         display: "flex",

@@ -99,12 +99,12 @@ export default async function SharedDashboardPage(
         />
 
         {/* Navegação Compacta */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 mt-4">
           <SharedDashboardTabs token={token} />
         </div>
 
         {/* Content */}
-        <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <main className="max-w-[1720px] mx-auto p-4 sm:p-6 lg:p-8">
           {currentPage === "executive-summary" && <ExecutiveSummaryPage />}
           {currentPage === "google-ads" && <GoogleAdsPage />}
           {currentPage === "meta-ads" && <MetaAdsPage />}
