@@ -43,14 +43,69 @@ export const GoogleSheetsImportService = {
         clicks: has("Link Clicks"),
         cpc: has("CPC (All)"),
         ctr: has("CTR (All)"),
-        conversions: has("Messaging Conversations Started"),
-        costPerConversion: has("Cost per Messaging Conversations Started"),
+        conversions: has("Messaging Conversations Started") || has("Leads") || has("On-Facebook Leads") || has("Website Leads") || has("Offline Leads"),
+        costPerConversion: has("Cost per Messaging Conversations Started") || has("Cost per Lead") || has("Cost per On-Facebook Lead") || has("Cost per Website Lead") || has("Cost per Offline Lead"),
+        leads: has("Leads"),
+        onFacebookLeads: has("On-Facebook Leads"),
+        websiteLeads: has("Website Leads"),
+        offlineLeads: has("Offline Leads"),
+        costPerLead: has("Cost per Lead"),
+        costPerOnFacebookLead: has("Cost per On-Facebook Lead"),
+        costPerWebsiteLead: has("Cost per Website Lead"),
+        costPerOfflineLead: has("Cost per Offline Lead"),
+        leadAny: has("Leads") || has("On-Facebook Leads") || has("Website Leads") || has("Offline Leads"),
+        leadCostAny: has("Cost per Lead") || has("Cost per On-Facebook Lead") || has("Cost per Website Lead") || has("Cost per Offline Lead"),
         postEngagement: has("Post Engagement"),
         postComments: has("Post Comments"),
         postReactions: has("Post Reactions"),
         postShares: has("Post Shares")
       }
     };
+  },
+
+  getMetaLeadResultFromRow(row: any): number {
+    const leads = Number(row.leads || 0);
+    const onFacebookLeads = Number(row.onFacebookLeads || 0);
+    const websiteLeads = Number(row.websiteLeads || 0);
+    const offlineLeads = Number(row.offlineLeads || 0);
+    const breakdownSum = onFacebookLeads + websiteLeads + offlineLeads;
+
+    if (leads > 0) return leads;
+    if (breakdownSum > 0) return breakdownSum;
+    return 0;
+  },
+
+  getMetaLeadCostFromRow(row: any, resultValue: number): number | null {
+    const costPerLead = Number(row.costPerLead || 0);
+    const costPerOnFacebookLead = Number(row.costPerOnFacebookLead || 0);
+    const costPerWebsiteLead = Number(row.costPerWebsiteLead || 0);
+    const costPerOfflineLead = Number(row.costPerOfflineLead || 0);
+
+    if (costPerLead > 0) return costPerLead;
+    if (costPerOnFacebookLead > 0) return costPerOnFacebookLead;
+    if (costPerWebsiteLead > 0) return costPerWebsiteLead;
+    if (costPerOfflineLead > 0) return costPerOfflineLead;
+
+    const cost = Number(row.cost || 0);
+    if (cost > 0 && resultValue > 0) return cost / resultValue;
+    return null;
+  },
+
+  normalizeMetaDailyResults(rows: any[]): any[] {
+    return rows.map((row: any) => {
+      const leadResult = this.getMetaLeadResultFromRow(row);
+      const messagingResult = Number(row.messagingConversationsStarted || row.conversions || 0);
+      const normalizedResult = leadResult > 0 ? leadResult : messagingResult;
+      const leadCost = this.getMetaLeadCostFromRow(row, normalizedResult);
+      const messagingCost = Number(row.costPerMessagingConversationsStarted || row.costPerConversion || 0);
+      const normalizedCost = leadCost !== null ? leadCost : (messagingCost > 0 ? messagingCost : null);
+
+      return {
+        ...row,
+        conversions: normalizedResult,
+        costPerConversion: normalizedCost,
+      };
+    });
   },
 
   /**
@@ -390,7 +445,8 @@ export const GoogleSheetsImportService = {
 
         finalPayload = s4xPayload;
       } else if (expectedTemplateId === "meta_ads_s4x") {
-        const dailyPerformance = resultData.dailyPerformance || [];
+        const dailyPerformance = this.normalizeMetaDailyResults(resultData.dailyPerformance || []);
+        resultData.dailyPerformance = dailyPerformance;
         const summary = MetricsHelper.calculateMetaSummary(dailyPerformance);
         
         const configData = resultData.config?.[0] || {};

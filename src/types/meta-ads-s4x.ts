@@ -54,6 +54,16 @@ export interface MetaAdsS4XDailyPerformance {
   ctr: number | null; // CTR (All)
   conversions: number | null; // Messaging Conversations Started
   costPerConversion: number | null; // Cost per Messaging Conversations Started
+  messagingConversationsStarted?: number | null;
+  costPerMessagingConversationsStarted?: number | null;
+  leads?: number | null;
+  onFacebookLeads?: number | null;
+  websiteLeads?: number | null;
+  offlineLeads?: number | null;
+  costPerLead?: number | null;
+  costPerOnFacebookLead?: number | null;
+  costPerWebsiteLead?: number | null;
+  costPerOfflineLead?: number | null;
   postEngagement: number | null;
   postComments: number | null;
   postReactions: number | null;

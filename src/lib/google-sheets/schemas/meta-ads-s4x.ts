@@ -7,7 +7,10 @@ export const META_ADS_EXPECTED_COLUMNS = [
   "Frequency", "Amount Spent", "CPM (Cost per 1,000 Impressions)",
   "Link Clicks", "CPC (All)", "CTR (All)", "Messaging Conversations Started",
   "Cost per Messaging Conversations Started", "Post Engagement",
-  "Post Comments", "Post Reactions", "Post Shares", "Day"
+  "Post Comments", "Post Reactions", "Post Shares",
+  "Leads", "On-Facebook Leads", "Website Leads", "Offline Leads",
+  "Cost per Lead", "Cost per On-Facebook Lead", "Cost per Website Lead", "Cost per Offline Lead",
+  "Day"
 ];
 
 export const META_ADS_S4X_SCHEMA: TemplateSchema = {
