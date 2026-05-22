@@ -25,6 +25,7 @@ export function SharedDashboardHeader({
 
   const metricsSource = data?.config?.Fonte || data?.config?.fonte || (data?.source === "mock" ? "Mocks" : "Google Sheets");
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
+  const subtitleParts = [dashboardName, clientName].filter(Boolean);
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
@@ -47,7 +48,7 @@ export function SharedDashboardHeader({
                  {pageTitle}
                </h1>
                <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                 {clientName} • {dashboardName}
+                 {subtitleParts.join(" | ")}
                </p>
                
                {/* Badges de Fonte e Conta */}

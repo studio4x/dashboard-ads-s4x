@@ -14,6 +14,7 @@ interface DashboardHeaderProps {
   clientName: string;
   dashboardTitle: string;
   dashboardId: string;
+  dashboardType?: string;
   dateRangeLabel?: string;
   onDateRangeClick?: () => void;
 }
@@ -22,6 +23,7 @@ export function DashboardHeader({
   clientName,
   dashboardTitle,
   dashboardId,
+  dashboardType,
 }: DashboardHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -31,6 +33,12 @@ export function DashboardHeader({
   
   const metricsSource = data?.config?.Fonte || data?.config?.fonte || (data?.source === "mock" ? "Mocks" : "Google Sheets");
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
+  const dashboardModelLabel = (() => {
+    const type = String(dashboardType || "").toLowerCase();
+    if (type.includes("meta")) return "Meta Ads";
+    if (type.includes("google")) return "Google Ads";
+    return "Custom";
+  })();
   const MAX_NAVIGATION_WAIT_MS = 20000;
   const MAX_ROOT_WAIT_MS = 12000;
 
@@ -307,6 +315,21 @@ export function DashboardHeader({
             <span style={{ fontSize: 13, color: "#94A3B8" }}>{clientName}</span>
             <span style={{ color: "#CBD5E1" }}>/</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{dashboardTitle}</span>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 0.4,
+                textTransform: "uppercase",
+                color: "#1D4ED8",
+                background: "#EFF6FF",
+                border: "1px solid #BFDBFE",
+                borderRadius: 999,
+                padding: "2px 8px",
+              }}
+            >
+              {dashboardModelLabel}
+            </span>
             
             {/* Badges de Fonte e Conta */}
             {accountId && (

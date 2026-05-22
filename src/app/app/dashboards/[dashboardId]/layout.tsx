@@ -36,6 +36,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
   
   let clientName = "Cliente";
   let dashboardTitle = "Dashboard";
+  let dashboardType = "custom";
   let hasFoundDb = false;
 
   try {
@@ -43,6 +44,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
     if (dbDashboard) {
       dashboardTitle = dbDashboard.name || dbDashboard.title || "Dashboard";
       clientName = dbDashboard.clients?.name || "Cliente";
+      dashboardType = dbDashboard.dashboard_type || "custom";
       hasFoundDb = true;
     }
   } catch (err) {
@@ -63,6 +65,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
           clientName={clientName}
           dashboardTitle={dashboardTitle}
           dashboardId={dashboardId}
+          dashboardType={dashboardType}
         />
 
         {/* Tabs */}
