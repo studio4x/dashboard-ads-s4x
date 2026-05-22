@@ -257,6 +257,9 @@ export default function ExecutiveSummaryPage() {
     ...(hasMetric("reach") ? ["Separar prospecting e remarketing com metas de alcance e eficiência independentes."] : []),
     ...(hasMetric("postEngagement") ? ["Cruzar engajamento com resultados de negócio para evitar escalar campanhas vaidosas."] : []),
   ].slice(0, 5);
+  const splitIndex = Math.ceil(kpis.length / 2);
+  const firstRowKpis = kpis.slice(0, splitIndex);
+  const secondRowKpis = kpis.slice(splitIndex);
 
   return (
     <DashboardPageShell
@@ -266,9 +269,33 @@ export default function ExecutiveSummaryPage() {
     >
       <div className="flex flex-col gap-6 animate-fade-in pb-10 max-w-[1680px] mx-auto">
         {/* KPIs Grid */}
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="hidden md:flex flex-col gap-4">
+          <div
+            className="grid gap-4"
+            style={{ gridTemplateColumns: `repeat(${Math.max(firstRowKpis.length, 1)}, minmax(0, 1fr))` }}
+          >
+            {firstRowKpis.map((kpi, idx) => (
+              <div key={`kpi-row-1-${idx}`} className="min-w-0">
+                <KpiCard {...kpi} />
+              </div>
+            ))}
+          </div>
+          {secondRowKpis.length > 0 && (
+            <div
+              className="grid gap-4"
+              style={{ gridTemplateColumns: `repeat(${Math.max(secondRowKpis.length, 1)}, minmax(0, 1fr))` }}
+            >
+              {secondRowKpis.map((kpi, idx) => (
+                <div key={`kpi-row-2-${idx}`} className="min-w-0">
+                  <KpiCard {...kpi} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex md:hidden flex-wrap justify-center gap-4">
           {kpis.map((kpi, idx) => (
-            <div key={idx} className="w-[160px] sm:w-[170px] md:w-[180px]">
+            <div key={`kpi-mobile-${idx}`} className="w-[160px] sm:w-[170px]">
               <KpiCard {...kpi} />
             </div>
           ))}

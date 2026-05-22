@@ -95,6 +95,7 @@ export default async function SharedDashboardPage(
           clientName={link?.dashboards?.clients?.name}
           dashboardName={link?.dashboards?.name}
           clientLogoUrl={link?.dashboards?.clients?.logo_url}
+          shareToken={token}
           pageTitle={pageTitles[currentPage] || "Dashboard"}
           pageSubtitle="Relatório de desempenho de tráfego pago e inteligência de dados"
         />
