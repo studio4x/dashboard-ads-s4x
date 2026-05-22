@@ -53,8 +53,8 @@ export function SharedDashboardFooter({ clientLogoUrl, clientName }: SharedDashb
         <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
            <div className="flex items-center gap-3">
              {clientLogoUrl ? (
-               <div className="h-8 w-28 rounded border border-slate-100 bg-white flex items-center justify-center px-2 py-1 overflow-hidden">
-                 <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} className="max-h-full max-w-full object-contain" />
+               <div className="h-8 flex items-center justify-center overflow-hidden">
+                 <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} className="h-full w-auto object-contain" />
                </div>
              ) : null}
              <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">

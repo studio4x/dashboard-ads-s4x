@@ -33,8 +33,8 @@ export function SharedDashboardHeader({
           {/* Logo / Brand */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
              {clientLogoUrl ? (
-               <div className="h-10 sm:h-12 w-36 sm:w-44 rounded-lg border border-slate-100 bg-white flex items-center justify-center px-3 py-2 overflow-hidden">
-                 <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} className="max-h-full max-w-full object-contain" />
+               <div className="h-10 sm:h-12 flex items-center justify-center overflow-hidden">
+                 <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} className="h-full w-auto object-contain" />
                </div>
              ) : (
                <div className="text-2xl sm:text-3xl font-black tracking-tighter text-blue-600">
