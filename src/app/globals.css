@@ -61,6 +61,13 @@ html {
   }
 }
 
+.shared-dashboard-box {
+  width: 100%;
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

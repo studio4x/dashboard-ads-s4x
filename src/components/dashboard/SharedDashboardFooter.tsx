@@ -28,7 +28,7 @@ export function SharedDashboardFooter({ clientLogoUrl, clientName }: SharedDashb
 
   return (
     <footer className="mt-8 border-t border-slate-200 bg-white">
-      <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="shared-dashboard-box px-4 sm:px-6 lg:px-8 py-6">
         <div className="w-full flex flex-col md:flex-row justify-between items-center gap-4 text-xs sm:text-sm text-slate-500">
           <div className="flex items-center gap-3">
             <Info size={18} className="text-blue-600 flex-shrink-0" />
