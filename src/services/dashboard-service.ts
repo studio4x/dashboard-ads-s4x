@@ -74,6 +74,22 @@ export const DashboardService = {
   },
 
   /**
+   * Atualiza dados básicos de um dashboard (Admin).
+   */
+  async updateDashboard(id: string, updates: { name?: string; slug?: string; description?: string; status?: string }) {
+    const supabase = await createAdminClient()
+    const { data, error } = await supabase
+      .from('dashboards')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  /**
    * Cria um snapshot de dados para um dashboard.
    */
   async saveSnapshot(snapshot: any) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2 } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil } from "lucide-react";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
@@ -18,6 +18,9 @@ export default function AdminDashboardsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shareModalDashboard, setShareModalDashboard] = useState<any | null>(null);
+  const [editModalDashboard, setEditModalDashboard] = useState<any | null>(null);
+  const [editName, setEditName] = useState("");
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
   
   // Integração Google Sheets
   const [integrationModalDashboard, setIntegrationModalDashboard] = useState<any | null>(null);
@@ -84,6 +87,46 @@ export default function AdminDashboardsPage() {
         spreadsheetId: "",
         name: `Planilha - ${dash.name}`
       });
+    }
+  };
+
+  const handleOpenEditName = (dash: any) => {
+    setEditModalDashboard(dash);
+    setEditName(dash.name || "");
+  };
+
+  const handleUpdateName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editModalDashboard) return;
+    if (!editName.trim() || editName.trim().length < 3) {
+      alert("Informe um nome válido com pelo menos 3 caracteres.");
+      return;
+    }
+
+    setIsUpdatingName(true);
+    try {
+      const payload = {
+        name: editName.trim(),
+        slug: generateSlug(editName.trim())
+      };
+      const response = await fetch(`/api/admin/dashboards/${editModalDashboard.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        alert("Erro ao atualizar nome: " + (result.error || "erro desconhecido"));
+        return;
+      }
+
+      setEditModalDashboard(null);
+      setEditName("");
+      await fetchData();
+    } catch {
+      alert("Erro ao conectar com o servidor.");
+    } finally {
+      setIsUpdatingName(false);
     }
   };
 
@@ -431,6 +474,18 @@ export default function AdminDashboardsPage() {
                   >
                     Duplicar
                   </button>
+
+                  <button
+                    onClick={() => handleOpenEditName(d)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+                      borderRadius: 8, background: "#EFF6FF", fontSize: 13, color: "#1D4ED8",
+                      border: "1px solid #DBEAFE", cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <Pencil size={14} /> Editar nome
+                  </button>
                 </div>
 
                 {/* Primary Actions (View & Delete) */}
@@ -564,6 +619,59 @@ export default function AdminDashboardsPage() {
                     )}
                   </button>
                 </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Nome do Dashboard */}
+      {editModalDashboard && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div className="card" style={{ width: "100%", maxWidth: 500, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Editar Nome do Dashboard</h2>
+              <button onClick={() => { setEditModalDashboard(null); setEditName(""); }} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateName} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome do Dashboard</label>
+                <input
+                  required
+                  minLength={3}
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Ex: Performance Mensal"
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                />
+              </div>
+
+              <div style={{ fontSize: 12, color: "#64748B", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: 10 }}>
+                Novo slug automático: <strong>{generateSlug(editName || "") || "-"}</strong>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => { setEditModalDashboard(null); setEditName(""); }}
+                  style={{ flex: 1, padding: "12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingName}
+                  style={{
+                    flex: 1, padding: "12px", borderRadius: 8, border: "none",
+                    background: "#2563EB", color: "white", fontSize: 14,
+                    fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8
+                  }}
+                >
+                  {isUpdatingName ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> Salvar Alteração</>}
+                </button>
+              </div>
             </form>
           </div>
         </div>
