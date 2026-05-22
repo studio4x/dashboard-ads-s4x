@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 interface SharedDashboardHeaderProps {
   clientName?: string;
   dashboardName?: string;
+  clientLogoUrl?: string | null;
   pageTitle: string;
   pageSubtitle?: string;
 }
@@ -16,6 +17,7 @@ interface SharedDashboardHeaderProps {
 export function SharedDashboardHeader({
   clientName,
   dashboardName,
+  clientLogoUrl,
   pageTitle,
   pageSubtitle
 }: SharedDashboardHeaderProps) {
@@ -30,9 +32,15 @@ export function SharedDashboardHeader({
         <div className="flex items-center gap-4 sm:gap-8">
           {/* Logo / Brand */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-             <div className="text-2xl sm:text-3xl font-black tracking-tighter text-blue-600">
-               Studio 4x
-             </div>
+             {clientLogoUrl ? (
+               <div className="h-10 sm:h-12 w-36 sm:w-44 rounded-lg border border-slate-100 bg-white flex items-center justify-center px-3 py-2 overflow-hidden">
+                 <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} className="max-h-full max-w-full object-contain" />
+               </div>
+             ) : (
+               <div className="text-2xl sm:text-3xl font-black tracking-tighter text-blue-600">
+                 Studio 4x
+               </div>
+             )}
              <div className="hidden sm:block h-12 w-px bg-slate-200" />
              <div className="flex flex-col">
                <h1 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
