@@ -12,7 +12,7 @@ import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters"
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateMetaAdsKpis, generateMetaAdsS4XKpisWithLabels } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
-import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric } from "@/lib/meta-ads/objectives";
+import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
 
 export default function MetaAdsPage() {
   const { data } = useDashboard();
@@ -59,19 +59,25 @@ export default function MetaAdsPage() {
   if (!data) return null;
 
   const isMetaS4X = data.templateId === "meta_ads_s4x";
-  const conversionLabel = getMetaConversionLabel(data.metaPrimaryObjective);
-  const costLabel = getMetaCostLabel(data.metaPrimaryObjective);
-  const costMetric = getMetaCostMetric(data.metaPrimaryObjective);
-  const resultMetric = getMetaResultMetric(data.metaPrimaryObjective);
-  const resultValueKey = resultMetric === "postEngagement" ? "postEngagement" : resultMetric === "clicks" ? "clicks" : resultMetric === "reach" ? "reach" : "conversions";
-  const costPerResultKey = costMetric === "cpc" ? "cpc" : costMetric === "cpm" ? "cpm" : "cpa";
-  const costPerResultColumnKey = costMetric === "cpa" && resultMetric !== "conversions" ? "costPerResult" : costPerResultKey;
   const available = data?.diagnostics?.availableMetrics?.fields;
   const hasMetric = (key: string) => {
     if (!isMetaS4X) return true;
     if (!available) return true; // retrocompatibilidade para snapshots antigos
     return Boolean(available[key]);
   };
+  const resolvedObjectivePresentation = resolveMetaObjectivePresentation({
+    primaryObjective: data.metaPrimaryObjective,
+    objectives: Array.isArray(data.metaObjectives) ? data.metaObjectives : [],
+    availableFields: available || null,
+    dailyRows: Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
+  });
+  const conversionLabel = resolvedObjectivePresentation?.conversionLabel || getMetaConversionLabel(data.metaPrimaryObjective);
+  const costLabel = resolvedObjectivePresentation?.costLabel || getMetaCostLabel(data.metaPrimaryObjective);
+  const costMetric = resolvedObjectivePresentation?.costMetric || getMetaCostMetric(data.metaPrimaryObjective);
+  const resultMetric = resolvedObjectivePresentation?.resultMetric || getMetaResultMetric(data.metaPrimaryObjective);
+  const resultValueKey = resultMetric === "postEngagement" ? "postEngagement" : resultMetric === "clicks" ? "clicks" : resultMetric === "reach" ? "reach" : "conversions";
+  const costPerResultKey = costMetric === "cpc" ? "cpc" : costMetric === "cpm" ? "cpm" : "cpa";
+  const costPerResultColumnKey = costMetric === "cpa" && resultMetric !== "conversions" ? "costPerResult" : costPerResultKey;
   const hasData = isMetaS4X 
     ? (data.dailyPerformance && data.dailyPerformance.length > 0)
     : (data.meta_ads && data.meta_ads.length > 0);

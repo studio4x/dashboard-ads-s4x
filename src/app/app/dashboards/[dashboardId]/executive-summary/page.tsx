@@ -35,7 +35,7 @@ import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
-import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric } from "@/lib/meta-ads/objectives";
+import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
 
 // Cores da referência
 const BLUE = "#2563EB";
@@ -113,10 +113,18 @@ export default function ExecutiveSummaryPage() {
   const isAdminView = data.viewerRole === "admin" || data.viewerRole === "owner";
   const current = summary?.current || {};
   const changes = summary?.change || {};
-  const conversionLabel = getMetaConversionLabel(data.metaPrimaryObjective);
-  const costLabel = getMetaCostLabel(data.metaPrimaryObjective);
-  const costMetric = getMetaCostMetric(data.metaPrimaryObjective);
-  const resultMetric = getMetaResultMetric(data.metaPrimaryObjective);
+  const objectives = Array.isArray(data.metaObjectives) ? data.metaObjectives : [];
+  const availableMetrics = data?.diagnostics?.availableMetrics?.fields || null;
+  const resolvedObjectivePresentation = resolveMetaObjectivePresentation({
+    primaryObjective: data.metaPrimaryObjective,
+    objectives,
+    availableFields: availableMetrics,
+    dailyRows: Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
+  });
+  const conversionLabel = resolvedObjectivePresentation?.conversionLabel || getMetaConversionLabel(data.metaPrimaryObjective);
+  const costLabel = resolvedObjectivePresentation?.costLabel || getMetaCostLabel(data.metaPrimaryObjective);
+  const costMetric = resolvedObjectivePresentation?.costMetric || getMetaCostMetric(data.metaPrimaryObjective);
+  const resultMetric = resolvedObjectivePresentation?.resultMetric || getMetaResultMetric(data.metaPrimaryObjective);
   const resultCurrentValue =
     resultMetric === "postEngagement" ? Number(current.postEngagement || current.total_engagement || 0)
       : resultMetric === "clicks" ? Number(current.total_clicks || 0)
@@ -127,7 +135,6 @@ export default function ExecutiveSummaryPage() {
       : resultMetric === "clicks" ? (changes.total_clicks || changes.clicks || 0)
       : resultMetric === "reach" ? (changes.reach || 0)
       : (changes.total_conversions || changes.conversions || 0);
-  const availableMetrics = data?.diagnostics?.availableMetrics?.fields || null;
   const hasMetric = (metric: string) => {
     if (!availableMetrics) return true;
     return Boolean(availableMetrics[metric]);
@@ -222,8 +229,20 @@ export default function ExecutiveSummaryPage() {
       return hasMetric("conversions");
     }
     if (kpi.label === "Engajamentos") return hasMetric("postEngagement");
-    if (kpi.label === costLabel) return hasMetric("cost") && hasMetric("conversions");
+    if (kpi.label === costLabel) {
+      if (costMetric === "cpc") return hasMetric("cost") && hasMetric("clicks");
+      if (costMetric === "cpm") return hasMetric("cost") && hasMetric("impressions");
+      if (resultMetric === "postEngagement") return hasMetric("cost") && hasMetric("postEngagement");
+      if (resultMetric === "clicks") return hasMetric("cost") && hasMetric("clicks");
+      if (resultMetric === "reach") return hasMetric("cost") && hasMetric("reach");
+      return hasMetric("cost") && hasMetric("conversions");
+    }
     return true;
+  });
+
+  const deduplicatedKpis = filteredKpis.filter((kpi, index, arr) => {
+    const label = String(kpi.label || "").trim().toLowerCase();
+    return arr.findIndex((item) => String(item.label || "").trim().toLowerCase() === label) === index;
   });
 
   // Gráfico de Evolução (Investimento e Cliques)
@@ -300,9 +319,9 @@ export default function ExecutiveSummaryPage() {
     ...(hasMetric("reach") ? ["Separar prospecting e remarketing com metas de alcance e eficiência independentes."] : []),
     ...(hasMetric("postEngagement") ? ["Cruzar engajamento com resultados de negócio para evitar escalar campanhas vaidosas."] : []),
   ].slice(0, 5);
-  const splitIndex = Math.ceil(filteredKpis.length / 2);
-  const firstRowKpis = filteredKpis.slice(0, splitIndex);
-  const secondRowKpis = filteredKpis.slice(splitIndex);
+  const splitIndex = Math.ceil(deduplicatedKpis.length / 2);
+  const firstRowKpis = deduplicatedKpis.slice(0, splitIndex);
+  const secondRowKpis = deduplicatedKpis.slice(splitIndex);
 
   return (
     <DashboardPageShell
@@ -337,7 +356,7 @@ export default function ExecutiveSummaryPage() {
           )}
         </div>
         <div className="flex md:hidden flex-wrap justify-center gap-4">
-          {filteredKpis.map((kpi, idx) => (
+          {deduplicatedKpis.map((kpi, idx) => (
             <div key={`kpi-mobile-${idx}`} className="w-[160px] sm:w-[170px]">
               <KpiCard {...kpi} />
             </div>

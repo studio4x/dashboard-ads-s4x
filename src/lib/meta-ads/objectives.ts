@@ -22,6 +22,8 @@ export const META_ADS_METRIC_FIELD_LABELS = {
   clicks: "Link Clicks",
   cpc: "CPC (All)",
   ctr: "CTR (All)",
+  messagingConversationsStarted: "Messaging Conversations Started",
+  costPerMessagingConversationsStarted: "Cost per Messaging Conversations Started",
   conversions: "Messaging Conversations Started",
   costPerConversion: "Cost per Messaging Conversations Started",
   leads: "Leads",
@@ -34,6 +36,8 @@ export const META_ADS_METRIC_FIELD_LABELS = {
   costPerOfflineLead: "Cost per Offline Lead",
   leadAny: "Qualquer métrica de Lead (Leads / On-Facebook Leads / Website Leads / Offline Leads)",
   leadCostAny: "Qualquer custo de Lead (Cost per Lead / Cost per On-Facebook Lead / Cost per Website Lead / Cost per Offline Lead)",
+  conversionAny: "Métrica de resultado (Messaging Conversations Started ou família de Leads)",
+  conversionCostAny: "Custo por resultado (Cost per Messaging Conversations Started ou família de Cost per Lead)",
   postEngagement: "Post Engagement",
   postComments: "Post Comments",
   postReactions: "Post Reactions",
@@ -101,7 +105,7 @@ const OBJECTIVE_DEFINITIONS: Record<MetaAdsObjectiveId, ObjectiveDefinition> = {
   vendas: {
     id: "vendas",
     label: "Vendas",
-    requiredFields: ["cost", "leadAny", "leadCostAny", "clicks", "ctr"],
+    requiredFields: ["cost", "conversionAny", "conversionCostAny", "clicks", "ctr"],
     conversionLabel: "Vendas",
     costLabel: "Custo por Venda",
     costMetric: "cpa",
@@ -150,6 +154,109 @@ export function getMetaResultMetric(
 ): "conversions" | "postEngagement" | "clicks" | "reach" {
   if (!primaryObjective) return "conversions";
   return OBJECTIVE_DEFINITIONS[primaryObjective as MetaAdsObjectiveId]?.resultMetric || "conversions";
+}
+
+export function resolveMetaObjectivePresentation(params: {
+  primaryObjective?: string | null;
+  objectives?: string[] | null;
+  availableFields?: Record<string, boolean> | null;
+  dailyRows?: Array<Record<string, any>> | null;
+}): {
+  conversionLabel: string;
+  costLabel: string;
+  costMetric: "cpa" | "cpc" | "cpm";
+  resultMetric: "conversions" | "postEngagement" | "clicks" | "reach";
+} {
+  const objectives = normalizeMetaAdsObjectives(params.objectives || []);
+  const normalizedPrimary = normalizeMetaAdsObjectives([params.primaryObjective])[0];
+  const effectivePrimary = normalizedPrimary || objectives[0] || null;
+
+  const base = {
+    conversionLabel: getMetaConversionLabel(effectivePrimary),
+    costLabel: getMetaCostLabel(effectivePrimary),
+    costMetric: getMetaCostMetric(effectivePrimary),
+    resultMetric: getMetaResultMetric(effectivePrimary),
+  };
+
+  if (!objectives.includes("vendas")) {
+    return base;
+  }
+
+  const rows = params.dailyRows || [];
+  let leadTotal = 0;
+  let messagingTotal = 0;
+
+  rows.forEach((row) => {
+    const leads = Number(row?.leads || 0);
+    const onFacebookLeads = Number(row?.onFacebookLeads || 0);
+    const websiteLeads = Number(row?.websiteLeads || 0);
+    const offlineLeads = Number(row?.offlineLeads || 0);
+    const leadBreakdown = onFacebookLeads + websiteLeads + offlineLeads;
+    const leadValue = leads > 0 ? leads : leadBreakdown;
+    leadTotal += leadValue;
+
+    const messaging = Number(row?.messagingConversationsStarted || 0);
+    if (messaging > 0) {
+      messagingTotal += messaging;
+      return;
+    }
+
+    if (leadValue <= 0) {
+      messagingTotal += Number(row?.conversions || 0);
+    }
+  });
+
+  const available = params.availableFields || {};
+  const hasLeadField = Boolean(
+    available.leadAny ||
+      available.leads ||
+      available.onFacebookLeads ||
+      available.websiteLeads ||
+      available.offlineLeads
+  );
+  const hasMessagingField = Boolean(
+    available.messagingConversationsStarted ||
+      available.conversions ||
+      available.costPerMessagingConversationsStarted
+  );
+
+  if (messagingTotal > 0 && leadTotal <= 0) {
+    return {
+      conversionLabel: "Mensagens",
+      costLabel: "Custo por Mensagem",
+      costMetric: "cpa",
+      resultMetric: "conversions",
+    };
+  }
+
+  if (leadTotal > 0 && messagingTotal <= 0) {
+    return {
+      conversionLabel: "Leads",
+      costLabel: "Custo por Lead",
+      costMetric: "cpa",
+      resultMetric: "conversions",
+    };
+  }
+
+  if (hasMessagingField && !hasLeadField) {
+    return {
+      conversionLabel: "Mensagens",
+      costLabel: "Custo por Mensagem",
+      costMetric: "cpa",
+      resultMetric: "conversions",
+    };
+  }
+
+  if (hasLeadField && !hasMessagingField) {
+    return {
+      conversionLabel: "Leads",
+      costLabel: "Custo por Lead",
+      costMetric: "cpa",
+      resultMetric: "conversions",
+    };
+  }
+
+  return base;
 }
 
 export interface MetaObjectiveValidationNotes {
