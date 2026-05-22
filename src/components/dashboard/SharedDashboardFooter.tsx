@@ -6,7 +6,12 @@ import { useDashboard } from "./DashboardDataContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-export function SharedDashboardFooter() {
+interface SharedDashboardFooterProps {
+  clientLogoUrl?: string | null;
+  clientName?: string;
+}
+
+export function SharedDashboardFooter({ clientLogoUrl, clientName }: SharedDashboardFooterProps) {
   const { data, from, to } = useDashboard();
 
   if (!data) return null;
@@ -20,9 +25,6 @@ export function SharedDashboardFooter() {
   prevTo.setDate(prevTo.getDate() - 1);
   const prevFrom = new Date(prevTo);
   prevFrom.setDate(prevFrom.getDate() - diffDays + 1);
-
-  const formatDateLabel = (d: Date) => format(d, "dd 'mai' yyyy", { locale: ptBR }); // 'mai' é fixo na ref, mas vamos usar dinâmico
-  const formatDateFull = (d: Date) => format(d, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
   return (
     <footer className="mt-8 border-t border-slate-200 bg-white">
@@ -49,8 +51,15 @@ export function SharedDashboardFooter() {
         </div>
         
         <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-           <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-             Studio 4x — Inteligência em Tráfego Pago
+           <div className="flex items-center gap-3">
+             {clientLogoUrl ? (
+               <div className="h-8 w-28 rounded border border-slate-100 bg-white flex items-center justify-center px-2 py-1 overflow-hidden">
+                 <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} className="max-h-full max-w-full object-contain" />
+               </div>
+             ) : null}
+             <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+               Studio 4x — Inteligência em Tráfego Pago
+             </div>
            </div>
             <div className="flex flex-wrap justify-center sm:justify-end gap-x-4 gap-y-2">
               <span className="text-[10px] text-slate-400">Suporte: studio4x.com.br</span>

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Building2, LayoutDashboard, FileSpreadsheet, Users, CheckCircle2, Circle, ArrowLeft, Plus, Link as LinkIcon } from "lucide-react";
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
+import { ClientLogoUploader } from "@/components/admin/ClientLogoUploader";
 
 export default async function ClientHubPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -207,6 +208,12 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
 
         {/* Sidebar: Checklist */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20, position: "sticky", top: 32 }}>
+          <ClientLogoUploader
+            clientId={client.id}
+            clientName={client.name}
+            logoUrl={client.logo_url}
+          />
+
           <div className="card" style={{ padding: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A", marginBottom: 16 }}>Onboarding</h3>
             

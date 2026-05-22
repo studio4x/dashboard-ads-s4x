@@ -127,7 +127,10 @@ export default async function SharedDashboardPage(
         </main>
 
         {/* Rodapé Executivo */}
-        <SharedDashboardFooter />
+        <SharedDashboardFooter
+          clientLogoUrl={link?.dashboards?.clients?.logo_url}
+          clientName={link?.dashboards?.clients?.name}
+        />
       </div>
     </DashboardDataProvider>
   );
