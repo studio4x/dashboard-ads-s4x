@@ -17,10 +17,14 @@ interface SharedDashboardTabsProps {
 }
 
 export function SharedDashboardTabs({ token }: SharedDashboardTabsProps) {
-  const { data } = useDashboard();
+  const { data, loading } = useDashboard();
   const searchParams = useSearchParams();
   const currentPage = searchParams.get("page") || "executive-summary";
-  
+
+  if (loading || !data) {
+    return <div className="py-2" style={{ minHeight: 44 }} aria-hidden="true" />;
+  }
+
   const visiblePageKeys = getVisiblePages(data?.templateId);
   const filteredPages = DASHBOARD_PAGES.filter(p => visiblePageKeys.includes(p.key));
 

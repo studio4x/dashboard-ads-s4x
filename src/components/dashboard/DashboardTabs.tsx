@@ -21,7 +21,11 @@ interface DashboardTabsProps {
 export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { data } = useDashboard();
+  const { data, loading } = useDashboard();
+
+  if (loading || !data) {
+    return <div style={{ minHeight: 36 }} aria-hidden="true" />;
+  }
 
   const visiblePageKeys = getVisiblePages(data?.templateId);
   const filteredPages = DASHBOARD_PAGES.filter(p => visiblePageKeys.includes(p.key));
@@ -57,5 +61,4 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
     </div>
   );
 }
-
 
