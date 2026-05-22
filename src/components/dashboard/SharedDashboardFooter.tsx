@@ -28,8 +28,8 @@ export function SharedDashboardFooter({ clientLogoUrl, clientName }: SharedDashb
 
   return (
     <footer className="mt-8 border-t border-slate-200 bg-white">
-      <div className="shared-dashboard-box px-4 sm:px-6 lg:px-8 py-6">
-        <div className="w-full flex flex-col md:flex-row justify-between items-center gap-4 text-xs sm:text-sm text-slate-500">
+      <div className="shared-dashboard-box px-4 sm:px-6 lg:px-8 py-7 sm:py-8">
+        <div className="w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-5 text-xs sm:text-sm text-slate-500 leading-relaxed">
           <div className="flex items-center gap-3">
             <Info size={18} className="text-blue-600 flex-shrink-0" />
             <span>
@@ -50,21 +50,21 @@ export function SharedDashboardFooter({ clientLogoUrl, clientName }: SharedDashb
           </div>
         </div>
         
-        <div className="w-full mt-10 pt-8 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-6">
+        <div className="w-full mt-7 pt-7 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-5 sm:gap-6">
            <div className="flex items-center gap-3">
              {clientLogoUrl ? (
                <div className="h-8 flex items-center justify-center overflow-hidden">
                  <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} className="h-full w-auto object-contain" />
                </div>
              ) : null}
-             <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+             <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold leading-5">
                Studio 4x — Inteligência em Tráfego Pago
              </div>
            </div>
-            <div className="flex flex-wrap justify-center sm:justify-end gap-x-4 gap-y-2">
-              <span className="text-[10px] text-slate-400">Suporte: studio4x.com.br</span>
-              <span className="text-[10px] text-slate-400">© 2026</span>
-              <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+            <div className="flex flex-wrap justify-center sm:justify-end gap-x-4 gap-y-2 text-[10px] text-slate-400 leading-5">
+              <span>Suporte: studio4x.com.br</span>
+              <span>© 2026</span>
+              <span className="bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
                 v{process.env.NEXT_PUBLIC_APP_VERSION}-{process.env.NEXT_PUBLIC_GIT_HASH}
               </span>
             </div>
