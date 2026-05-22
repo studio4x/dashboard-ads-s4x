@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy } from "lucide-react";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 
 // Somente os templates ativos aparecem no dropdown
 const ACTIVE_TEMPLATES = DASHBOARD_TEMPLATES.filter(t => t.status === "active");
+const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
 
 export default function AdminDashboardsPage() {
   const [dashboards, setDashboards] = useState<any[]>([]);
@@ -87,6 +88,15 @@ export default function AdminDashboardsPage() {
         spreadsheetId: "",
         name: `Planilha - ${dash.name}`
       });
+    }
+  };
+
+  const handleCopyServiceEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(GOOGLE_SERVICE_ACCOUNT_EMAIL);
+      alert("E-mail da service account copiado!");
+    } catch {
+      alert("Não foi possível copiar automaticamente.");
     }
   };
 
@@ -741,6 +751,29 @@ export default function AdminDashboardsPage() {
                 <span style={{ fontSize: 11, color: "#94A3B8" }}>
                   O ID fica na URL da planilha: docs.google.com/spreadsheets/d/<strong>[ID-AQUI]</strong>/edit
                 </span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, border: "1px solid #DBEAFE", background: "#EFF6FF", borderRadius: 8, padding: 12 }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: "#1E40AF" }}>Google Service Account (obrigatório)</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <code style={{ fontSize: 12, color: "#1E3A8A", background: "#FFFFFF", border: "1px solid #BFDBFE", borderRadius: 6, padding: "6px 8px", wordBreak: "break-all", flex: 1 }}>
+                    {GOOGLE_SERVICE_ACCOUNT_EMAIL}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={handleCopyServiceEmail}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 6, border: "1px solid #BFDBFE", background: "#FFFFFF", color: "#1D4ED8", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    <Copy size={13} /> Copiar
+                  </button>
+                </div>
+                <div style={{ fontSize: 12, color: "#1E3A8A", lineHeight: 1.5 }}>
+                  <strong>Como liberar acesso no Google Sheets:</strong><br />
+                  1. Abra a planilha e clique em <strong>Compartilhar</strong>.<br />
+                  2. Adicione o e-mail acima.<br />
+                  3. Defina a permissão como <strong>Editor</strong>.<br />
+                  4. Salve e volte para clicar em <strong>Salvar Integração</strong>.
+                </div>
               </div>
 
               {/* Status da Planilha & Sincronização direta do Modal */}
