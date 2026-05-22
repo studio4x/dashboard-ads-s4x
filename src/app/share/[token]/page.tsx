@@ -100,13 +100,13 @@ export default async function SharedDashboardPage(
         />
 
         {/* Navegação Compacta */}
-        <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 mt-4">
           <SharedDashboardTabs token={token} />
         </div>
 
         {/* Content */}
-        <main className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="max-w-[1720px] mx-auto">
+        <main className="w-full flex justify-center px-4 sm:px-6 lg:px-8">
+          <div className="w-full max-w-[1720px] mx-auto">
           {currentPage === "executive-summary" && <ExecutiveSummaryPage />}
           {currentPage === "google-ads" && <GoogleAdsPage />}
           {currentPage === "meta-ads" && <MetaAdsPage />}

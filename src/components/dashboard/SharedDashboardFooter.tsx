@@ -50,7 +50,7 @@ export function SharedDashboardFooter({ clientLogoUrl, clientName }: SharedDashb
           </div>
         </div>
         
-        <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="mt-10 pt-8 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-6">
            <div className="flex items-center gap-3">
              {clientLogoUrl ? (
                <div className="h-8 flex items-center justify-center overflow-hidden">
