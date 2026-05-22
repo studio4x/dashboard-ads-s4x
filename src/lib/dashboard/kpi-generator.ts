@@ -129,6 +129,19 @@ export function generateMetaAdsKpis(adsRows: any[], summary?: any): KpiSummary[]
  * Gera os KPIs específicos para o template Meta Ads S4X.
  */
 export function generateMetaAdsS4XKpis(dailyRows: any[], summary?: any): KpiSummary[] {
+  return generateMetaAdsS4XKpisWithLabels(dailyRows, summary);
+}
+
+export function generateMetaAdsS4XKpisWithLabels(
+  dailyRows: any[],
+  summary?: any,
+  labels?: {
+    conversionLabel?: string;
+    costLabel?: string;
+    costMetric?: "cpa" | "cpc" | "cpm";
+    resultMetric?: "conversions" | "postEngagement" | "clicks" | "reach";
+  }
+): (KpiSummary & { metricKey: string })[] {
   if (!dailyRows || dailyRows.length === 0) return [];
 
   const current = summary ? summary.current : dailyRows.reduce((acc, curr) => ({
@@ -151,8 +164,34 @@ export function generateMetaAdsS4XKpis(dailyRows: any[], summary?: any): KpiSumm
     return value > 0 ? "up" : "down";
   };
 
+  const conversionLabel = labels?.conversionLabel || "Conversões";
+  const costLabel = labels?.costLabel || "Custo por Conversão";
+  const costMetric = labels?.costMetric || "cpa";
+  const resultMetric = labels?.resultMetric || "conversions";
+  const resultMetricValue =
+    resultMetric === "postEngagement" ? Number(summary?.current?.postEngagement ?? 0)
+      : resultMetric === "clicks" ? Number(summary?.current?.total_clicks ?? current.total_clicks ?? 0)
+      : resultMetric === "reach" ? Number(summary?.current?.reach ?? current.total_reach ?? 0)
+      : Number(summary?.current?.total_conversions ?? current.total_conversions ?? 0);
+  const resultMetricChange =
+    resultMetric === "postEngagement" ? (changes.postEngagement || changes.engagement || 0)
+      : resultMetric === "clicks" ? (changes.total_clicks || changes.clicks || 0)
+      : resultMetric === "reach" ? (changes.reach || 0)
+      : (changes.total_conversions || changes.conversions || 0);
+  const costMetricValue =
+    costMetric === "cpc"
+      ? (summary?.current?.cpc ?? (current.total_clicks > 0 ? current.total_spend / current.total_clicks : 0))
+      : costMetric === "cpm"
+        ? (summary?.current?.avgCpm ?? (current.total_impressions > 0 ? (current.total_spend / current.total_impressions) * 1000 : 0))
+        : cpa;
+  const costMetricChange =
+    costMetric === "cpc" ? (changes.cpc || 0)
+      : costMetric === "cpm" ? (changes.avgCpm || changes.cpm || 0)
+      : (changes.cpa || 0);
+
   return [
     { 
+      metricKey: "cost",
       label: "Investimento", 
       value: current.total_spend, 
       formatted_value: formatCurrency(current.total_spend, true), 
@@ -162,24 +201,27 @@ export function generateMetaAdsS4XKpis(dailyRows: any[], summary?: any): KpiSumm
       description: "Gasto total em anúncios" 
     },
     { 
-      label: "Conversas Iniciadas", 
-      value: current.total_conversions, 
-      formatted_value: formatNumber(current.total_conversions), 
-      change_percent: changes.total_conversions || changes.conversions || 0, 
-      change_direction: getDirection(changes.total_conversions || changes.conversions || 0), 
+      metricKey: "conversions",
+      label: conversionLabel, 
+      value: resultMetricValue, 
+      formatted_value: formatNumber(resultMetricValue), 
+      change_percent: resultMetricChange, 
+      change_direction: getDirection(resultMetricChange), 
       unit: "number", 
-      description: "Mensagens iniciadas" 
+      description: "Resultado principal" 
     },
     { 
-      label: "Custo por Conversa", 
-      value: cpa, 
-      formatted_value: cpa ? formatCurrency(cpa) : "R$ 0,00", 
-      change_percent: changes.cpa || 0, 
-      change_direction: getDirection(changes.cpa || 0, true), // CPA menor é melhor
+      metricKey: "costPerConversion",
+      label: costLabel, 
+      value: costMetricValue, 
+      formatted_value: costMetricValue ? formatCurrency(costMetricValue) : "R$ 0,00", 
+      change_percent: costMetricChange, 
+      change_direction: getDirection(costMetricChange, true),
       unit: "currency", 
-      description: "Custo médio por conversa" 
+      description: "Custo médio por resultado" 
     },
     { 
+      metricKey: "reach",
       label: "Alcance", 
       value: current.total_reach, 
       formatted_value: formatNumber(current.total_reach), 
@@ -189,6 +231,7 @@ export function generateMetaAdsS4XKpis(dailyRows: any[], summary?: any): KpiSumm
       description: "Usuários únicos alcançados" 
     },
     { 
+      metricKey: "frequency",
       label: "Frequência", 
       value: frequency, 
       formatted_value: `${Number(frequency || 0).toFixed(2)}x`, 
@@ -198,6 +241,7 @@ export function generateMetaAdsS4XKpis(dailyRows: any[], summary?: any): KpiSumm
       description: "Média de exibições por usuário" 
     },
     { 
+      metricKey: "clicks",
       label: "Cliques no Link", 
       value: current.total_clicks, 
       formatted_value: formatNumber(current.total_clicks), 
@@ -208,4 +252,3 @@ export function generateMetaAdsS4XKpis(dailyRows: any[], summary?: any): KpiSumm
     },
   ];
 }
-

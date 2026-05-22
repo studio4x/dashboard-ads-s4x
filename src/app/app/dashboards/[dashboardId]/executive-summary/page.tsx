@@ -35,6 +35,7 @@ import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
+import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric } from "@/lib/meta-ads/objectives";
 
 // Cores da referência
 const BLUE = "#2563EB";
@@ -112,6 +113,20 @@ export default function ExecutiveSummaryPage() {
   const isAdminView = data.viewerRole === "admin" || data.viewerRole === "owner";
   const current = summary?.current || {};
   const changes = summary?.change || {};
+  const conversionLabel = getMetaConversionLabel(data.metaPrimaryObjective);
+  const costLabel = getMetaCostLabel(data.metaPrimaryObjective);
+  const costMetric = getMetaCostMetric(data.metaPrimaryObjective);
+  const resultMetric = getMetaResultMetric(data.metaPrimaryObjective);
+  const resultCurrentValue =
+    resultMetric === "postEngagement" ? Number(current.postEngagement || current.total_engagement || 0)
+      : resultMetric === "clicks" ? Number(current.total_clicks || 0)
+      : resultMetric === "reach" ? Number(current.total_reach || current.reach || 0)
+      : Number(current.total_conversions || 0);
+  const resultChangeValue =
+    resultMetric === "postEngagement" ? (changes.postEngagement || changes.engagement || 0)
+      : resultMetric === "clicks" ? (changes.total_clicks || changes.clicks || 0)
+      : resultMetric === "reach" ? (changes.reach || 0)
+      : (changes.total_conversions || changes.conversions || 0);
   const availableMetrics = data?.diagnostics?.availableMetrics?.fields || null;
   const hasMetric = (metric: string) => {
     if (!availableMetrics) return true;
@@ -169,10 +184,10 @@ export default function ExecutiveSummaryPage() {
       tooltip: "Custo médio pago por clique no período.",
     },
     {
-      label: "Conversões",
-      value: formatNumber(current.total_conversions || 0),
-      delta: `${(changes.total_conversions || 0).toFixed(1)}%`,
-      positive: (changes.total_conversions || 0) >= 0,
+      label: conversionLabel,
+      value: formatNumber(resultCurrentValue),
+      delta: `${resultChangeValue.toFixed(1)}%`,
+      positive: resultChangeValue >= 0,
       icon: Target,
       tooltip: "Quantidade total de conversões (resultado principal da campanha).",
     },
@@ -184,14 +199,32 @@ export default function ExecutiveSummaryPage() {
       icon: BarChart3,
     },
     {
-      label: "Custo/conv.",
-      value: formatCurrency(current.cpa || 0),
-      delta: `${(changes.cpa || 0).toFixed(1)}%`,
-      positive: (changes.cpa || 0) <= 0,
+      label: costLabel,
+      value: formatCurrency(costMetric === "cpc" ? (current.cpc || 0) : costMetric === "cpm" ? (current.avgCpm || current.cpm || 0) : (current.cpa || 0)),
+      delta: `${(costMetric === "cpc" ? (changes.cpc || 0) : costMetric === "cpm" ? (changes.avgCpm || changes.cpm || 0) : (changes.cpa || 0)).toFixed(1)}%`,
+      positive: (costMetric === "cpc" ? (changes.cpc || 0) : costMetric === "cpm" ? (changes.avgCpm || changes.cpm || 0) : (changes.cpa || 0)) <= 0,
       icon: DollarSign,
-      tooltip: "Custo médio para gerar uma conversão.",
+      tooltip: "Custo médio para gerar o resultado principal da campanha.",
     },
   ];
+
+  const filteredKpis = kpis.filter((kpi) => {
+    if (kpi.label === "Investimento") return hasMetric("cost");
+    if (kpi.label === "Impressões") return hasMetric("impressions");
+    if (kpi.label === "Alcance") return hasMetric("reach");
+    if (kpi.label === "Cliques") return hasMetric("clicks");
+    if (kpi.label === "CTR") return hasMetric("ctr");
+    if (kpi.label === "CPC médio") return hasMetric("cpc");
+    if (kpi.label === conversionLabel) {
+      if (resultMetric === "postEngagement") return hasMetric("postEngagement");
+      if (resultMetric === "clicks") return hasMetric("clicks");
+      if (resultMetric === "reach") return hasMetric("reach");
+      return hasMetric("conversions");
+    }
+    if (kpi.label === "Engajamentos") return hasMetric("postEngagement");
+    if (kpi.label === costLabel) return hasMetric("cost") && hasMetric("conversions");
+    return true;
+  });
 
   // Gráfico de Evolução (Investimento e Cliques)
   const evolutionData = overview.map((row: any) => ({
@@ -205,7 +238,17 @@ export default function ExecutiveSummaryPage() {
     { metrica: "Investimento", atual: current.total_spend, anterior: summary?.previous?.total_spend || 0 },
     { metrica: "Impressões", atual: current.total_impressions, anterior: summary?.previous?.total_impressions || 0 },
     { metrica: "Cliques", atual: current.total_clicks, anterior: summary?.previous?.total_clicks || 0 },
-    { metrica: "Conversões", atual: current.total_conversions, anterior: summary?.previous?.total_conversions || 0 },
+    {
+      metrica: conversionLabel,
+      atual: resultCurrentValue,
+      anterior: resultMetric === "postEngagement"
+        ? Number(summary?.previous?.postEngagement || summary?.previous?.total_engagement || 0)
+        : resultMetric === "clicks"
+          ? Number(summary?.previous?.total_clicks || 0)
+          : resultMetric === "reach"
+            ? Number(summary?.previous?.reach || 0)
+            : Number(summary?.previous?.total_conversions || 0),
+    },
   ];
 
   // Dispositivos
@@ -257,9 +300,9 @@ export default function ExecutiveSummaryPage() {
     ...(hasMetric("reach") ? ["Separar prospecting e remarketing com metas de alcance e eficiência independentes."] : []),
     ...(hasMetric("postEngagement") ? ["Cruzar engajamento com resultados de negócio para evitar escalar campanhas vaidosas."] : []),
   ].slice(0, 5);
-  const splitIndex = Math.ceil(kpis.length / 2);
-  const firstRowKpis = kpis.slice(0, splitIndex);
-  const secondRowKpis = kpis.slice(splitIndex);
+  const splitIndex = Math.ceil(filteredKpis.length / 2);
+  const firstRowKpis = filteredKpis.slice(0, splitIndex);
+  const secondRowKpis = filteredKpis.slice(splitIndex);
 
   return (
     <DashboardPageShell
@@ -294,7 +337,7 @@ export default function ExecutiveSummaryPage() {
           )}
         </div>
         <div className="flex md:hidden flex-wrap justify-center gap-4">
-          {kpis.map((kpi, idx) => (
+          {filteredKpis.map((kpi, idx) => (
             <div key={`kpi-mobile-${idx}`} className="w-[160px] sm:w-[170px]">
               <KpiCard {...kpi} />
             </div>

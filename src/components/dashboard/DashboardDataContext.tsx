@@ -33,6 +33,10 @@ interface DashboardData {
   templateId?: string;
   templateVersion?: string;
   platform?: string;
+  metaObjectives?: string[];
+  metaPrimaryObjective?: string | null;
+  metaValidationStatus?: "not_configured" | "ok" | "missing_metrics";
+  metaValidationNotes?: Record<string, unknown>;
   viewerRole?: string;
   source: "mock" | "google_sheets" | "google_sheets_cache";
   lastUpdated?: string;

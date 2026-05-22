@@ -76,7 +76,20 @@ export const DashboardService = {
   /**
    * Atualiza dados básicos de um dashboard (Admin).
    */
-  async updateDashboard(id: string, updates: { name?: string; slug?: string; description?: string; status?: string }) {
+  async updateDashboard(
+    id: string,
+    updates: {
+      name?: string;
+      slug?: string;
+      description?: string;
+      status?: string;
+      meta_objectives?: string[];
+      meta_primary_objective?: string | null;
+      meta_validation_status?: "not_configured" | "ok" | "missing_metrics";
+      meta_validation_notes?: Record<string, unknown>;
+      meta_validation_updated_at?: string | null;
+    }
+  ) {
     const supabase = await createAdminClient()
     const { data, error } = await supabase
       .from('dashboards')
@@ -87,6 +100,23 @@ export const DashboardService = {
 
     if (error) throw error
     return data
+  },
+
+  async updateMetaValidation(
+    id: string,
+    validation: {
+      meta_validation_status: "not_configured" | "ok" | "missing_metrics";
+      meta_validation_notes: Record<string, unknown>;
+      meta_validation_updated_at: string;
+    }
+  ) {
+    const supabase = await createAdminClient()
+    const { error } = await supabase
+      .from('dashboards')
+      .update(validation)
+      .eq('id', id)
+
+    if (error) throw error
   },
 
   /**

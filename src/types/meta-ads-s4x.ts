@@ -18,6 +18,8 @@ export interface MetaAdsS4XConfig {
   dateStart?: string | null;
   dateEnd?: string | null;
   notes?: string | null;
+  metaObjectives?: string[];
+  metaPrimaryObjective?: string | null;
 }
 
 export interface MetaAdsS4XSummary {
@@ -77,4 +79,8 @@ export interface MetaAdsS4XPayload {
   summary: MetaAdsS4XSummary;
   dailyPerformance: MetaAdsS4XDailyPerformance[];
   diagnostics: MetaAdsS4XDiagnostics;
+  metaObjectives?: string[];
+  metaPrimaryObjective?: string | null;
+  metaValidationStatus?: "not_configured" | "ok" | "missing_metrics";
+  metaValidationNotes?: Record<string, unknown>;
 }

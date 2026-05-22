@@ -52,7 +52,11 @@ export class DashboardTemplateService {
     name: string,
     slug: string,
     templateType: DashboardTemplateType,
-    description?: string
+    description?: string,
+    options?: {
+      metaObjectives?: string[];
+      metaPrimaryObjective?: string | null;
+    }
   ) {
     const { createAdminClient } = await import("@/lib/supabase/server");
     const supabase = await createAdminClient();
@@ -69,7 +73,9 @@ export class DashboardTemplateService {
         dashboard_type: templateType,
         template_version: template?.version || "1.0",
         platform: template?.platform || "custom",
-        status: "active"
+        status: "active",
+        meta_objectives: options?.metaObjectives || [],
+        meta_primary_objective: options?.metaPrimaryObjective || null
       })
       .select()
       .single();

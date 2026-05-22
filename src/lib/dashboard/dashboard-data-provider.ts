@@ -133,7 +133,11 @@ export async function getDashboardData(
         lastUpdated: new Date(snapshot.imported_at).toLocaleString("pt-BR"),
         templateId: dashboard?.dashboard_type || "google_ads_s4x",
         templateVersion: dashboard?.template_version || "1.0",
-        platform: dashboard?.platform || "google_ads"
+        platform: dashboard?.platform || "google_ads",
+        metaObjectives: dashboard?.meta_objectives || data?.metaObjectives || [],
+        metaPrimaryObjective: dashboard?.meta_primary_objective || data?.metaPrimaryObjective || null,
+        metaValidationStatus: dashboard?.meta_validation_status || data?.metaValidationStatus || "not_configured",
+        metaValidationNotes: dashboard?.meta_validation_notes || data?.metaValidationNotes || {},
       };
     }
   } catch (dbError) {
@@ -205,7 +209,11 @@ export async function getDashboardData(
         source: "mock",
         templateId: "meta_ads_s4x",
         templateVersion: "1.0",
-        platform: "meta_ads"
+        platform: "meta_ads",
+        metaObjectives: mockPayload.metaObjectives || [],
+        metaPrimaryObjective: mockPayload.metaPrimaryObjective || null,
+        metaValidationStatus: mockPayload.metaValidationStatus || "not_configured",
+        metaValidationNotes: mockPayload.metaValidationNotes || {},
       };
     }
 

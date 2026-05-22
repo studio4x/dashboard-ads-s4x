@@ -16,6 +16,12 @@ import { SheetNormalizer } from "./sheet-normalizer";
 import { ImportResult, ImportError } from "@/types/import";
 import { GoogleAdsS4XPayload, GoogleAdsS4XSummary, GoogleAdsS4XDiagnostics } from "@/types/google-ads-s4x";
 import { MetaAdsS4XPayload } from "@/types/meta-ads-s4x";
+import {
+  normalizeMetaAdsObjectives,
+  validateMetaObjectivesMetrics,
+  META_ADS_METRIC_FIELD_LABELS,
+  getMetaObjectiveLabel,
+} from "@/lib/meta-ads/objectives";
 
 export const GoogleSheetsImportService = {
   getMetaAdsAvailableMetrics(headers: string[]) {
@@ -64,6 +70,13 @@ export const GoogleSheetsImportService = {
     const errors: ImportError[] = [];
     const warnings: ImportError[] = [];
     const resultData: Record<string, any> = {};
+    let metaValidationForPersist:
+      | {
+          status: "not_configured" | "ok" | "missing_metrics";
+          notes: Record<string, unknown>;
+          updatedAt: string;
+        }
+      | undefined;
 
     try {
       // 1. Obter informações do dashboard para saber o template esperado
@@ -75,6 +88,8 @@ export const GoogleSheetsImportService = {
         .single();
         
       const expectedTemplateId = dashboard?.dashboard_type || "google_ads_s4x";
+      const metaObjectives = normalizeMetaAdsObjectives(dashboard?.meta_objectives);
+      const metaPrimaryObjective = metaObjectives[0] || null;
 
       // 2. Validação Preliminar de Template (Dashboard_Config)
       const templateVal = await TemplateValidator.validate(spreadsheetId, expectedTemplateId);
@@ -93,7 +108,8 @@ export const GoogleSheetsImportService = {
           spreadsheetId,
           startedAt,
           logId,
-          dataSourceId
+          dataSourceId,
+          metaValidation: metaValidationForPersist,
         });
       }
 
@@ -135,7 +151,8 @@ export const GoogleSheetsImportService = {
           spreadsheetId,
           startedAt,
           logId,
-          dataSourceId
+          dataSourceId,
+          metaValidation: metaValidationForPersist,
         });
       }
 
@@ -191,7 +208,7 @@ export const GoogleSheetsImportService = {
             stage: "schema_validation",
             message: `Nenhuma aba com as colunas obrigatórias do Meta Ads foi encontrada. Colunas necessárias: ${requiredCols.join(", ")}.`
           });
-          return this.finishImport({ success: false, stage: "schema_validation", errors, warnings, clientId, dashboardId, spreadsheetId, startedAt, logId, dataSourceId });
+          return this.finishImport({ success: false, stage: "schema_validation", errors, warnings, clientId, dashboardId, spreadsheetId, startedAt, logId, dataSourceId, metaValidation: metaValidationForPersist });
         }
       }
 
@@ -208,6 +225,54 @@ export const GoogleSheetsImportService = {
             };
           } catch {
             metaAvailableMetrics = undefined;
+          }
+        }
+      }
+
+      if (expectedTemplateId === "meta_ads_s4x") {
+        if (metaObjectives.length === 0) {
+          const checkedAt = new Date().toISOString();
+          metaValidationForPersist = {
+            status: "not_configured",
+            updatedAt: checkedAt,
+            notes: {
+              objectives: [],
+              objectiveLabels: [],
+              missingByObjective: {},
+              missingMetricFields: [],
+              missingMetricLabels: [],
+              checkedAt,
+              message: "Objetivos de campanha não configurados para este dashboard Meta Ads.",
+            },
+          };
+        } else {
+          const validationNotes = validateMetaObjectivesMetrics(
+            metaObjectives,
+            metaAvailableMetrics?.fields || {}
+          );
+
+          const hasMissing = validationNotes.missingMetricFields.length > 0;
+          metaValidationForPersist = {
+            status: hasMissing ? "missing_metrics" : "ok",
+            updatedAt: validationNotes.checkedAt,
+            notes: {
+              ...validationNotes,
+              primaryObjective: metaPrimaryObjective,
+            },
+          };
+
+          if (hasMissing) {
+            Object.entries(validationNotes.missingByObjective).forEach(([objective, missingFields]) => {
+              const fields = (missingFields || [])
+                .map((field) => META_ADS_METRIC_FIELD_LABELS[field as keyof typeof META_ADS_METRIC_FIELD_LABELS] || String(field))
+                .join(", ");
+              warnings.push({
+                severity: "warning",
+                stage: "schema_validation",
+                sheet: metaAvailableMetrics?.sourceTab || "Performance Diária",
+                message: `Objetivo "${getMetaObjectiveLabel(objective)}": métricas faltantes na planilha: ${fields}.`,
+              });
+            });
           }
         }
       }
@@ -364,11 +429,17 @@ export const GoogleSheetsImportService = {
             periodToken: configData["Periodo_Token"],
             dateStart: SheetNormalizer.toDate(configData["Data_Inicial"]),
             dateEnd: SheetNormalizer.toDate(configData["Data_Final"]),
-            notes: configData["Notas"]
+            notes: configData["Notas"],
+            metaObjectives: metaObjectives,
+            metaPrimaryObjective: metaPrimaryObjective,
           },
           summary: summary as any,
           dailyPerformance: resultData.dailyPerformance || [],
-          diagnostics
+          diagnostics,
+          metaObjectives: metaObjectives,
+          metaPrimaryObjective: metaPrimaryObjective,
+          metaValidationStatus: metaValidationForPersist?.status,
+          metaValidationNotes: metaValidationForPersist?.notes,
         };
 
         finalPayload = s4xMetaPayload;
@@ -389,7 +460,8 @@ export const GoogleSheetsImportService = {
         dataSourceId,
         tabsRead,
         rowsRead,
-        data: finalPayload
+        data: finalPayload,
+        metaValidation: metaValidationForPersist,
       });
 
     } catch (globalError: any) {
@@ -404,7 +476,8 @@ export const GoogleSheetsImportService = {
         spreadsheetId,
         startedAt,
         logId,
-        dataSourceId
+        dataSourceId,
+        metaValidation: metaValidationForPersist,
       });
     }
   },
@@ -426,6 +499,11 @@ export const GoogleSheetsImportService = {
     tabsRead?: string[];
     rowsRead?: number;
     data?: any;
+    metaValidation?: {
+      status: "not_configured" | "ok" | "missing_metrics";
+      notes: Record<string, unknown>;
+      updatedAt: string;
+    };
   }): Promise<ImportResult & { data?: any }> {
     const finishedAt = new Date().toISOString();
     const durationMs = new Date(finishedAt).getTime() - new Date(params.startedAt).getTime();
@@ -473,8 +551,19 @@ export const GoogleSheetsImportService = {
       await DataSourceService.updateGoogleSheetSourceStatus({
         sourceId: params.dataSourceId,
         status,
-        lastImportAt: finishedAt
+        lastImportAt: finishedAt,
+        metaValidationStatus: params.metaValidation?.status,
+        metaValidationNotes: params.metaValidation?.notes,
+        metaValidationUpdatedAt: params.metaValidation?.updatedAt,
       }).catch(err => console.error("Error updating source status:", err));
+    }
+
+    if (params.metaValidation) {
+      await DashboardService.updateMetaValidation(params.dashboardId, {
+        meta_validation_status: params.metaValidation.status,
+        meta_validation_notes: params.metaValidation.notes,
+        meta_validation_updated_at: params.metaValidation.updatedAt,
+      }).catch(err => console.error("Error updating dashboard meta validation:", err));
     }
 
     return {

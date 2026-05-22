@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DashboardService } from "@/services/dashboard-service";
 import { requireAdmin } from "@/lib/auth/guards";
+import { normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
 export async function GET(request: Request) {
   try {
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
     if (authError) return authError;
 
     const body = await request.json();
-    const { client_id, name, slug, description, dashboard_type } = body;
+    const { client_id, name, slug, description, dashboard_type, meta_objectives } = body;
 
     if (!client_id || !name || !slug) {
       return NextResponse.json({ error: "Cliente, Nome e Slug são obrigatórios" }, { status: 400 });
@@ -37,12 +38,20 @@ export async function POST(request: Request) {
 
     const type: DashboardTemplateType = dashboard_type || "google_ads";
 
+    const normalizedObjectives = type === "meta_ads_s4x"
+      ? normalizeMetaAdsObjectives(meta_objectives)
+      : [];
+
     const dashboard = await DashboardTemplateService.createFromTemplate(
       client_id,
       name,
       slug,
       type,
-      description
+      description,
+      {
+        metaObjectives: normalizedObjectives,
+        metaPrimaryObjective: normalizedObjectives[0] || null,
+      }
     );
 
     return NextResponse.json({ success: true, dashboard });

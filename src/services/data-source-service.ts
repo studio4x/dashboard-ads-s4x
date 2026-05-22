@@ -133,17 +133,31 @@ export const DataSourceService = {
   async updateGoogleSheetSourceStatus(config: {
     sourceId: string,
     status: string,
-    lastImportAt: string
+    lastImportAt: string,
+    metaValidationStatus?: "not_configured" | "ok" | "missing_metrics",
+    metaValidationNotes?: Record<string, unknown>,
+    metaValidationUpdatedAt?: string
   }) {
     const supabase = await createAdminClient()
+    const updatePayload: Record<string, unknown> = {
+      last_import_status: config.status,
+      last_import_at: config.lastImportAt,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (config.metaValidationStatus !== undefined) {
+      updatePayload.meta_validation_status = config.metaValidationStatus;
+    }
+    if (config.metaValidationNotes !== undefined) {
+      updatePayload.meta_validation_notes = config.metaValidationNotes;
+    }
+    if (config.metaValidationUpdatedAt !== undefined) {
+      updatePayload.meta_validation_updated_at = config.metaValidationUpdatedAt;
+    }
     
     const { error } = await supabase
       .from('google_sheet_sources')
-      .update({
-        last_import_status: config.status,
-        last_import_at: config.lastImportAt,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('data_source_id', config.sourceId)
 
     if (error) throw error

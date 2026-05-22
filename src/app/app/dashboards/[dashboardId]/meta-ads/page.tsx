@@ -10,8 +10,9 @@ import { HorizontalBarChartWidget } from "@/components/dashboard/BarChartWidget"
 import { DataTableWidget } from "@/components/dashboard/DataTableWidget";
 import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters";
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
-import { generateMetaAdsKpis, generateMetaAdsS4XKpis } from "@/lib/dashboard/kpi-generator";
+import { generateMetaAdsKpis, generateMetaAdsS4XKpisWithLabels } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
+import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric } from "@/lib/meta-ads/objectives";
 
 export default function MetaAdsPage() {
   const { data } = useDashboard();
@@ -58,6 +59,13 @@ export default function MetaAdsPage() {
   if (!data) return null;
 
   const isMetaS4X = data.templateId === "meta_ads_s4x";
+  const conversionLabel = getMetaConversionLabel(data.metaPrimaryObjective);
+  const costLabel = getMetaCostLabel(data.metaPrimaryObjective);
+  const costMetric = getMetaCostMetric(data.metaPrimaryObjective);
+  const resultMetric = getMetaResultMetric(data.metaPrimaryObjective);
+  const resultValueKey = resultMetric === "postEngagement" ? "postEngagement" : resultMetric === "clicks" ? "clicks" : resultMetric === "reach" ? "reach" : "conversions";
+  const costPerResultKey = costMetric === "cpc" ? "cpc" : costMetric === "cpm" ? "cpm" : "cpa";
+  const costPerResultColumnKey = costMetric === "cpa" && resultMetric !== "conversions" ? "costPerResult" : costPerResultKey;
   const available = data?.diagnostics?.availableMetrics?.fields;
   const hasMetric = (key: string) => {
     if (!isMetaS4X) return true;
@@ -81,17 +89,33 @@ export default function MetaAdsPage() {
 
   // 1. Geração de KPIs
   let kpis = isMetaS4X 
-    ? generateMetaAdsS4XKpis(data.dailyPerformance || [], data.meta_ads_summary)
+    ? generateMetaAdsS4XKpisWithLabels(data.dailyPerformance || [], data.meta_ads_summary, {
+      conversionLabel,
+      costLabel,
+      costMetric,
+      resultMetric,
+      })
     : generateMetaAdsKpis(data.meta_ads || [], data.meta_ads_summary);
 
   if (isMetaS4X) {
-    kpis = kpis.filter((kpi) => {
-      if (kpi.label === "Investimento") return hasMetric("cost");
-      if (kpi.label === "Conversas Iniciadas") return hasMetric("conversions");
-      if (kpi.label === "Custo por Conversa") return hasMetric("cost") && hasMetric("conversions");
-      if (kpi.label === "Alcance") return hasMetric("reach");
-      if (kpi.label === "Frequência") return hasMetric("frequency") || (hasMetric("reach") && hasMetric("impressions"));
-      if (kpi.label === "Cliques no Link") return hasMetric("clicks");
+    const hasResultMetric = resultMetric === "postEngagement"
+      ? hasMetric("postEngagement")
+      : resultMetric === "clicks"
+        ? hasMetric("clicks")
+        : resultMetric === "reach"
+          ? hasMetric("reach")
+          : hasMetric("conversions");
+    kpis = kpis.filter((kpi: any) => {
+      if (kpi.metricKey === "cost") return hasMetric("cost");
+      if (kpi.metricKey === "conversions") return hasResultMetric;
+      if (kpi.metricKey === "costPerConversion") {
+        if (costMetric === "cpc") return hasMetric("cost") && hasMetric("clicks");
+        if (costMetric === "cpm") return hasMetric("cost") && hasMetric("impressions");
+        return hasMetric("cost") && hasMetric("conversions");
+      }
+      if (kpi.metricKey === "reach") return hasMetric("reach");
+      if (kpi.metricKey === "frequency") return hasMetric("frequency") || (hasMetric("reach") && hasMetric("impressions"));
+      if (kpi.metricKey === "clicks") return hasMetric("clicks");
       return true;
     });
   }
@@ -154,12 +178,14 @@ export default function MetaAdsPage() {
       const impressions = Number(item.impressions);
       const cost = Number(item.cost);
       const conversions = Number(item.conversions);
+      const resultBase = Number(item[resultValueKey] || 0);
       return {
         ...item,
         ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
         cpc: clicks > 0 ? cost / clicks : 0,
         cpm: impressions > 0 ? (cost / impressions) * 1000 : 0,
         cpa: conversions > 0 ? cost / conversions : null,
+        costPerResult: resultBase > 0 ? cost / resultBase : null,
         frequency: item.reach > 0 ? impressions / item.reach : 0
       };
     }).sort((a: any, b: any) => b.cost - a.cost);
@@ -188,11 +214,14 @@ export default function MetaAdsPage() {
       const impressions = Number(item.impressions);
       const cost = Number(item.cost);
       const conversions = Number(item.conversions);
+      const resultBase = Number(item[resultValueKey] || 0);
       return {
         ...item,
         ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
         cpc: clicks > 0 ? cost / clicks : 0,
+        cpm: impressions > 0 ? (cost / impressions) * 1000 : 0,
         cpa: conversions > 0 ? cost / conversions : null,
+        costPerResult: resultBase > 0 ? cost / resultBase : null,
         frequency: item.reach > 0 ? impressions / item.reach : 0
       };
     }).sort((a: any, b: any) => b.cost - a.cost);
@@ -216,11 +245,14 @@ export default function MetaAdsPage() {
       const impressions = Number(item.impressions);
       const cost = Number(item.cost);
       const conversions = Number(item.conversions);
+      const resultBase = Number(item[resultValueKey] || 0);
       return {
         ...item,
         ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
         cpc: clicks > 0 ? cost / clicks : 0,
+        cpm: impressions > 0 ? (cost / impressions) * 1000 : 0,
         cpa: conversions > 0 ? cost / conversions : null,
+        costPerResult: resultBase > 0 ? cost / resultBase : null,
         frequency: item.reach > 0 ? impressions / item.reach : 0
       };
     }).sort((a: any, b: any) => b.cost - a.cost);
@@ -314,12 +346,13 @@ export default function MetaAdsPage() {
     acc.cost += Number(row.cost || 0);
     return acc;
   }, { impressions: 0, reach: 0, clicks: 0, conversions: 0, engagement: 0, cost: 0 });
+  const perfResultTotal = perfRows.reduce((acc: number, row: any) => acc + Number(row[resultValueKey] || 0), 0);
 
   const funnelData = [
     { name: "Impressões", value: perfTotals.impressions },
     { name: "Alcance", value: perfTotals.reach },
     { name: "Cliques", value: perfTotals.clicks },
-    { name: "Conversas", value: perfTotals.conversions },
+    { name: conversionLabel, value: perfResultTotal },
     { name: "Engajamento", value: perfTotals.engagement },
   ].filter((s) => s.value > 0);
 
@@ -363,13 +396,13 @@ export default function MetaAdsPage() {
 
       {!isDedicatedMetaRoute && (
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-        <ChartCard title="Evolução Temporal" subtitle="Gasto vs. Conversas Iniciadas" height={320}>
+        <ChartCard title="Evolução Temporal" subtitle={`Gasto vs. ${conversionLabel}`} height={320}>
           {isMetaS4X ? (
             <LineChartWidget 
               data={dailySeries} 
               lines={[
                 ...(hasMetric("cost") ? [{ key: "cost", label: "Investimento", color: "#1877F2" }] : []),
-                ...(hasMetric("conversions") ? [{ key: "conversions", label: "Conversas", color: "#10B981" }] : []),
+                ...((resultMetric === "postEngagement" ? hasMetric("postEngagement") : resultMetric === "clicks" ? hasMetric("clicks") : resultMetric === "reach" ? hasMetric("reach") : hasMetric("conversions")) ? [{ key: resultValueKey, label: conversionLabel, color: "#10B981" }] : []),
                 ...(hasMetric("clicks") ? [{ key: "clicks", label: "Cliques", color: "#F59E0B" }] : [])
               ]} 
               xKey="date" 
@@ -426,8 +459,8 @@ export default function MetaAdsPage() {
                 ...(hasMetric("reach") ? [{ key: "reach", label: "Alcance", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
                 ...((hasMetric("frequency") || (hasMetric("reach") && hasMetric("impressions"))) ? [{ key: "frequency", label: "Frequência", align: "right", render: (v: any) => `${Number(v).toFixed(2)}x` }] : []),
                 ...(hasMetric("cost") ? [{ key: "cost", label: "Custo", align: "right", render: (v: any) => formatCurrency(Number(v)) }] : []),
-                ...(hasMetric("conversions") ? [{ key: "conversions", label: "Conversas", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
-                ...((hasMetric("cost") && hasMetric("conversions")) ? [{ key: "cpa", label: "Custo/Conversa", align: "right", render: (v: any) => v ? formatCurrency(Number(v)) : "-" }] : []),
+                ...((resultMetric === "postEngagement" ? hasMetric("postEngagement") : resultMetric === "clicks" ? hasMetric("clicks") : resultMetric === "reach" ? hasMetric("reach") : hasMetric("conversions")) ? [{ key: resultValueKey, label: conversionLabel, align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
+                ...(hasMetric("cost") ? [{ key: costPerResultColumnKey, label: costLabel, align: "right", render: (v: any) => v ? formatCurrency(Number(v)) : "-" }] : []),
               ] as any}
             />
           )}
@@ -449,9 +482,9 @@ export default function MetaAdsPage() {
                   ...(hasMetric("reach") ? [{ key: "reach", label: "Alcance", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
                   ...((hasMetric("frequency") || (hasMetric("reach") && hasMetric("impressions"))) ? [{ key: "frequency", label: "Frequência", align: "right", render: (v: any) => `${Number(v).toFixed(2)}x` }] : []),
                   ...(hasMetric("cost") ? [{ key: "cost", label: "Custo", align: "right", render: (v: any) => formatCurrency(Number(v)) }] : []),
-                  ...(hasMetric("conversions") ? [{ key: "conversions", label: "Conversas", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
+                  ...((resultMetric === "postEngagement" ? hasMetric("postEngagement") : resultMetric === "clicks" ? hasMetric("clicks") : resultMetric === "reach" ? hasMetric("reach") : hasMetric("conversions")) ? [{ key: resultValueKey, label: conversionLabel, align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
                   ...(hasMetric("postEngagement") ? [{ key: "postEngagement", label: "Engajamento", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
-                  ...((hasMetric("cost") && hasMetric("conversions")) ? [{ key: "cpa", label: "Custo/Conversa", align: "right", render: (v: any) => v ? formatCurrency(Number(v)) : "-" }] : []),
+                  ...(hasMetric("cost") ? [{ key: costPerResultColumnKey, label: costLabel, align: "right", render: (v: any) => v ? formatCurrency(Number(v)) : "-" }] : []),
                 ] as any}
               />
             </div>
@@ -478,9 +511,9 @@ export default function MetaAdsPage() {
                   ...(hasMetric("reach") ? [{ key: "reach", label: "Alcance", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
                   ...((hasMetric("frequency") || (hasMetric("reach") && hasMetric("impressions"))) ? [{ key: "frequency", label: "Frequência", align: "right", render: (v: any) => `${Number(v).toFixed(2)}x` }] : []),
                   ...(hasMetric("cost") ? [{ key: "cost", label: "Custo", align: "right", render: (v: any) => formatCurrency(Number(v)) }] : []),
-                  ...(hasMetric("conversions") ? [{ key: "conversions", label: "Conversas", align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
+                  ...((resultMetric === "postEngagement" ? hasMetric("postEngagement") : resultMetric === "clicks" ? hasMetric("clicks") : resultMetric === "reach" ? hasMetric("reach") : hasMetric("conversions")) ? [{ key: resultValueKey, label: conversionLabel, align: "right", render: (v: any) => formatNumber(Number(v)) }] : []),
                   ...(hasMetric("postEngagement") ? [{ key: "postEngagement", label: "Engajamento", align: "right", render: (v: any) => formatNumber(Number(v), true) }] : []),
-                  ...((hasMetric("cost") && hasMetric("conversions")) ? [{ key: "cpa", label: "Custo/Conversa", align: "right", render: (v: any) => v ? formatCurrency(Number(v)) : "-" }] : []),
+                  ...(hasMetric("cost") ? [{ key: costPerResultColumnKey, label: costLabel, align: "right", render: (v: any) => v ? formatCurrency(Number(v)) : "-" }] : []),
                 ] as any}
               />
             </div>
@@ -498,20 +531,20 @@ export default function MetaAdsPage() {
                   {adSetOptions.map((a) => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
-              <ChartCard title="Funil Diário" subtitle="Investimento, Cliques e Conversas" height={300}>
+              <ChartCard title="Funil Diário" subtitle={`Investimento, Cliques e ${conversionLabel}`} height={300}>
                 <LineChartWidget
                   data={dailySeries}
                   lines={[
                     ...(hasMetric("cost") ? [{ key: "cost", label: "Investimento", color: "#1877F2" }] : []),
                     ...(hasMetric("clicks") ? [{ key: "clicks", label: "Cliques", color: "#F59E0B" }] : []),
-                    ...(hasMetric("conversions") ? [{ key: "conversions", label: "Conversas", color: "#10B981" }] : []),
+                    ...((resultMetric === "postEngagement" ? hasMetric("postEngagement") : resultMetric === "clicks" ? hasMetric("clicks") : resultMetric === "reach" ? hasMetric("reach") : hasMetric("conversions")) ? [{ key: resultValueKey, label: conversionLabel, color: "#10B981" }] : []),
                   ]}
                   xKey="date"
                   formatValue={(v) => typeof v === "number" && v > 50 ? formatCurrency(v, true) : String(v)}
                   height={260}
                 />
               </ChartCard>
-              <ChartCard title="Funil de Performance" subtitle="Impressões > Alcance > Cliques > Conversas > Engajamento" height={420}>
+              <ChartCard title="Funil de Performance" subtitle={`Impressões > Alcance > Cliques > ${conversionLabel} > Engajamento`} height={420}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 304 }}>
                   {funnelStages.length === 0 ? (
                     <div style={{ height: 228, display: "flex", alignItems: "center", justifyContent: "center", color: "#94A3B8", fontSize: 13 }}>
@@ -600,3 +633,5 @@ export default function MetaAdsPage() {
     </DashboardPageShell>
   );
 }
+
+

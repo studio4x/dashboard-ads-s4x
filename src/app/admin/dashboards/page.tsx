@@ -4,12 +4,15 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy } from "lucide-react";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
+import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 
 // Somente os templates ativos aparecem no dropdown
 const ACTIVE_TEMPLATES = DASHBOARD_TEMPLATES.filter(t => t.status === "active");
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
+type MetaObjective = (typeof META_ADS_OBJECTIVES)[number]["id"];
+const META_TEMPLATE_ID = "meta_ads_s4x";
 
 export default function AdminDashboardsPage() {
   const [dashboards, setDashboards] = useState<any[]>([]);
@@ -22,6 +25,9 @@ export default function AdminDashboardsPage() {
   const [editModalDashboard, setEditModalDashboard] = useState<any | null>(null);
   const [editName, setEditName] = useState("");
   const [isUpdatingName, setIsUpdatingName] = useState(false);
+  const [editObjectivesModalDashboard, setEditObjectivesModalDashboard] = useState<any | null>(null);
+  const [editObjectives, setEditObjectives] = useState<MetaObjective[]>([]);
+  const [isUpdatingObjectives, setIsUpdatingObjectives] = useState(false);
   
   // Integração Google Sheets
   const [integrationModalDashboard, setIntegrationModalDashboard] = useState<any | null>(null);
@@ -38,7 +44,8 @@ export default function AdminDashboardsPage() {
     client_id: "",
     description: "",
     status: "active",
-    dashboard_type: "google_ads_s4x"
+    dashboard_type: "google_ads_s4x",
+    meta_objectives: [] as MetaObjective[],
   });
 
   useEffect(() => {
@@ -75,6 +82,22 @@ export default function AdminDashboardsPage() {
     setFormData({ ...formData, name, slug: generateSlug(name) });
   };
 
+  const toggleCreateObjective = (objective: MetaObjective) => {
+    setFormData((prev) => {
+      const current = prev.meta_objectives || [];
+      const has = current.includes(objective);
+      const next = has ? current.filter((item) => item !== objective) : [...current, objective];
+      return { ...prev, meta_objectives: next };
+    });
+  };
+
+  const toggleEditObjective = (objective: MetaObjective) => {
+    setEditObjectives((prev) => {
+      const has = prev.includes(objective);
+      return has ? prev.filter((item) => item !== objective) : [...prev, objective];
+    });
+  };
+
   const handleOpenIntegration = (dash: any) => {
     setIntegrationModalDashboard(dash);
     const source = sources.find((s: any) => s.dashboard_id === dash.id);
@@ -103,6 +126,11 @@ export default function AdminDashboardsPage() {
   const handleOpenEditName = (dash: any) => {
     setEditModalDashboard(dash);
     setEditName(dash.name || "");
+  };
+
+  const handleOpenEditObjectives = (dash: any) => {
+    setEditObjectivesModalDashboard(dash);
+    setEditObjectives(normalizeMetaAdsObjectives(dash.meta_objectives) as MetaObjective[]);
   };
 
   const handleUpdateName = async (e: React.FormEvent) => {
@@ -166,6 +194,24 @@ export default function AdminDashboardsPage() {
       
       const result = await res.json();
       if (result.success) {
+        const dataSourceId = existingSource?.id || result?.source?.id;
+        const syncResponse = await fetch("/api/admin/google-sheets/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId: integrationModalDashboard.client_id,
+            dashboardId: integrationModalDashboard.id,
+            spreadsheetId: integrationForm.spreadsheetId,
+            dataSourceId,
+          }),
+        });
+        const syncResult = await syncResponse.json();
+        if (!syncResponse.ok || !syncResult.success) {
+          const syncError = syncResult?.error
+            || (syncResult?.errors?.[0]?.message)
+            || "Erro ao validar/sincronizar a planilha.";
+          alert(`Integração salva, mas a sincronização automática falhou: ${syncError}`);
+        }
         alert(existingSource ? "Integração atualizada com sucesso!" : "Integração criada com sucesso!");
         await fetchData();
       } else {
@@ -176,6 +222,50 @@ export default function AdminDashboardsPage() {
     } finally {
       setIsSavingIntegration(false);
     }
+  };
+
+  const handleSaveObjectives = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editObjectivesModalDashboard) return;
+
+    setIsUpdatingObjectives(true);
+    try {
+      const response = await fetch(`/api/admin/dashboards/${editObjectivesModalDashboard.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          meta_objectives: editObjectives,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        alert("Erro ao atualizar objetivos: " + (result.error || "erro desconhecido"));
+        return;
+      }
+
+      setEditObjectivesModalDashboard(null);
+      setEditObjectives([]);
+      await fetchData();
+    } catch {
+      alert("Erro ao conectar com o servidor.");
+    } finally {
+      setIsUpdatingObjectives(false);
+    }
+  };
+
+  const getValidationSummary = (dashboard: any, source: any) => {
+    const status = source?.google_sheet_sources?.meta_validation_status
+      || dashboard?.meta_validation_status
+      || "not_configured";
+
+    const notes = (source?.google_sheet_sources?.meta_validation_notes
+      || dashboard?.meta_validation_notes
+      || {}) as any;
+
+    return {
+      status,
+      notes,
+    };
   };
 
   const handleSyncIntegration = async () => {
@@ -226,7 +316,7 @@ export default function AdminDashboardsPage() {
       const result = await res.json();
       if (result.success) {
         setIsModalOpen(false);
-        setFormData({ name: "", slug: "", client_id: "", description: "", status: "active", dashboard_type: "google_ads_s4x" });
+        setFormData({ name: "", slug: "", client_id: "", description: "", status: "active", dashboard_type: "google_ads_s4x", meta_objectives: [] });
         fetchData();
       } else {
         alert("Erro: " + result.error);
@@ -308,7 +398,10 @@ export default function AdminDashboardsPage() {
           <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{dashboards.length} dashboards cadastrados</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setFormData({ name: "", slug: "", client_id: "", description: "", status: "active", dashboard_type: "google_ads_s4x", meta_objectives: [] });
+            setIsModalOpen(true);
+          }}
           style={{ 
             display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", 
             borderRadius: 8, background: "#2563EB", color: "white", fontSize: 14, 
@@ -372,6 +465,34 @@ export default function AdminDashboardsPage() {
                 </div>
               </div>
 
+              {d.dashboard_type === META_TEMPLATE_ID && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>Objetivos:</span>
+                  {normalizeMetaAdsObjectives(d.meta_objectives).length > 0 ? (
+                    normalizeMetaAdsObjectives(d.meta_objectives).map((objective) => (
+                      <span
+                        key={objective}
+                        style={{
+                          fontSize: 11,
+                          color: "#1D4ED8",
+                          background: "#EFF6FF",
+                          padding: "4px 8px",
+                          borderRadius: 999,
+                          border: "1px solid #DBEAFE",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {getMetaObjectiveLabel(objective)}
+                      </span>
+                    ))
+                  ) : (
+                    <span style={{ fontSize: 11, color: "#92400E", background: "#FFFBEB", padding: "4px 8px", borderRadius: 999, border: "1px solid #FDE68A", fontWeight: 600 }}>
+                      Nenhum objetivo selecionado
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* MIDDLE ROW: Spreadsheet Integration Status (Spanning full width!) */}
               <div style={{ width: "100%" }}>
                 {(() => {
@@ -433,6 +554,51 @@ export default function AdminDashboardsPage() {
                   );
                 })()}
               </div>
+
+              {d.dashboard_type === META_TEMPLATE_ID && (() => {
+                const source = sources.find((s: any) => s.dashboard_id === d.id);
+                const validation = getValidationSummary(d, source);
+                const isMissing = validation.status === "missing_metrics";
+                const isOk = validation.status === "ok";
+                const notes = validation.notes || {};
+                const missingByObjective = notes.missingLabelsByObjective || notes.missingByObjective || {};
+                const hasMissingDetails = Object.keys(missingByObjective).length > 0;
+
+                return (
+                  <div
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: isMissing ? "1px solid #FDE68A" : isOk ? "1px solid #BBF7D0" : "1px solid #E2E8F0",
+                      background: isMissing ? "#FFFBEB" : isOk ? "#F0FDF4" : "#F8FAFC",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                    }}
+                  >
+                    <p style={{ fontSize: 12, fontWeight: 700, color: isMissing ? "#92400E" : isOk ? "#166534" : "#475569" }}>
+                      {isMissing
+                        ? "Métricas faltantes para os objetivos selecionados"
+                        : isOk
+                          ? "Métricas validadas para os objetivos selecionados"
+                          : "Validação de objetivos não configurada"}
+                    </p>
+                    <p style={{ fontSize: 12, color: "#475569" }}>
+                      {notes.message || "Objetivos de campanha não configurados para este dashboard Meta Ads."}
+                    </p>
+                    {hasMissingDetails && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {Object.entries(missingByObjective).map(([objective, fields]) => (
+                          <p key={objective} style={{ fontSize: 11, color: "#78350F" }}>
+                            <strong>{getMetaObjectiveLabel(objective)}:</strong> {(fields as string[]).join(", ")}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* METADATA INFO ROW */}
               <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 12, color: "#64748B", borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
@@ -496,6 +662,20 @@ export default function AdminDashboardsPage() {
                   >
                     <Pencil size={14} /> Editar nome
                   </button>
+
+                  {d.dashboard_type === META_TEMPLATE_ID && (
+                    <button
+                      onClick={() => handleOpenEditObjectives(d)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+                        borderRadius: 8, background: "#EEF2FF", fontSize: 13, color: "#4338CA",
+                        border: "1px solid #C7D2FE", cursor: "pointer", fontWeight: 600,
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      Editar objetivos
+                    </button>
+                  )}
                 </div>
 
                 {/* Primary Actions (View & Delete) */}
@@ -595,7 +775,7 @@ export default function AdminDashboardsPage() {
                   <select 
                     required
                     value={formData.dashboard_type}
-                    onChange={e => setFormData({ ...formData, dashboard_type: e.target.value })}
+                    onChange={e => setFormData({ ...formData, dashboard_type: e.target.value, meta_objectives: e.target.value === META_TEMPLATE_ID ? formData.meta_objectives : [] })}
                     style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
                   >
                     <option value="">Selecione um modelo...</option>
@@ -604,6 +784,40 @@ export default function AdminDashboardsPage() {
                     ))}
                   </select>
                 </div>
+
+                {formData.dashboard_type === META_TEMPLATE_ID && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Objetivos da Campanha (Meta Ads)</label>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {META_ADS_OBJECTIVES.map((objective) => {
+                        const active = formData.meta_objectives.includes(objective.id);
+                        return (
+                          <button
+                            key={objective.id}
+                            type="button"
+                            onClick={() => toggleCreateObjective(objective.id)}
+                            style={{
+                              textAlign: "left",
+                              padding: "8px 10px",
+                              borderRadius: 8,
+                              border: active ? "1px solid #2563EB" : "1px solid #E2E8F0",
+                              background: active ? "#EFF6FF" : "#FFFFFF",
+                              color: active ? "#1D4ED8" : "#475569",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {objective.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p style={{ fontSize: 11, color: "#64748B" }}>
+                      Você pode selecionar múltiplos objetivos. O primeiro selecionado será o objetivo principal.
+                    </p>
+                  </div>
+                )}
 
                 <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
                   <button 
@@ -680,6 +894,77 @@ export default function AdminDashboardsPage() {
                   }}
                 >
                   {isUpdatingName ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> Salvar Alteração</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Objetivos Meta Ads */}
+      {editObjectivesModalDashboard && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div className="card" style={{ width: "100%", maxWidth: 540, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Editar Objetivos da Campanha</h2>
+              <button onClick={() => { setEditObjectivesModalDashboard(null); setEditObjectives([]); }} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveObjectives} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+              <p style={{ fontSize: 13, color: "#64748B" }}>
+                Dashboard: <strong style={{ color: "#334155" }}>{editObjectivesModalDashboard.name}</strong>
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {META_ADS_OBJECTIVES.map((objective) => {
+                  const active = editObjectives.includes(objective.id);
+                  return (
+                    <button
+                      key={objective.id}
+                      type="button"
+                      onClick={() => toggleEditObjective(objective.id)}
+                      style={{
+                        textAlign: "left",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        border: active ? "1px solid #2563EB" : "1px solid #E2E8F0",
+                        background: active ? "#EFF6FF" : "#FFFFFF",
+                        color: active ? "#1D4ED8" : "#475569",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {objective.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p style={{ fontSize: 11, color: "#64748B" }}>
+                O primeiro objetivo selecionado será usado como objetivo principal para o rótulo de conversão.
+              </p>
+
+              <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => { setEditObjectivesModalDashboard(null); setEditObjectives([]); }}
+                  style={{ flex: 1, padding: "12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingObjectives}
+                  style={{
+                    flex: 1, padding: "12px", borderRadius: 8, border: "none",
+                    background: "#2563EB", color: "white", fontSize: 14,
+                    fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8
+                  }}
+                >
+                  {isUpdatingObjectives ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> Salvar Objetivos</>}
                 </button>
               </div>
             </form>
@@ -797,7 +1082,49 @@ export default function AdminDashboardsPage() {
                           </a>
                         )}
                       </div>
-                      
+
+                      {(() => {
+                        const validation = getValidationSummary(integrationModalDashboard, source);
+                        const isMissing = validation.status === "missing_metrics";
+                        const isOk = validation.status === "ok";
+                        const notes = validation.notes || {};
+                        const missingByObjective = notes.missingLabelsByObjective || notes.missingByObjective || {};
+                        const hasMissingDetails = Object.keys(missingByObjective).length > 0;
+                        return (
+                          <div
+                            style={{
+                              padding: 10,
+                              borderRadius: 8,
+                              border: isMissing ? "1px solid #FDE68A" : isOk ? "1px solid #BBF7D0" : "1px solid #E2E8F0",
+                              background: isMissing ? "#FFFBEB" : isOk ? "#F0FDF4" : "#F8FAFC",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 6,
+                            }}
+                          >
+                            <p style={{ fontSize: 12, fontWeight: 700, color: isMissing ? "#92400E" : isOk ? "#166534" : "#475569" }}>
+                              {isMissing
+                                ? "Existem métricas faltantes para os objetivos configurados"
+                                : isOk
+                                  ? "Métricas da planilha validadas com sucesso"
+                                  : "Objetivos ainda não configurados para validação"}
+                            </p>
+                            <p style={{ fontSize: 11, color: "#475569" }}>
+                              {notes.message || "Selecione objetivos no dashboard Meta Ads para ativar a validação automática."}
+                            </p>
+                            {hasMissingDetails && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                {Object.entries(missingByObjective).map(([objective, fields]) => (
+                                  <p key={objective} style={{ fontSize: 11, color: "#78350F" }}>
+                                    <strong>{getMetaObjectiveLabel(objective)}:</strong> {(fields as string[]).join(", ")}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                       
                       <button
                         type="button"
                         onClick={handleSyncIntegration}
