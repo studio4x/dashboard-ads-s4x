@@ -103,8 +103,10 @@ export function SharedDashboardHeader({
       
       {/* Visual Subtitle / Breadcrumb for mobile */}
       {pageSubtitle && (
-        <div className="bg-slate-50 px-4 sm:px-8 py-2 border-b border-slate-200">
-          <p className="text-xs text-slate-500 font-medium">{pageSubtitle}</p>
+        <div className="bg-slate-50 border-b border-slate-200">
+          <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-2">
+            <p className="text-xs text-slate-500 font-medium">{pageSubtitle}</p>
+          </div>
         </div>
       )}
     </header>
