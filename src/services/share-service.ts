@@ -52,14 +52,29 @@ export const ShareService = {
    */
   async validateShareToken(rawToken: string) {
     const supabase = await createAdminClient()
-    
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+    const isUuidToken = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawToken)
 
-    const { data: link, error } = await supabase
-      .from('dashboard_share_links')
-      .select('*, dashboards(id, name, slug, clients(id, name, logo_url))')
-      .eq('token_hash', tokenHash)
-      .single()
+    let link: any = null
+    let error: any = null
+
+    if (isUuidToken) {
+      const byId = await supabase
+        .from('dashboard_share_links')
+        .select('*, dashboards(id, name, slug, clients(id, name, logo_url))')
+        .eq('id', rawToken)
+        .single()
+      link = byId.data
+      error = byId.error
+    } else {
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+      const byHash = await supabase
+        .from('dashboard_share_links')
+        .select('*, dashboards(id, name, slug, clients(id, name, logo_url))')
+        .eq('token_hash', tokenHash)
+        .single()
+      link = byHash.data
+      error = byHash.error
+    }
 
     if (error || !link) {
       return { isValid: false, reason: 'not_found' }

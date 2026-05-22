@@ -13,6 +13,7 @@ interface ShareLinksManagerProps {
 interface ShareLink {
   id: string;
   name: string | null;
+  share_url?: string;
   status: 'active' | 'revoked' | 'expired';
   expires_at: string | null;
   last_accessed_at: string | null;
@@ -110,9 +111,13 @@ export function ShareLinksManager({ dashboardId, dashboardName, compact = false 
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast("Link copiado para a área de transferência!", "success");
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Link copiado para a área de transferência!", "success");
+    } catch {
+      toast("Não foi possível copiar automaticamente. Tente novamente.", "error");
+    }
   };
 
   if (loading) {
@@ -245,6 +250,14 @@ export function ShareLinksManager({ dashboardId, dashboardName, compact = false 
                 
                 {isActive && (
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => copyToClipboard(link.share_url || `${window.location.origin}/share/${link.id}`)}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-700 px-2 py-1.5 hover:bg-blue-50 rounded transition-colors flex items-center gap-1"
+                      title="Copiar link"
+                    >
+                      <Copy size={13} />
+                      Copiar link
+                    </button>
                     <button
                       onClick={() => handleRevoke(link.id)}
                       className="text-xs text-red-600 hover:text-red-700 font-medium px-2 py-1.5 hover:bg-red-50 rounded transition-colors"

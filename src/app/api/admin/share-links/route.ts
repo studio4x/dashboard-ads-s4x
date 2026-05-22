@@ -17,9 +17,13 @@ export async function GET(request: Request) {
     const links = await ShareService.listShareLinks(dashboardId);
 
     // Filter out the token_hash to ensure it never leaks to the client
+    const origin = new URL(request.url).origin;
     const safeLinks = links.map((link: any) => {
       const { token_hash, ...safeLink } = link;
-      return safeLink;
+      return {
+        ...safeLink,
+        share_url: `${origin}/share/${link.id}`
+      };
     });
 
     return NextResponse.json({ links: safeLinks });
