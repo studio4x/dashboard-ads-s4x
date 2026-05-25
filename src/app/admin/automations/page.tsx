@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Copy, CheckCircle2, Info } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Copy, CheckCircle2, Info, Loader2, Play } from "lucide-react";
 
 const APP_BASE_URL = "https://dashboard-ads-s4x.vercel.app";
 const DISPATCH_ENDPOINT = `${APP_BASE_URL}/api/admin/automations/report-dispatch`;
@@ -73,6 +73,80 @@ function CopyBlock({
 }
 
 export default function AdminAutomationsPage() {
+  const [dashboards, setDashboards] = useState<any[]>([]);
+  const [dashboardId, setDashboardId] = useState("");
+  const [testFrom, setTestFrom] = useState("");
+  const [testTo, setTestTo] = useState("");
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResponse, setTestResponse] = useState("");
+
+  useEffect(() => {
+    const loadDashboards = async () => {
+      try {
+        const res = await fetch("/api/admin/dashboards/list-all");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setDashboards(data);
+          if (data.length > 0) {
+            setDashboardId(data[0].id);
+          }
+        }
+      } catch {
+        // silêncio proposital; a tela ainda funciona por input manual
+      }
+    };
+    loadDashboards();
+  }, []);
+
+  const runDispatchTest = async (dryRun: boolean) => {
+    if (!dashboardId) {
+      alert("Selecione ou informe um dashboardId para testar.");
+      return;
+    }
+    setIsTesting(true);
+    setTestResponse("");
+    try {
+      const payload: Record<string, unknown> = {
+        dashboardId,
+        dryRun,
+      };
+      if (testFrom) payload.from = testFrom;
+      if (testTo) payload.to = testTo;
+      if (!dryRun) payload.channels = ["email", "whatsapp"];
+
+      const res = await fetch("/api/admin/automations/report-dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      setTestResponse(
+        JSON.stringify(
+          {
+            httpStatus: res.status,
+            ok: res.ok,
+            response: json,
+          },
+          null,
+          2
+        )
+      );
+    } catch (error: any) {
+      setTestResponse(
+        JSON.stringify(
+          {
+            ok: false,
+            error: error?.message || "Erro ao executar teste",
+          },
+          null,
+          2
+        )
+      );
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   const samplePayload = useMemo(
     () =>
       JSON.stringify(
@@ -181,6 +255,110 @@ export default function AdminAutomationsPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
         <div className="card" style={{ padding: 20 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", marginBottom: 12 }}>
+            Testar Disparo Agora
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Dashboard</label>
+              <select
+                value={dashboardId}
+                onChange={(e) => setDashboardId(e.target.value)}
+                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
+              >
+                {dashboards.length === 0 ? (
+                  <option value="">Informe manualmente abaixo</option>
+                ) : (
+                  dashboards.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.id})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Dashboard ID (manual)</label>
+              <input
+                value={dashboardId}
+                onChange={(e) => setDashboardId(e.target.value)}
+                placeholder="UUID do dashboard"
+                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Data início (opcional)</label>
+              <input
+                type="date"
+                value={testFrom}
+                onChange={(e) => setTestFrom(e.target.value)}
+                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Data fim (opcional)</label>
+              <input
+                type="date"
+                value={testTo}
+                onChange={(e) => setTestTo(e.target.value)}
+                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              disabled={isTesting}
+              onClick={() => runDispatchTest(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                borderRadius: 8,
+                border: "1px solid #BFDBFE",
+                background: "#EFF6FF",
+                color: "#1D4ED8",
+                fontSize: 13,
+                fontWeight: 700,
+                padding: "10px 14px",
+                cursor: "pointer",
+              }}
+            >
+              {isTesting ? <Loader2 className="animate-spin" size={14} /> : <Play size={14} />}
+              Teste Dry Run
+            </button>
+            <button
+              type="button"
+              disabled={isTesting}
+              onClick={() => runDispatchTest(false)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                borderRadius: 8,
+                border: "1px solid #BBF7D0",
+                background: "#F0FDF4",
+                color: "#15803D",
+                fontSize: 13,
+                fontWeight: 700,
+                padding: "10px 14px",
+                cursor: "pointer",
+              }}
+            >
+              {isTesting ? <Loader2 className="animate-spin" size={14} /> : <Play size={14} />}
+              Teste Real no n8n
+            </button>
+          </div>
+
+          {testResponse && (
+            <div style={{ marginTop: 14 }}>
+              <CopyBlock title="Resultado do teste" value={testResponse} rows={16} />
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ padding: 20 }}>
           <CopyBlock title="Endpoint de Disparo (Admin API)" value={DISPATCH_ENDPOINT} rows={2} />
         </div>
 
@@ -207,4 +385,3 @@ export default function AdminAutomationsPage() {
     </div>
   );
 }
-
