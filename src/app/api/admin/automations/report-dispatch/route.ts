@@ -17,6 +17,11 @@ type DispatchBody = {
   dryRun?: boolean;
 };
 
+type ResolvedRecipients = {
+  emails: string[];
+  phones: string[];
+};
+
 const WEBHOOK_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_URL";
 const TOKEN_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_TOKEN";
 const MAX_SERIES_POINTS = 90;
@@ -81,6 +86,69 @@ function getErrorDetails(error: unknown) {
           name: err.cause?.name || null,
         }
       : null,
+  };
+}
+
+function parseListValue(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[,\n;|]/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function normalizePhone(value: string) {
+  return value.replace(/[^\d+]/g, "");
+}
+
+function mergeUnique(base: string[], extra: string[], normalizer: (v: string) => string) {
+  const map = new Map<string, string>();
+  [...base, ...extra].forEach((item) => {
+    const trimmed = String(item || "").trim();
+    if (!trimmed) return;
+    const key = normalizer(trimmed);
+    if (!key) return;
+    if (!map.has(key)) map.set(key, trimmed);
+  });
+  return Array.from(map.values());
+}
+
+function resolveRecipients(params: { client: any; manual?: DispatchBody["recipients"] }): ResolvedRecipients {
+  const client = params.client || {};
+  const manual = params.manual || {};
+
+  const clientEmails = [
+    ...parseListValue(client.email),
+    ...parseListValue(client.emails),
+    ...parseListValue(client.contact_email),
+    ...parseListValue(client.contact_emails),
+    ...parseListValue(client.billing_email),
+  ];
+
+  const clientPhones = [
+    ...parseListValue(client.phone),
+    ...parseListValue(client.phones),
+    ...parseListValue(client.whatsapp),
+    ...parseListValue(client.whatsapp_phone),
+    ...parseListValue(client.contact_phone),
+    ...parseListValue(client.contact_whatsapp),
+  ];
+
+  const manualEmails = parseListValue(manual.emails);
+  const manualPhones = parseListValue(manual.phones);
+
+  return {
+    emails: mergeUnique(clientEmails, manualEmails, normalizeEmail),
+    phones: mergeUnique(clientPhones, manualPhones, normalizePhone),
   };
 }
 
@@ -545,7 +613,10 @@ export async function POST(request: Request) {
         to: body.to || null,
       },
       channels: body.channels || ["email", "whatsapp"],
-      recipients: body.recipients || {},
+      recipients: resolveRecipients({
+        client: dashboard.clients,
+        manual: body.recipients,
+      }),
       share: {
         url: shareUrl,
       },

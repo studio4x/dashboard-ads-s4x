@@ -50,7 +50,7 @@ export const DashboardService = {
     const supabase = options?.bypassRls ? await createAdminClient() : await createClient()
     const { data, error } = await supabase
       .from('dashboards')
-      .select('*, dashboard_pages(*), clients(name)')
+      .select('*, dashboard_pages(*), clients(*)')
       .eq('id', id)
       .single()
     
