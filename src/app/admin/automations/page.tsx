@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Copy, CheckCircle2, Info, Loader2, Play } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Copy, CheckCircle2, Info, Loader2, Play, Save } from "lucide-react";
 
 const APP_BASE_URL = "https://dashboard-ads-s4x.vercel.app";
 const DISPATCH_ENDPOINT = `${APP_BASE_URL}/api/admin/automations/report-dispatch`;
@@ -73,6 +73,15 @@ function CopyBlock({
 }
 
 export default function AdminAutomationsPage() {
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookMasked, setWebhookMasked] = useState("");
+  const [isSavingWebhook, setIsSavingWebhook] = useState(false);
+  const [webhookStatus, setWebhookStatus] = useState<"idle" | "ok" | "error">("idle");
+  const [webhookMessage, setWebhookMessage] = useState("");
+  const [webhookLoaded, setWebhookLoaded] = useState(false);
+  const [webhookDirty, setWebhookDirty] = useState(false);
+  const lastSavedWebhookRef = useRef("");
+
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [dashboardId, setDashboardId] = useState("");
   const [testFrom, setTestFrom] = useState("");
@@ -97,6 +106,77 @@ export default function AdminAutomationsPage() {
     };
     loadDashboards();
   }, []);
+
+  useEffect(() => {
+    const loadWebhook = async () => {
+      try {
+        const res = await fetch("/api/admin/automations/n8n-webhook");
+        const json = await res.json();
+        if (res.ok && json?.success) {
+          const value = String(json.webhookUrl || "");
+          setWebhookUrl(value);
+          setWebhookMasked(String(json.webhookUrlMasked || ""));
+          lastSavedWebhookRef.current = value;
+        }
+      } catch {
+        // mantém vazio em caso de erro
+      } finally {
+        setWebhookLoaded(true);
+      }
+    };
+    loadWebhook();
+  }, []);
+
+  const saveWebhookToVercel = async (valueOverride?: string) => {
+    const value = String(valueOverride ?? webhookUrl).trim();
+    if (!value) {
+      setWebhookStatus("error");
+      setWebhookMessage("Informe a URL do webhook antes de salvar.");
+      return false;
+    }
+
+    setIsSavingWebhook(true);
+    setWebhookStatus("idle");
+    setWebhookMessage("Salvando webhook na Vercel...");
+    try {
+      const res = await fetch("/api/admin/automations/n8n-webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookUrl: value }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        setWebhookStatus("error");
+        setWebhookMessage(json?.error || "Falha ao salvar webhook na Vercel.");
+        return false;
+      }
+
+      setWebhookStatus("ok");
+      setWebhookMessage(json?.message || "Webhook salvo com sucesso.");
+      setWebhookMasked(String(json?.webhookUrlMasked || ""));
+      lastSavedWebhookRef.current = value;
+      setWebhookDirty(false);
+      return true;
+    } catch (error: any) {
+      setWebhookStatus("error");
+      setWebhookMessage(error?.message || "Erro ao salvar webhook.");
+      return false;
+    } finally {
+      setIsSavingWebhook(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!webhookLoaded || !webhookDirty) return;
+    const value = webhookUrl.trim();
+    if (!value || value === lastSavedWebhookRef.current) return;
+
+    const timer = setTimeout(() => {
+      saveWebhookToVercel(value);
+    }, 900);
+
+    return () => clearTimeout(timer);
+  }, [webhookUrl, webhookDirty, webhookLoaded]);
 
   const runDispatchTest = async (dryRun: boolean) => {
     if (!dashboardId) {
@@ -254,6 +334,84 @@ export default function AdminAutomationsPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+        <div className="card" style={{ padding: 20 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", marginBottom: 12 }}>
+            Webhook n8n (salvo na Vercel)
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>URL do Webhook (POST)</label>
+            <input
+              value={webhookUrl}
+              onChange={(e) => {
+                setWebhookUrl(e.target.value);
+                setWebhookDirty(true);
+                setWebhookStatus("idle");
+                setWebhookMessage("Alteração detectada. Salvamento automático ativo.");
+              }}
+              placeholder="https://seu-n8n/webhook/..."
+              style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <p style={{ fontSize: 11, color: "#64748B" }}>
+                {webhookMasked ? `Atual na Vercel: ${webhookMasked}` : "Nenhum webhook válido detectado no runtime atual."}
+              </p>
+              <button
+                type="button"
+                disabled={isSavingWebhook}
+                onClick={() => saveWebhookToVercel()}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  borderRadius: 8,
+                  border: "1px solid #BFDBFE",
+                  background: "#EFF6FF",
+                  color: "#1D4ED8",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                }}
+              >
+                {isSavingWebhook ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                Salvar agora na Vercel
+              </button>
+            </div>
+
+            {webhookMessage && (
+              <div
+                style={{
+                  marginTop: 4,
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  fontSize: 12,
+                  border:
+                    webhookStatus === "ok"
+                      ? "1px solid #BBF7D0"
+                      : webhookStatus === "error"
+                        ? "1px solid #FECACA"
+                        : "1px solid #E2E8F0",
+                  background:
+                    webhookStatus === "ok"
+                      ? "#F0FDF4"
+                      : webhookStatus === "error"
+                        ? "#FEF2F2"
+                        : "#F8FAFC",
+                  color:
+                    webhookStatus === "ok"
+                      ? "#166534"
+                      : webhookStatus === "error"
+                        ? "#991B1B"
+                        : "#475569",
+                }}
+              >
+                {webhookMessage}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="card" style={{ padding: 20 }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", marginBottom: 12 }}>
             Testar Disparo Agora
