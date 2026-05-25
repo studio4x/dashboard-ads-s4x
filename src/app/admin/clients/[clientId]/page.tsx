@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Building2, LayoutDashboard, FileSpreadsheet, Users, CheckCircle2, Circle, ArrowLeft, Plus, Link as LinkIcon } from "lucide-react";
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 import { ClientLogoUploader } from "@/components/admin/ClientLogoUploader";
+import { ClientContactForm } from "@/components/admin/ClientContactForm";
 
 export default async function ClientHubPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -212,6 +213,14 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
             clientId={client.id}
             clientName={client.name}
             logoUrl={client.logo_url}
+          />
+
+          <ClientContactForm
+            clientId={client.id}
+            initialEmail={client.email}
+            initialEmails={client.emails}
+            initialWhatsapp={client.whatsapp}
+            initialPhones={client.phones || client.phone}
           />
 
           <div className="card" style={{ padding: 24 }}>
