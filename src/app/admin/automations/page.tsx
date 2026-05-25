@@ -296,9 +296,9 @@ export default function AdminAutomationsPage() {
       [
         "Crie um workflow com nó Webhook (POST).",
         "Copie a URL do Webhook e configure na variável N8N_REPORT_DISPATCH_WEBHOOK_URL no Vercel.",
-        "Se usar token, valide o header Authorization no n8n.",
-        "Se usar assinatura, valide o header X-S4X-Signature (HMAC SHA-256).",
-        "Após o Webhook, use IA para gerar o texto com base em report.summary e report.insights.",
+        "Defina um token real em N8N_REPORT_DISPATCH_WEBHOOK_TOKEN e valide o header Authorization no n8n.",
+        "Defina um secret real em N8N_REPORT_DISPATCH_WEBHOOK_SECRET e valide X-S4X-Signature (HMAC SHA-256).",
+        "Use IA com report.summary, report.comparativo, report.funil, report.topItems, report.series e report.insights.",
         "Envie por e-mail e WhatsApp no fim do fluxo.",
       ].join("\n"),
     []

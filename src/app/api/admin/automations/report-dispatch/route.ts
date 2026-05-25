@@ -28,6 +28,17 @@ function isPlaceholderWebhook(value: string) {
   );
 }
 
+function isPlaceholderCredential(value: string) {
+  if (!value) return true;
+  const normalized = value.trim().toUpperCase();
+  return (
+    normalized.includes("SEU_TOKEN") ||
+    normalized.includes("SEU_SECRET") ||
+    normalized.includes("SEU_") ||
+    normalized.includes("PLACEHOLDER")
+  );
+}
+
 function isValidWebhookUrl(value: string) {
   try {
     const parsed = new URL(value);
@@ -109,20 +120,336 @@ async function resolveWebhookUrl() {
   return { url: "", source: "none" as const };
 }
 
-function getSummaryMetrics(data: any) {
-  const current = data?.summary?.current || data?.summary || {};
+function toFiniteNumber(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const normalized = value.replace(",", ".").trim();
+    if (!normalized) return 0;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+function pickMetric(source: any, aliases: string[]) {
+  for (const alias of aliases) {
+    const value = source?.[alias];
+    if (value !== undefined && value !== null && value !== "") {
+      return toFiniteNumber(value);
+    }
+  }
+  return 0;
+}
+
+function normalizeSummaryBlock(data: any) {
+  const raw = data?.summary || {};
+  const current = raw?.current || raw || {};
+  const previous = raw?.previous || {};
+  const change = raw?.change || {};
+  return { current, previous, change };
+}
+
+function aggregateNumericFields(rows: any[]) {
+  const totals: Record<string, number> = {};
+  const counts: Record<string, number> = {};
+  const metricsWithValue = new Set<string>();
+
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    for (const [key, raw] of Object.entries(row)) {
+      if (raw === null || raw === undefined || raw === "") continue;
+      const numeric = toFiniteNumber(raw);
+      if (Number.isFinite(numeric) && (typeof raw === "number" || /^-?\d+([.,]\d+)?$/.test(String(raw).trim()))) {
+        totals[key] = (totals[key] || 0) + numeric;
+        counts[key] = (counts[key] || 0) + 1;
+        metricsWithValue.add(key);
+      }
+    }
+  }
+
+  const averages: Record<string, number> = {};
+  for (const [key, total] of Object.entries(totals)) {
+    const count = counts[key] || 1;
+    averages[key] = total / count;
+  }
 
   return {
-    investimento: Number(current.total_spend || current.cost || 0),
-    impressoes: Number(current.total_impressions || current.impressions || 0),
-    alcance: Number(current.total_reach || current.reach || 0),
-    cliques: Number(current.total_clicks || current.clicks || 0),
-    ctr: Number(current.ctr || 0),
-    cpc: Number(current.cpc || current.avgCpc || 0),
-    conversoes: Number(current.total_conversions || current.conversions || 0),
-    cpa: Number(current.cpa || 0),
-    engajamentos: Number(current.postEngagement || current.total_engagement || 0),
-    atualizadoEm: data?.lastUpdated || null,
+    totals,
+    averages,
+    nonNullMetricFields: Array.from(metricsWithValue).sort(),
+  };
+}
+
+function getFieldNames(rows: any[]) {
+  const fields = new Set<string>();
+  rows.slice(0, 200).forEach((row) => {
+    if (!row || typeof row !== "object") return;
+    Object.keys(row).forEach((k) => fields.add(k));
+  });
+  return Array.from(fields).sort();
+}
+
+function getRowLabel(row: any) {
+  return (
+    row?.campaignName ||
+    row?.campaign_name ||
+    row?.adSetName ||
+    row?.adset_name ||
+    row?.adGroupName ||
+    row?.ad_group ||
+    row?.adName ||
+    row?.ad_name ||
+    row?.keyword ||
+    row?.searchTerm ||
+    row?.term ||
+    "Sem nome"
+  );
+}
+
+function toTopItems(rows: any[], options: { metricKey: string; limit?: number; extraFields?: string[] }) {
+  const limit = options.limit ?? 10;
+  const metricKey = options.metricKey;
+  const extraFields = options.extraFields || [];
+
+  return rows
+    .map((row) => {
+      const base: Record<string, unknown> = {
+        nome: getRowLabel(row),
+        valor: toFiniteNumber(row?.[metricKey]),
+      };
+      for (const field of extraFields) {
+        base[field] = row?.[field] ?? null;
+      }
+      return base;
+    })
+    .filter((item) => toFiniteNumber(item.valor) > 0)
+    .sort((a, b) => toFiniteNumber(b.valor) - toFiniteNumber(a.valor))
+    .slice(0, limit);
+}
+
+function getReportMetrics(data: any) {
+  const { current, previous, change } = normalizeSummaryBlock(data);
+  const dailyRows = Array.isArray(data?.dailyPerformance)
+    ? data.dailyPerformance
+    : Array.isArray(data?.overview)
+      ? data.overview
+      : [];
+
+  const campaignRows = Array.isArray(data?.campaigns) ? data.campaigns : [];
+  const adGroupRows = Array.isArray(data?.adGroups) ? data.adGroups : [];
+  const keywordRows = Array.isArray(data?.keywords) ? data.keywords : [];
+  const searchTermRows = Array.isArray(data?.searchTerms) ? data.searchTerms : [];
+  const adAssetRows = Array.isArray(data?.adsAndAssets) ? data.adsAndAssets : [];
+
+  const dailyAgg = aggregateNumericFields(dailyRows);
+  const campaignAgg = aggregateNumericFields(campaignRows);
+  const adGroupAgg = aggregateNumericFields(adGroupRows);
+  const keywordAgg = aggregateNumericFields(keywordRows);
+  const searchTermAgg = aggregateNumericFields(searchTermRows);
+  const adAssetAgg = aggregateNumericFields(adAssetRows);
+
+  const kpisCurrent = {
+    investimento: pickMetric(current, ["total_spend", "cost"]),
+    receita: pickMetric(current, ["total_revenue", "conversionValue", "allConversionsValue"]),
+    impressoes: pickMetric(current, ["total_impressions", "impressions"]),
+    alcance: pickMetric(current, ["total_reach", "reach"]),
+    cliques: pickMetric(current, ["total_clicks", "clicks"]),
+    ctr: pickMetric(current, ["ctr"]),
+    cpc: pickMetric(current, ["cpc", "avgCpc", "cpc_avg"]),
+    cpm: pickMetric(current, ["avgCpm", "cpm"]),
+    frequencia: pickMetric(current, ["frequency"]),
+    conversoes: pickMetric(current, ["total_conversions", "conversions"]),
+    cpa: pickMetric(current, ["cpa", "costPerConversion"]),
+    taxaConversao: pickMetric(current, ["conversionRate"]),
+    roas: pickMetric(current, ["roas"]),
+    engajamentos: pickMetric(current, ["postEngagement", "total_engagement"]),
+  };
+
+  const leadsTotal =
+    dailyAgg.totals.leads ||
+    (dailyAgg.totals.onFacebookLeads || 0) +
+      (dailyAgg.totals.websiteLeads || 0) +
+      (dailyAgg.totals.offlineLeads || 0);
+
+  const messagingTotal =
+    dailyAgg.totals.messagingConversationsStarted ||
+    dailyAgg.totals.conversions ||
+    dailyAgg.totals.results ||
+    0;
+
+  const kpisPrevious = {
+    investimento: pickMetric(previous, ["total_spend", "cost"]),
+    receita: pickMetric(previous, ["total_revenue", "conversionValue", "allConversionsValue"]),
+    impressoes: pickMetric(previous, ["total_impressions", "impressions"]),
+    alcance: pickMetric(previous, ["total_reach", "reach"]),
+    cliques: pickMetric(previous, ["total_clicks", "clicks"]),
+    ctr: pickMetric(previous, ["ctr"]),
+    cpc: pickMetric(previous, ["cpc", "avgCpc", "cpc_avg"]),
+    cpm: pickMetric(previous, ["avgCpm", "cpm"]),
+    frequencia: pickMetric(previous, ["frequency"]),
+    conversoes: pickMetric(previous, ["total_conversions", "conversions"]),
+    cpa: pickMetric(previous, ["cpa", "costPerConversion"]),
+    taxaConversao: pickMetric(previous, ["conversionRate"]),
+    roas: pickMetric(previous, ["roas"]),
+    engajamentos: pickMetric(previous, ["postEngagement", "total_engagement"]),
+  };
+
+  const changePercent = {
+    investimento: toFiniteNumber(change?.total_spend),
+    receita: toFiniteNumber(change?.total_revenue),
+    impressoes: toFiniteNumber(change?.total_impressions),
+    alcance: toFiniteNumber(change?.reach),
+    cliques: toFiniteNumber(change?.total_clicks),
+    ctr: toFiniteNumber(change?.ctr),
+    cpc: toFiniteNumber(change?.cpc),
+    cpm: toFiniteNumber(change?.avgCpm),
+    frequencia: toFiniteNumber(change?.frequency),
+    conversoes: toFiniteNumber(change?.total_conversions),
+    cpa: toFiniteNumber(change?.cpa),
+    taxaConversao: toFiniteNumber(change?.conversionRate),
+    roas: toFiniteNumber(change?.roas),
+    engajamentos: toFiniteNumber(change?.postEngagement),
+  };
+
+  const insightRows = Array.isArray(data?.insights) ? data.insights : [];
+
+  const topSourceRows = campaignRows.length > 0 ? campaignRows : dailyRows;
+  const topAdSetSourceRows = adGroupRows.length > 0 ? adGroupRows : dailyRows;
+  const topAdSourceRows = adAssetRows.length > 0 ? adAssetRows : dailyRows;
+
+  return {
+    summary: {
+      ...kpisCurrent,
+      leads: leadsTotal || 0,
+      onFacebookLeads: dailyAgg.totals.onFacebookLeads || 0,
+      websiteLeads: dailyAgg.totals.websiteLeads || 0,
+      offlineLeads: dailyAgg.totals.offlineLeads || 0,
+      mensagens: messagingTotal || 0,
+      atualizadoEm: data?.lastUpdated || null,
+    },
+    comparativo: {
+      atual: kpisCurrent,
+      anterior: kpisPrevious,
+      variacaoPercentual: changePercent,
+    },
+    objetivos: {
+      metaObjectives: Array.isArray(data?.metaObjectives) ? data.metaObjectives : [],
+      metaPrimaryObjective: data?.metaPrimaryObjective || null,
+      metaValidationStatus: data?.metaValidationStatus || "not_configured",
+      metaValidationNotes: data?.metaValidationNotes || {},
+    },
+    metricasDisponiveis: {
+      summaryCurrentFields: Object.keys(current || {}).sort(),
+      summaryPreviousFields: Object.keys(previous || {}).sort(),
+      summaryChangeFields: Object.keys(change || {}).sort(),
+      dailyPerformanceFields: getFieldNames(dailyRows),
+      campaignFields: getFieldNames(campaignRows),
+      adGroupFields: getFieldNames(adGroupRows),
+      keywordFields: getFieldNames(keywordRows),
+      searchTermFields: getFieldNames(searchTermRows),
+      adAssetFields: getFieldNames(adAssetRows),
+    },
+    funil: {
+      impressões: kpisCurrent.impressoes,
+      alcance: kpisCurrent.alcance,
+      cliques: kpisCurrent.cliques,
+      conversoes: kpisCurrent.conversoes,
+      engajamentos: kpisCurrent.engajamentos,
+      leads: leadsTotal || 0,
+      mensagens: messagingTotal || 0,
+      ctr: kpisCurrent.ctr,
+      cpc: kpisCurrent.cpc,
+      cpm: kpisCurrent.cpm,
+      cpa: kpisCurrent.cpa,
+      roas: kpisCurrent.roas,
+    },
+    totaisNumericos: {
+      dailyPerformance: dailyAgg.totals,
+      campaigns: campaignAgg.totals,
+      adGroups: adGroupAgg.totals,
+      keywords: keywordAgg.totals,
+      searchTerms: searchTermAgg.totals,
+      adsAndAssets: adAssetAgg.totals,
+    },
+    mediasNumericas: {
+      dailyPerformance: dailyAgg.averages,
+      campaigns: campaignAgg.averages,
+      adGroups: adGroupAgg.averages,
+      keywords: keywordAgg.averages,
+      searchTerms: searchTermAgg.averages,
+      adsAndAssets: adAssetAgg.averages,
+    },
+    series: {
+      dailyPerformance: dailyRows.map((row: any) => ({
+        data: row?.date || null,
+        campanha: row?.campaignName || row?.campaign_name || null,
+        conjunto: row?.adSetName || row?.adset_name || row?.adGroupName || null,
+        anuncio: row?.adName || row?.ad_name || null,
+        investimento: toFiniteNumber(row?.cost ?? row?.total_spend),
+        impressoes: toFiniteNumber(row?.impressions),
+        alcance: toFiniteNumber(row?.reach),
+        frequencia: toFiniteNumber(row?.frequency),
+        cliques: toFiniteNumber(row?.clicks),
+        ctr: toFiniteNumber(row?.ctr),
+        cpc: toFiniteNumber(row?.cpc ?? row?.avgCpc),
+        cpm: toFiniteNumber(row?.cpm ?? row?.avgCpm),
+        conversoes: toFiniteNumber(row?.conversions),
+        engajamentos: toFiniteNumber(row?.postEngagement),
+        leads:
+          toFiniteNumber(row?.leads) ||
+          toFiniteNumber(row?.onFacebookLeads) + toFiniteNumber(row?.websiteLeads) + toFiniteNumber(row?.offlineLeads),
+        mensagens: toFiniteNumber(row?.messagingConversationsStarted ?? row?.conversions),
+      })),
+    },
+    topItems: {
+      campanhas: {
+        porInvestimento: toTopItems(topSourceRows, { metricKey: "cost", extraFields: ["campaignName"] }),
+        porConversoes: toTopItems(topSourceRows, { metricKey: "conversions", extraFields: ["campaignName"] }),
+        porCliques: toTopItems(topSourceRows, { metricKey: "clicks", extraFields: ["campaignName"] }),
+        porImpressoes: toTopItems(topSourceRows, { metricKey: "impressions", extraFields: ["campaignName"] }),
+        porEngajamento: toTopItems(topSourceRows, { metricKey: "postEngagement", extraFields: ["campaignName"] }),
+        porLeads: toTopItems(topSourceRows, { metricKey: "onFacebookLeads", extraFields: ["campaignName"] }),
+        porMensagens: toTopItems(topSourceRows, { metricKey: "messagingConversationsStarted", extraFields: ["campaignName"] }),
+      },
+      conjuntos: {
+        porInvestimento: toTopItems(topAdSetSourceRows, { metricKey: "cost", extraFields: ["campaignName", "adSetName"] }),
+        porConversoes: toTopItems(topAdSetSourceRows, { metricKey: "conversions", extraFields: ["campaignName", "adSetName"] }),
+        porEngajamento: toTopItems(topAdSetSourceRows, { metricKey: "postEngagement", extraFields: ["campaignName", "adSetName"] }),
+      },
+      anuncios: {
+        porInvestimento: toTopItems(topAdSourceRows, { metricKey: "cost", extraFields: ["campaignName", "adSetName", "adName"] }),
+        porConversoes: toTopItems(topAdSourceRows, { metricKey: "conversions", extraFields: ["campaignName", "adSetName", "adName"] }),
+        porCliques: toTopItems(topAdSourceRows, { metricKey: "clicks", extraFields: ["campaignName", "adSetName", "adName"] }),
+      },
+      palavrasChave: {
+        porInvestimento: toTopItems(keywordRows, { metricKey: "cost", extraFields: ["campaignName", "adGroupName", "keyword"] }),
+        porConversoes: toTopItems(keywordRows, { metricKey: "conversions", extraFields: ["campaignName", "adGroupName", "keyword"] }),
+      },
+      termosPesquisa: {
+        porInvestimento: toTopItems(searchTermRows, { metricKey: "cost", extraFields: ["campaignName", "adGroupName", "searchTerm"] }),
+        porConversoes: toTopItems(searchTermRows, { metricKey: "conversions", extraFields: ["campaignName", "adGroupName", "searchTerm"] }),
+      },
+    },
+    datasets: {
+      counts: {
+        dailyPerformance: dailyRows.length,
+        campaigns: campaignRows.length,
+        adGroups: adGroupRows.length,
+        keywords: keywordRows.length,
+        searchTerms: searchTermRows.length,
+        adsAndAssets: adAssetRows.length,
+        insights: insightRows.length,
+      },
+      samples: {
+        dailyPerformance: dailyRows.slice(0, 50),
+        campaigns: campaignRows.slice(0, 50),
+        adGroups: adGroupRows.slice(0, 50),
+        keywords: keywordRows.slice(0, 50),
+        searchTerms: searchTermRows.slice(0, 50),
+        adsAndAssets: adAssetRows.slice(0, 50),
+      },
+    },
+    insights: insightRows.slice(0, 20),
   };
 }
 
@@ -204,10 +531,7 @@ export async function POST(request: Request) {
       share: {
         url: shareUrl,
       },
-      report: {
-        summary: getSummaryMetrics(data),
-        insights: Array.isArray(data.insights) ? data.insights.slice(0, 8) : [],
-      },
+      report: getReportMetrics(data),
       pdf: {
         mode: "client_side_export",
         available: false,
@@ -255,12 +579,14 @@ export async function POST(request: Request) {
       "X-S4X-Dashboard-Id": dashboardId,
     };
 
-    const webhookToken = process.env.N8N_REPORT_DISPATCH_WEBHOOK_TOKEN;
+    const webhookTokenRaw = String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_TOKEN || "").trim();
+    const webhookToken = isPlaceholderCredential(webhookTokenRaw) ? "" : webhookTokenRaw;
     if (webhookToken) {
       headers.Authorization = `Bearer ${webhookToken}`;
     }
 
-    const webhookSecret = process.env.N8N_REPORT_DISPATCH_WEBHOOK_SECRET;
+    const webhookSecretRaw = String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_SECRET || "").trim();
+    const webhookSecret = isPlaceholderCredential(webhookSecretRaw) ? "" : webhookSecretRaw;
     const payloadJson = JSON.stringify(payload);
     if (webhookSecret) {
       const signature = crypto.createHmac("sha256", webhookSecret).update(payloadJson).digest("hex");
@@ -319,6 +645,10 @@ export async function POST(request: Request) {
       webhookUrl: maskUrl(webhookUrl),
       resolutionSource: resolvedWebhook.source,
       n8nResponse: parsed,
+      security: {
+        bearerTokenSent: Boolean(webhookToken),
+        hmacSignatureSent: Boolean(webhookSecret),
+      },
       dispatchedAt: payload.dispatchedAt,
       dashboardId,
       shareUrl,
