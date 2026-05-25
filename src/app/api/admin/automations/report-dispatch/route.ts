@@ -3,8 +3,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 import { DashboardService } from "@/services/dashboard-service";
 import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { PROMPT_ANALISE_IA_TEMPLATE } from "@/lib/ai/prompt-analise-ia";
 
 type DispatchBody = {
   dashboardId?: string;
@@ -33,7 +32,6 @@ const GEMINI_ENV_KEY = "GEMINI_API_KEY";
 const MAX_SERIES_POINTS = 90;
 const MAX_TOP_ITEMS = 7;
 const MAX_INSIGHTS = 10;
-let promptTemplateCache: string | null = null;
 
 function isPlaceholderWebhook(value: string) {
   return (
@@ -241,13 +239,6 @@ type AiInterpretationResult = {
   fallbackUsed?: boolean;
 };
 
-async function loadAnalysisPromptTemplate() {
-  if (promptTemplateCache) return promptTemplateCache;
-  const promptPath = path.join(process.cwd(), "docs", "prompt-analise-ia.md");
-  promptTemplateCache = await readFile(promptPath, "utf-8");
-  return promptTemplateCache;
-}
-
 function formatPercent(value: unknown) {
   const num = Number(value);
   if (!Number.isFinite(num)) return "Não disponível";
@@ -313,8 +304,7 @@ async function generateAiInterpretation(params: {
     ...params.report,
     totaisNumericos: params.report?.totaisNumericos || {},
   });
-  const template = await loadAnalysisPromptTemplate();
-  const prompt = template.replace(/\{\{[\s\S]*\}\}/m, dashboardText);
+  const prompt = PROMPT_ANALISE_IA_TEMPLATE.replace(/\{\{[\s\S]*\}\}/m, dashboardText);
 
   if (!openAiApiKey && !geminiApiKey) {
     return {
