@@ -197,15 +197,6 @@ function aggregateNumericFields(rows: any[]) {
   };
 }
 
-function getFieldNames(rows: any[]) {
-  const fields = new Set<string>();
-  rows.slice(0, 200).forEach((row) => {
-    if (!row || typeof row !== "object") return;
-    Object.keys(row).forEach((k) => fields.add(k));
-  });
-  return Array.from(fields).sort();
-}
-
 function getRowLabel(row: any) {
   return (
     row?.campaignName ||
@@ -343,7 +334,19 @@ function getReportMetrics(data: any) {
 
   const topSourceRows = campaignRows.length > 0 ? campaignRows : dailyRows;
   const topAdSetSourceRows = adGroupRows.length > 0 ? adGroupRows : dailyRows;
-  const topAdSourceRows = adAssetRows.length > 0 ? adAssetRows : dailyRows;
+  const topAdAssetSourceRows = adAssetRows.filter((row: any) => {
+    const hasAdName = Boolean(row?.adName || row?.ad_name);
+    const isAggregatable = row?.isAggregatable !== false;
+    const notRepeatedScope = row?.aggregationScope !== "NAO_AGREGAVEL_REPETIDO_POR_RECURSO";
+    return hasAdName && isAggregatable && notRepeatedScope;
+  });
+  const topAdSourceRows = topAdAssetSourceRows.length > 0
+    ? topAdAssetSourceRows
+    : adGroupRows.length > 0
+      ? adGroupRows
+      : campaignRows.length > 0
+        ? campaignRows
+        : dailyRows;
 
   return {
     summary: {
@@ -365,17 +368,6 @@ function getReportMetrics(data: any) {
       metaPrimaryObjective: data?.metaPrimaryObjective || null,
       metaValidationStatus: data?.metaValidationStatus || "not_configured",
       metaValidationNotes: data?.metaValidationNotes || {},
-    },
-    metricasDisponiveis: {
-      summaryCurrentFields: Object.keys(current || {}).sort(),
-      summaryPreviousFields: Object.keys(previous || {}).sort(),
-      summaryChangeFields: Object.keys(change || {}).sort(),
-      dailyPerformanceFields: getFieldNames(dailyRows),
-      campaignFields: getFieldNames(campaignRows),
-      adGroupFields: getFieldNames(adGroupRows),
-      keywordFields: getFieldNames(keywordRows),
-      searchTermFields: getFieldNames(searchTermRows),
-      adAssetFields: getFieldNames(adAssetRows),
     },
     funil: {
       impressões: kpisCurrent.impressoes,
