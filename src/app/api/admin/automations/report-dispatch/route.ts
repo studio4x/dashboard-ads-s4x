@@ -17,7 +17,7 @@ type DispatchBody = {
   shareLinkId?: string;
   dryRun?: boolean;
   source?: "manual" | "scheduled";
-  reportMode?: "analysis_only" | "metrics_only" | "both";
+  reportMode?: "analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf";
 };
 
 type ResolvedRecipients = {
@@ -443,9 +443,9 @@ async function resolveGeminiApiKey() {
   return "";
 }
 
-function normalizeReportMode(value: unknown): "analysis_only" | "metrics_only" | "both" {
+function normalizeReportMode(value: unknown): "analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf" {
   const str = String(value || "").trim().toLowerCase();
-  if (str === "analysis_only" || str === "metrics_only" || str === "both") return str;
+  if (str === "analysis_only" || str === "metrics_only" || str === "both" || str === "analysis_pdf" || str === "both_pdf") return str;
   return "both";
 }
 
@@ -870,11 +870,13 @@ export async function POST(request: Request) {
         };
 
     const reportPayload =
-      reportMode === "analysis_only"
+      reportMode === "analysis_only" || reportMode === "analysis_pdf"
         ? { aiInterpretation }
         : reportMode === "metrics_only"
           ? report
           : { ...report, aiInterpretation };
+
+    const includePdf = reportMode === "analysis_pdf" || reportMode === "both_pdf";
 
     const payload = {
       event: "dashboard_report_dispatch",
@@ -901,9 +903,13 @@ export async function POST(request: Request) {
       reportMode,
       report: reportPayload,
       pdf: {
-        mode: "client_side_export",
-        available: false,
-        note: "Nesta fase, o PDF é gerado no frontend. Recomenda-se envio de análise + link compartilhado via n8n.",
+        mode: includePdf ? "share_url_pdf_reference" : "client_side_export",
+        available: includePdf && Boolean(shareUrl),
+        url: includePdf ? shareUrl : null,
+        filename: includePdf ? `dashboard-${dashboard.id}.pdf` : null,
+        note: includePdf
+          ? "Use a URL de compartilhamento como referência para geração/anexo de PDF no workflow do n8n."
+          : "Nesta fase, o PDF é gerado no frontend. Recomenda-se envio de análise + link compartilhado via n8n.",
       },
     };
 

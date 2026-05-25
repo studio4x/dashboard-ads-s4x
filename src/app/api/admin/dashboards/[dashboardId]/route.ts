@@ -62,7 +62,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       automation_hour?: number;
       automation_minute?: number;
       automation_period_days?: number;
-      automation_report_mode?: "analysis_only" | "metrics_only" | "both";
+      automation_report_mode?: "analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf";
       automation_channels?: string[];
     } = {};
 
@@ -128,10 +128,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     if (automation_report_mode !== undefined) {
       const value = String(automation_report_mode);
-      if (!["analysis_only", "metrics_only", "both"].includes(value)) {
+      if (!["analysis_only", "metrics_only", "both", "analysis_pdf", "both_pdf"].includes(value)) {
         return NextResponse.json({ error: "automation_report_mode inválido." }, { status: 400 });
       }
-      updates.automation_report_mode = value as "analysis_only" | "metrics_only" | "both";
+      updates.automation_report_mode = value as "analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf";
     }
 
     if (automation_channels !== undefined) {

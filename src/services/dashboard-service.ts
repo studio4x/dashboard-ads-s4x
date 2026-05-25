@@ -96,7 +96,12 @@ export const DashboardService = {
       automation_period_days?: number;
       automation_channels?: string[];
       automation_last_dispatched_at?: string | null;
-      automation_report_mode?: "analysis_only" | "metrics_only" | "both";
+      automation_report_mode?:
+        | "analysis_only"
+        | "metrics_only"
+        | "both"
+        | "analysis_pdf"
+        | "both_pdf";
     }
   ) {
     const supabase = await createAdminClient()
