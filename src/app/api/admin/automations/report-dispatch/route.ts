@@ -19,6 +19,9 @@ type DispatchBody = {
 
 const WEBHOOK_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_URL";
 const TOKEN_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_TOKEN";
+const MAX_SERIES_POINTS = 90;
+const MAX_TOP_ITEMS = 7;
+const MAX_INSIGHTS = 10;
 
 function isPlaceholderWebhook(value: string) {
   return (
@@ -221,22 +224,33 @@ function getRowLabel(row: any) {
 }
 
 function toTopItems(rows: any[], options: { metricKey: string; limit?: number; extraFields?: string[] }) {
-  const limit = options.limit ?? 10;
+  const limit = options.limit ?? MAX_TOP_ITEMS;
   const metricKey = options.metricKey;
   const extraFields = options.extraFields || [];
+  const grouped = new Map<string, Record<string, unknown>>();
 
-  return rows
-    .map((row) => {
-      const base: Record<string, unknown> = {
-        nome: getRowLabel(row),
-        valor: toFiniteNumber(row?.[metricKey]),
-      };
-      for (const field of extraFields) {
-        base[field] = row?.[field] ?? null;
-      }
-      return base;
-    })
-    .filter((item) => toFiniteNumber(item.valor) > 0)
+  for (const row of rows) {
+    const value = toFiniteNumber(row?.[metricKey]);
+    if (value <= 0) continue;
+
+    const base: Record<string, unknown> = {
+      nome: getRowLabel(row),
+      valor: value,
+    };
+    for (const field of extraFields) {
+      base[field] = row?.[field] ?? null;
+    }
+
+    const identity = [base.nome, ...extraFields.map((f) => String(base[f] ?? ""))].join("|");
+    const prev = grouped.get(identity);
+    if (!prev) {
+      grouped.set(identity, base);
+      continue;
+    }
+    prev.valor = toFiniteNumber(prev.valor) + value;
+  }
+
+  return Array.from(grouped.values())
     .sort((a, b) => toFiniteNumber(b.valor) - toFiniteNumber(a.valor))
     .slice(0, limit);
 }
@@ -394,7 +408,7 @@ function getReportMetrics(data: any) {
       adsAndAssets: adAssetAgg.averages,
     },
     series: {
-      dailyPerformance: dailyRows.map((row: any) => ({
+      dailyPerformance: dailyRows.slice(-MAX_SERIES_POINTS).map((row: any) => ({
         data: row?.date || null,
         campanha: row?.campaignName || row?.campaign_name || null,
         conjunto: row?.adSetName || row?.adset_name || row?.adGroupName || null,
@@ -454,16 +468,14 @@ function getReportMetrics(data: any) {
         adsAndAssets: adAssetRows.length,
         insights: insightRows.length,
       },
-      samples: {
-        dailyPerformance: dailyRows.slice(0, 50),
-        campaigns: campaignRows.slice(0, 50),
-        adGroups: adGroupRows.slice(0, 50),
-        keywords: keywordRows.slice(0, 50),
-        searchTerms: searchTermRows.slice(0, 50),
-        adsAndAssets: adAssetRows.slice(0, 50),
+      compression: {
+        samplesIncluded: false,
+        seriesLimit: MAX_SERIES_POINTS,
+        topItemsLimit: MAX_TOP_ITEMS,
+        insightsLimit: MAX_INSIGHTS,
       },
     },
-    insights: insightRows.slice(0, 20),
+    insights: insightRows.slice(0, MAX_INSIGHTS),
   };
 }
 
