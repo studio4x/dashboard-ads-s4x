@@ -13,6 +13,26 @@ const ACTIVE_TEMPLATES = DASHBOARD_TEMPLATES.filter(t => t.status === "active");
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
 type MetaObjective = (typeof META_ADS_OBJECTIVES)[number]["id"];
 const META_TEMPLATE_ID = "meta_ads_s4x";
+const WEEK_DAYS = [
+  { value: 0, label: "Domingo" },
+  { value: 1, label: "Segunda" },
+  { value: 2, label: "Terça" },
+  { value: 3, label: "Quarta" },
+  { value: 4, label: "Quinta" },
+  { value: 5, label: "Sexta" },
+  { value: 6, label: "Sábado" },
+];
+
+type AutomationForm = {
+  enabled: boolean;
+  frequency: "daily" | "weekly";
+  dayOfWeek: number;
+  hour: number;
+  minute: number;
+  periodDays: number;
+  email: boolean;
+  whatsapp: boolean;
+};
 
 export default function AdminDashboardsPage() {
   const [dashboards, setDashboards] = useState<any[]>([]);
@@ -38,6 +58,8 @@ export default function AdminDashboardsPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSavingIntegration, setIsSavingIntegration] = useState(false);
   const [runningDispatchByDashboardId, setRunningDispatchByDashboardId] = useState<Record<string, boolean>>({});
+  const [automationForms, setAutomationForms] = useState<Record<string, AutomationForm>>({});
+  const [savingAutomationByDashboardId, setSavingAutomationByDashboardId] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState({
     name: "",
@@ -68,6 +90,23 @@ export default function AdminDashboardsPage() {
       setDashboards(Array.isArray(dashboardsData) ? dashboardsData : []);
       setClients(Array.isArray(clientsData) ? clientsData : []);
       setSources(Array.isArray(sourcesData) ? sourcesData : []);
+      if (Array.isArray(dashboardsData)) {
+        const nextForms: Record<string, AutomationForm> = {};
+        dashboardsData.forEach((d: any) => {
+          const channels = Array.isArray(d.automation_channels) ? d.automation_channels : ["email", "whatsapp"];
+          nextForms[d.id] = {
+            enabled: Boolean(d.automation_enabled),
+            frequency: d.automation_frequency === "daily" ? "daily" : "weekly",
+            dayOfWeek: Number.isInteger(d.automation_day_of_week) ? d.automation_day_of_week : 1,
+            hour: Number.isInteger(d.automation_hour) ? d.automation_hour : 8,
+            minute: Number.isInteger(d.automation_minute) ? d.automation_minute : 0,
+            periodDays: Number.isInteger(d.automation_period_days) ? d.automation_period_days : 7,
+            email: channels.includes("email"),
+            whatsapp: channels.includes("whatsapp"),
+          };
+        });
+        setAutomationForms(nextForms);
+      }
     } catch (error) {
       console.error("Erro ao buscar dados:", error);
     } finally {
@@ -396,7 +435,9 @@ export default function AdminDashboardsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           dashboardId: dashboard.id,
-          channels: ["email", "whatsapp"],
+          channels: Array.isArray(dashboard.automation_channels) && dashboard.automation_channels.length > 0
+            ? dashboard.automation_channels
+            : ["email", "whatsapp"],
         }),
       });
 
@@ -411,6 +452,71 @@ export default function AdminDashboardsPage() {
       alert("Erro ao conectar com o servidor para disparo da automação.");
     } finally {
       setRunningDispatchByDashboardId((prev) => ({ ...prev, [dashboard.id]: false }));
+    }
+  }
+
+  function handleAutomationFieldChange(
+    dashboardId: string,
+    patch: Partial<AutomationForm>
+  ) {
+    setAutomationForms((prev) => ({
+      ...prev,
+      [dashboardId]: {
+        ...(prev[dashboardId] || {
+          enabled: false,
+          frequency: "weekly",
+          dayOfWeek: 1,
+          hour: 8,
+          minute: 0,
+          periodDays: 7,
+          email: true,
+          whatsapp: true,
+        }),
+        ...patch,
+      },
+    }));
+  }
+
+  async function handleSaveAutomation(dashboardId: string) {
+    const form = automationForms[dashboardId];
+    if (!form) return;
+
+    const channels = [
+      ...(form.email ? ["email"] : []),
+      ...(form.whatsapp ? ["whatsapp"] : []),
+    ];
+
+    if (form.enabled && channels.length === 0) {
+      alert("Selecione ao menos um canal para automação.");
+      return;
+    }
+
+    setSavingAutomationByDashboardId((prev) => ({ ...prev, [dashboardId]: true }));
+    try {
+      const response = await fetch(`/api/admin/dashboards/${dashboardId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          automation_enabled: form.enabled,
+          automation_frequency: form.frequency,
+          automation_day_of_week: form.dayOfWeek,
+          automation_hour: form.hour,
+          automation_minute: form.minute,
+          automation_period_days: form.periodDays,
+          automation_channels: channels,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        alert(`Erro ao salvar programação: ${result.error || "erro desconhecido"}`);
+        return;
+      }
+      await fetchData();
+      alert("Programação da automação salva.");
+    } catch {
+      alert("Erro ao salvar programação da automação.");
+    } finally {
+      setSavingAutomationByDashboardId((prev) => ({ ...prev, [dashboardId]: false }));
     }
   }
 
@@ -628,6 +734,157 @@ export default function AdminDashboardsPage() {
                         ))}
                       </div>
                     )}
+                  </div>
+                );
+              })()}
+
+              {(() => {
+                const form = automationForms[d.id] || {
+                  enabled: false,
+                  frequency: "weekly" as const,
+                  dayOfWeek: 1,
+                  hour: 8,
+                  minute: 0,
+                  periodDays: 7,
+                  email: true,
+                  whatsapp: true,
+                };
+
+                return (
+                  <div
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      borderRadius: 8,
+                      border: "1px solid #DBEAFE",
+                      background: "#F8FBFF",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "#1E3A8A" }}>
+                        Programação da automação (n8n)
+                      </p>
+                      <label style={{ fontSize: 12, color: "#334155", display: "flex", alignItems: "center", gap: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={form.enabled}
+                          onChange={(e) => handleAutomationFieldChange(d.id, { enabled: e.target.checked })}
+                        />
+                        Ativar programação
+                      </label>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+                      <label style={{ fontSize: 12, color: "#334155", display: "flex", flexDirection: "column", gap: 4 }}>
+                        Frequência
+                        <select
+                          value={form.frequency}
+                          onChange={(e) => handleAutomationFieldChange(d.id, { frequency: e.target.value as "daily" | "weekly" })}
+                          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13, background: "#fff" }}
+                        >
+                          <option value="weekly">Semanal</option>
+                          <option value="daily">Diária</option>
+                        </select>
+                      </label>
+
+                      {form.frequency === "weekly" && (
+                        <label style={{ fontSize: 12, color: "#334155", display: "flex", flexDirection: "column", gap: 4 }}>
+                          Dia da semana
+                          <select
+                            value={form.dayOfWeek}
+                            onChange={(e) => handleAutomationFieldChange(d.id, { dayOfWeek: Number(e.target.value) })}
+                            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13, background: "#fff" }}
+                          >
+                            {WEEK_DAYS.map((day) => (
+                              <option key={day.value} value={day.value}>{day.label}</option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+
+                      <label style={{ fontSize: 12, color: "#334155", display: "flex", flexDirection: "column", gap: 4 }}>
+                        Hora (0-23)
+                        <input
+                          type="number"
+                          min={0}
+                          max={23}
+                          value={form.hour}
+                          onChange={(e) => handleAutomationFieldChange(d.id, { hour: Number(e.target.value) })}
+                          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13 }}
+                        />
+                      </label>
+
+                      <label style={{ fontSize: 12, color: "#334155", display: "flex", flexDirection: "column", gap: 4 }}>
+                        Minuto (múltiplo de 5)
+                        <input
+                          type="number"
+                          min={0}
+                          max={55}
+                          step={5}
+                          value={form.minute}
+                          onChange={(e) => handleAutomationFieldChange(d.id, { minute: Number(e.target.value) })}
+                          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13 }}
+                        />
+                      </label>
+
+                      <label style={{ fontSize: 12, color: "#334155", display: "flex", flexDirection: "column", gap: 4 }}>
+                        Janela (dias)
+                        <input
+                          type="number"
+                          min={1}
+                          max={90}
+                          value={form.periodDays}
+                          onChange={(e) => handleAutomationFieldChange(d.id, { periodDays: Number(e.target.value) })}
+                          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13 }}
+                        />
+                      </label>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", gap: 12 }}>
+                        <label style={{ fontSize: 12, color: "#334155", display: "flex", alignItems: "center", gap: 6 }}>
+                          <input
+                            type="checkbox"
+                            checked={form.email}
+                            onChange={(e) => handleAutomationFieldChange(d.id, { email: e.target.checked })}
+                          />
+                          E-mail
+                        </label>
+                        <label style={{ fontSize: 12, color: "#334155", display: "flex", alignItems: "center", gap: 6 }}>
+                          <input
+                            type="checkbox"
+                            checked={form.whatsapp}
+                            onChange={(e) => handleAutomationFieldChange(d.id, { whatsapp: e.target.checked })}
+                          />
+                          WhatsApp
+                        </label>
+                      </div>
+
+                      <button
+                        onClick={() => handleSaveAutomation(d.id)}
+                        disabled={Boolean(savingAutomationByDashboardId[d.id])}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          border: "1px solid #BFDBFE",
+                          background: "#EFF6FF",
+                          color: "#1D4ED8",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          opacity: savingAutomationByDashboardId[d.id] ? 0.7 : 1,
+                        }}
+                      >
+                        {savingAutomationByDashboardId[d.id] ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                        Salvar Programação
+                      </button>
+                    </div>
                   </div>
                 );
               })()}

@@ -88,6 +88,14 @@ export const DashboardService = {
       meta_validation_status?: "not_configured" | "ok" | "missing_metrics";
       meta_validation_notes?: Record<string, unknown>;
       meta_validation_updated_at?: string | null;
+      automation_enabled?: boolean;
+      automation_frequency?: "daily" | "weekly";
+      automation_day_of_week?: number;
+      automation_hour?: number;
+      automation_minute?: number;
+      automation_period_days?: number;
+      automation_channels?: string[];
+      automation_last_dispatched_at?: string | null;
     }
   ) {
     const supabase = await createAdminClient()

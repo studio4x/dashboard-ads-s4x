@@ -15,6 +15,7 @@ type DispatchBody = {
   };
   shareLinkId?: string;
   dryRun?: boolean;
+  source?: "manual" | "scheduled";
 };
 
 type ResolvedRecipients = {
@@ -150,6 +151,15 @@ function resolveRecipients(params: { client: any; manual?: DispatchBody["recipie
     emails: mergeUnique(clientEmails, manualEmails, normalizeEmail),
     phones: mergeUnique(clientPhones, manualPhones, normalizePhone),
   };
+}
+
+function normalizeChannels(value: unknown): string[] {
+  const allowed = new Set(["email", "whatsapp"]);
+  if (!Array.isArray(value)) return [];
+  const channels = value
+    .map((item) => String(item || "").trim().toLowerCase())
+    .filter((item) => allowed.has(item));
+  return Array.from(new Set(channels));
 }
 
 async function getProjectEnvVarFromVercel(key: string) {
@@ -567,8 +577,13 @@ async function getShareUrl(dashboardId: string, origin: string, shareLinkId?: st
 
 export async function POST(request: Request) {
   try {
-    const authError = await requireAdmin();
-    if (authError) return authError;
+    const authHeader = request.headers.get("authorization");
+    const isCronAuthorized =
+      Boolean(process.env.CRON_SECRET) && authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    if (!isCronAuthorized) {
+      const authError = await requireAdmin();
+      if (authError) return authError;
+    }
 
     const body = (await request.json()) as DispatchBody;
     const dashboardId = String(body.dashboardId || "").trim();
@@ -598,6 +613,9 @@ export async function POST(request: Request) {
     const origin = new URL(request.url).origin;
     const shareUrl = await getShareUrl(dashboardId, origin, body.shareLinkId);
 
+    const channels = normalizeChannels(body.channels);
+    const defaultChannels = normalizeChannels(dashboard.automation_channels);
+
     const payload = {
       event: "dashboard_report_dispatch",
       dispatchedAt: new Date().toISOString(),
@@ -612,7 +630,7 @@ export async function POST(request: Request) {
         from: body.from || null,
         to: body.to || null,
       },
-      channels: body.channels || ["email", "whatsapp"],
+      channels: channels.length > 0 ? channels : (defaultChannels.length > 0 ? defaultChannels : ["email", "whatsapp"]),
       recipients: resolveRecipients({
         client: dashboard.clients,
         manual: body.recipients,
