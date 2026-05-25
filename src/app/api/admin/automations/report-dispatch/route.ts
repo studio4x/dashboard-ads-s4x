@@ -16,6 +16,7 @@ type DispatchBody = {
   shareLinkId?: string;
   dryRun?: boolean;
   source?: "manual" | "scheduled";
+  reportMode?: "analysis_only" | "metrics_only" | "both";
 };
 
 type ResolvedRecipients = {
@@ -26,6 +27,7 @@ type ResolvedRecipients = {
 const WEBHOOK_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_URL";
 const TOKEN_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_TOKEN";
 const OPENAI_ENV_KEY = "OPENAI_API_KEY";
+const GEMINI_ENV_KEY = "GEMINI_API_KEY";
 const MAX_SERIES_POINTS = 90;
 const MAX_TOP_ITEMS = 7;
 const MAX_INSIGHTS = 10;
@@ -228,10 +230,12 @@ async function resolveOpenAiApiKey() {
 
 type AiInterpretationResult = {
   enabled: boolean;
+  provider: "openai" | "gemini" | null;
   model: string | null;
   generated: boolean;
   text: string | null;
   error?: string;
+  fallbackUsed?: boolean;
 };
 
 async function generateAiInterpretation(params: {
@@ -241,18 +245,10 @@ async function generateAiInterpretation(params: {
   periodFrom: string | null;
   periodTo: string | null;
 }): Promise<AiInterpretationResult> {
-  const apiKey = await resolveOpenAiApiKey();
-  if (!apiKey) {
-    return {
-      enabled: false,
-      model: null,
-      generated: false,
-      text: null,
-      error: "OPENAI_API_KEY não configurada.",
-    };
-  }
-
-  const model = process.env.OPENAI_REPORT_MODEL || "gpt-4.1-mini";
+  const openAiApiKey = await resolveOpenAiApiKey();
+  const geminiApiKey = await resolveGeminiApiKey();
+  const openAiModel = process.env.OPENAI_REPORT_MODEL || "gpt-4.1-mini";
+  const geminiModel = process.env.GEMINI_REPORT_MODEL || "gemini-2.0-flash-lite";
   const inputContext = {
     dashboard: params.dashboardName,
     client: params.clientName,
@@ -276,16 +272,80 @@ async function generateAiInterpretation(params: {
     `DADOS: ${JSON.stringify(inputContext)}`,
   ].join("\n");
 
+  if (!openAiApiKey && !geminiApiKey) {
+    return {
+      enabled: false,
+      provider: null,
+      model: null,
+      generated: false,
+      text: null,
+      error: "OPENAI_API_KEY e GEMINI_API_KEY não configuradas.",
+      fallbackUsed: false,
+    };
+  }
+
+  let openAiError: string | null = null;
+  if (openAiApiKey) {
+    try {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openAiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: openAiModel,
+          input: prompt,
+        }),
+      });
+
+      if (!response.ok) {
+        const raw = await response.text();
+        openAiError = `Falha OpenAI (${response.status}): ${raw.slice(0, 300)}`;
+      } else {
+        const json = await response.json();
+        const text = String(json?.output_text || "").trim();
+        if (text) {
+          return {
+            enabled: true,
+            provider: "openai",
+            model: openAiModel,
+            generated: true,
+            text,
+            fallbackUsed: false,
+          };
+        }
+        openAiError = "Resposta da OpenAI sem texto.";
+      }
+    } catch (error: any) {
+      openAiError = error?.message || "Erro inesperado na chamada OpenAI.";
+    }
+  }
+
+  if (!geminiApiKey) {
+    return {
+      enabled: true,
+      provider: "openai",
+      model: openAiModel,
+      generated: false,
+      text: null,
+      error: openAiError || "OpenAI indisponível e GEMINI_API_KEY não configurada.",
+      fallbackUsed: false,
+    };
+  }
+
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${encodeURIComponent(geminiApiKey)}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model,
-        input: prompt,
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
       }),
     });
 
@@ -293,40 +353,66 @@ async function generateAiInterpretation(params: {
       const raw = await response.text();
       return {
         enabled: true,
-        model,
+        provider: "gemini",
+        model: geminiModel,
         generated: false,
         text: null,
-        error: `Falha OpenAI (${response.status}): ${raw.slice(0, 300)}`,
+        error: `Falha Gemini (${response.status}): ${raw.slice(0, 300)}${openAiError ? ` | OpenAI: ${openAiError}` : ""}`,
+        fallbackUsed: true,
       };
     }
 
     const json = await response.json();
-    const text = String(json?.output_text || "").trim();
+    const text = String(
+      json?.candidates?.[0]?.content?.parts?.[0]?.text || ""
+    ).trim();
     if (!text) {
       return {
         enabled: true,
-        model,
+        provider: "gemini",
+        model: geminiModel,
         generated: false,
         text: null,
-        error: "Resposta da OpenAI sem texto.",
+        error: `Resposta do Gemini sem texto.${openAiError ? ` OpenAI: ${openAiError}` : ""}`,
+        fallbackUsed: true,
       };
     }
 
     return {
       enabled: true,
-      model,
+      provider: "gemini",
+      model: geminiModel,
       generated: true,
       text,
+      fallbackUsed: true,
     };
   } catch (error: any) {
     return {
       enabled: true,
-      model,
+      provider: "gemini",
+      model: geminiModel,
       generated: false,
       text: null,
-      error: error?.message || "Erro inesperado na geração de interpretação por IA.",
+      error: `${error?.message || "Erro inesperado no Gemini."}${openAiError ? ` | OpenAI: ${openAiError}` : ""}`,
+      fallbackUsed: true,
     };
   }
+}
+
+async function resolveGeminiApiKey() {
+  const fromVercel = String((await getProjectEnvVarFromVercel(GEMINI_ENV_KEY)) || "").trim();
+  if (fromVercel && !isPlaceholderCredential(fromVercel)) return fromVercel;
+
+  const fromRuntime = String(process.env.GEMINI_API_KEY || "").trim();
+  if (fromRuntime && !isPlaceholderCredential(fromRuntime)) return fromRuntime;
+
+  return "";
+}
+
+function normalizeReportMode(value: unknown): "analysis_only" | "metrics_only" | "both" {
+  const str = String(value || "").trim().toLowerCase();
+  if (str === "analysis_only" || str === "metrics_only" || str === "both") return str;
+  return "both";
 }
 
 function toFiniteNumber(value: unknown) {
@@ -729,14 +815,32 @@ export async function POST(request: Request) {
 
     const channels = normalizeChannels(body.channels);
 
+    const reportMode = normalizeReportMode(body.reportMode || dashboard.automation_report_mode);
     const report = getReportMetrics(data);
-    const aiInterpretation = await generateAiInterpretation({
-      report,
-      dashboardName: dashboard.name,
-      clientName: dashboard.clients?.name || null,
-      periodFrom: body.from || null,
-      periodTo: body.to || null,
-    });
+    const aiInterpretation = reportMode !== "metrics_only"
+      ? await generateAiInterpretation({
+          report,
+          dashboardName: dashboard.name,
+          clientName: dashboard.clients?.name || null,
+          periodFrom: body.from || null,
+          periodTo: body.to || null,
+        })
+      : {
+          enabled: false,
+          provider: null,
+          model: null,
+          generated: false,
+          text: null,
+          error: "Interpretação desativada pelo modo metrics_only.",
+          fallbackUsed: false,
+        };
+
+    const reportPayload =
+      reportMode === "analysis_only"
+        ? { aiInterpretation }
+        : reportMode === "metrics_only"
+          ? report
+          : { ...report, aiInterpretation };
 
     const payload = {
       event: "dashboard_report_dispatch",
@@ -760,10 +864,8 @@ export async function POST(request: Request) {
       share: {
         url: shareUrl,
       },
-      report: {
-        ...report,
-        aiInterpretation,
-      },
+      reportMode,
+      report: reportPayload,
       pdf: {
         mode: "client_side_export",
         available: false,
