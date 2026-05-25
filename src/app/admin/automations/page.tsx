@@ -86,6 +86,7 @@ export default function AdminAutomationsPage() {
   const [dashboardId, setDashboardId] = useState("");
   const [testFrom, setTestFrom] = useState("");
   const [testTo, setTestTo] = useState("");
+  const [testReportMode, setTestReportMode] = useState<"analysis_only" | "metrics_only" | "both">("both");
   const [isTesting, setIsTesting] = useState(false);
   const [testResponse, setTestResponse] = useState("");
 
@@ -189,10 +190,10 @@ export default function AdminAutomationsPage() {
       const payload: Record<string, unknown> = {
         dashboardId,
         dryRun,
+        reportMode: testReportMode,
       };
       if (testFrom) payload.from = testFrom;
       if (testTo) payload.to = testTo;
-      if (!dryRun) payload.channels = ["email", "whatsapp"];
 
       const res = await fetch("/api/admin/automations/report-dispatch", {
         method: "POST",
@@ -237,6 +238,7 @@ export default function AdminAutomationsPage() {
             emails: ["cliente@empresa.com"],
             phones: ["5511999999999"],
           },
+          reportMode: "both",
           from: "2026-05-01",
           to: "2026-05-31",
         },
@@ -252,6 +254,7 @@ export default function AdminAutomationsPage() {
         {
           dashboardId: "UUID_DO_DASHBOARD",
           dryRun: true,
+          reportMode: "analysis_only",
         },
         null,
         2
@@ -279,7 +282,7 @@ export default function AdminAutomationsPage() {
   -H "Cookie: <sessao_admin>" \\
   -d '{
     "dashboardId": "UUID_DO_DASHBOARD",
-    "channels": ["email","whatsapp"],
+    "reportMode": "both",
     "recipients": {
       "emails": ["cliente@empresa.com"],
       "phones": ["5511999999999"]
@@ -473,6 +476,18 @@ export default function AdminAutomationsPage() {
                 onChange={(e) => setTestTo(e.target.value)}
                 style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
               />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Conteúdo do payload</label>
+              <select
+                value={testReportMode}
+                onChange={(e) => setTestReportMode(e.target.value as "analysis_only" | "metrics_only" | "both")}
+                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "white" }}
+              >
+                <option value="both">Métricas + Análise</option>
+                <option value="analysis_only">Somente Análise</option>
+                <option value="metrics_only">Somente Métricas</option>
+              </select>
             </div>
           </div>
 

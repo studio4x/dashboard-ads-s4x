@@ -30,6 +30,7 @@ type AutomationForm = {
   hour: number;
   minute: number;
   periodDays: number;
+  reportMode: "analysis_only" | "metrics_only" | "both";
 };
 
 export default function AdminDashboardsPage() {
@@ -98,6 +99,9 @@ export default function AdminDashboardsPage() {
             hour: Number.isInteger(d.automation_hour) ? d.automation_hour : 8,
             minute: Number.isInteger(d.automation_minute) ? d.automation_minute : 0,
             periodDays: Number.isInteger(d.automation_period_days) ? d.automation_period_days : 7,
+            reportMode: ["analysis_only", "metrics_only", "both"].includes(String(d.automation_report_mode))
+              ? d.automation_report_mode
+              : "both",
           };
         });
         setAutomationForms(nextForms);
@@ -430,6 +434,7 @@ export default function AdminDashboardsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           dashboardId: dashboard.id,
+          reportMode: automationForms[dashboard.id]?.reportMode || "both",
         }),
       });
 
@@ -461,6 +466,7 @@ export default function AdminDashboardsPage() {
           hour: 8,
           minute: 0,
           periodDays: 7,
+          reportMode: "both",
         }),
         ...patch,
       },
@@ -483,6 +489,7 @@ export default function AdminDashboardsPage() {
           automation_hour: form.hour,
           automation_minute: form.minute,
           automation_period_days: form.periodDays,
+          automation_report_mode: form.reportMode,
         }),
       });
       const result = await response.json();
@@ -725,6 +732,7 @@ export default function AdminDashboardsPage() {
                   hour: 8,
                   minute: 0,
                   periodDays: 7,
+                  reportMode: "both",
                 };
 
                 return (
@@ -817,6 +825,19 @@ export default function AdminDashboardsPage() {
                           onChange={(e) => handleAutomationFieldChange(d.id, { periodDays: Number(e.target.value) })}
                           style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13 }}
                         />
+                      </label>
+
+                      <label style={{ fontSize: 12, color: "#334155", display: "flex", flexDirection: "column", gap: 4 }}>
+                        Conteúdo do payload
+                        <select
+                          value={form.reportMode}
+                          onChange={(e) => handleAutomationFieldChange(d.id, { reportMode: e.target.value as "analysis_only" | "metrics_only" | "both" })}
+                          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13, background: "#fff" }}
+                        >
+                          <option value="both">Métricas + Análise</option>
+                          <option value="analysis_only">Somente Análise</option>
+                          <option value="metrics_only">Somente Métricas</option>
+                        </select>
                       </label>
                     </div>
 

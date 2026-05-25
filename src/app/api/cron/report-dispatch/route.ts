@@ -63,7 +63,7 @@ async function handleCron(request: Request) {
     const supabase = await createAdminClient();
     const { data: dashboards, error } = await supabase
       .from("dashboards")
-      .select("id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_last_dispatched_at")
+      .select("id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_report_mode, automation_last_dispatched_at")
       .eq("status", "active")
       .eq("automation_enabled", true);
 
@@ -118,6 +118,7 @@ async function handleCron(request: Request) {
             from: fromIso,
             to: toIso,
             source: "scheduled",
+            reportMode: dashboard.automation_report_mode || "both",
           }),
         });
 
