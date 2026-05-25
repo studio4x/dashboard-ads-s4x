@@ -38,7 +38,7 @@ Para cada métrica, informe:
 # REGRAS IMPORTANTES
 
 1. Não crie métricas que não existam no conteúdo recebido.
-2. Se uma métrica obrigatória não estiver disponível no texto do dashboard, exiba a métrica mesmo assim e informe: "Não disponível no dashboard".
+2. Se uma métrica obrigatória não estiver disponível no texto do dashboard, exiba a métrica mesmo assim e informe: "Não disponível".
 3. Sempre que houver variação percentual no conteúdo, utilize exatamente a variação informada.
 4. Se o dashboard informar apenas o valor atual e a variação percentual, mas não informar o valor anterior, exiba apenas o valor atual e a variação.
 5. Não invente valores anteriores.
