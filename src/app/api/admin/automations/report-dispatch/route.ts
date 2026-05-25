@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 import { DashboardService } from "@/services/dashboard-service";
@@ -19,6 +18,7 @@ type DispatchBody = {
 };
 
 const WEBHOOK_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_URL";
+const TOKEN_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_TOKEN";
 
 function isPlaceholderWebhook(value: string) {
   return (
@@ -81,7 +81,7 @@ function getErrorDetails(error: unknown) {
   };
 }
 
-async function getWebhookUrlFromVercelEnv() {
+async function getProjectEnvVarFromVercel(key: string) {
   const projectId = process.env.VERCEL_PROJECT_ID;
   const token = process.env.VERCEL_TOKEN;
   if (!projectId || !token) return null;
@@ -98,7 +98,7 @@ async function getWebhookUrlFromVercelEnv() {
     if (!response.ok) return null;
     const json = await response.json();
     const envs = Array.isArray(json?.envs) ? json.envs : [];
-    const hit = envs.find((item: any) => item?.key === WEBHOOK_ENV_KEY);
+    const hit = envs.find((item: any) => item?.key === key);
     const value = String(hit?.value || "").trim();
     return value || null;
   } catch {
@@ -107,7 +107,7 @@ async function getWebhookUrlFromVercelEnv() {
 }
 
 async function resolveWebhookUrl() {
-  const fromVercel = String((await getWebhookUrlFromVercelEnv()) || "").trim();
+  const fromVercel = String((await getProjectEnvVarFromVercel(WEBHOOK_ENV_KEY)) || "").trim();
   if (!isPlaceholderWebhook(fromVercel) && isValidWebhookUrl(fromVercel)) {
     return { url: fromVercel, source: "vercel_api" as const };
   }
@@ -118,6 +118,20 @@ async function resolveWebhookUrl() {
   }
 
   return { url: "", source: "none" as const };
+}
+
+async function resolveWebhookToken() {
+  const fromVercel = String((await getProjectEnvVarFromVercel(TOKEN_ENV_KEY)) || "").trim();
+  if (!isPlaceholderCredential(fromVercel)) {
+    return fromVercel;
+  }
+
+  const fromRuntime = String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_TOKEN || "").trim();
+  if (!isPlaceholderCredential(fromRuntime)) {
+    return fromRuntime;
+  }
+
+  return "";
 }
 
 function toFiniteNumber(value: unknown) {
@@ -579,19 +593,12 @@ export async function POST(request: Request) {
       "X-S4X-Dashboard-Id": dashboardId,
     };
 
-    const webhookTokenRaw = String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_TOKEN || "").trim();
-    const webhookToken = isPlaceholderCredential(webhookTokenRaw) ? "" : webhookTokenRaw;
+    const webhookToken = await resolveWebhookToken();
     if (webhookToken) {
       headers.Authorization = `Bearer ${webhookToken}`;
     }
 
-    const webhookSecretRaw = String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_SECRET || "").trim();
-    const webhookSecret = isPlaceholderCredential(webhookSecretRaw) ? "" : webhookSecretRaw;
     const payloadJson = JSON.stringify(payload);
-    if (webhookSecret) {
-      const signature = crypto.createHmac("sha256", webhookSecret).update(payloadJson).digest("hex");
-      headers["X-S4X-Signature"] = signature;
-    }
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
@@ -647,7 +654,7 @@ export async function POST(request: Request) {
       n8nResponse: parsed,
       security: {
         bearerTokenSent: Boolean(webhookToken),
-        hmacSignatureSent: Boolean(webhookSecret),
+        hmacSignatureSent: false,
       },
       dispatchedAt: payload.dispatchedAt,
       dashboardId,

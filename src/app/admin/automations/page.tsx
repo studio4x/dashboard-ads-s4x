@@ -265,8 +265,7 @@ export default function AdminAutomationsPage() {
         {
           "X-S4X-Event": "dashboard_report_dispatch",
           "X-S4X-Dashboard-Id": "uuid-do-dashboard",
-          Authorization: "Bearer <N8N_REPORT_DISPATCH_WEBHOOK_TOKEN> (se configurado)",
-          "X-S4X-Signature": "<hmac_sha256_hex> (se N8N_REPORT_DISPATCH_WEBHOOK_SECRET configurado)",
+          Authorization: "Bearer <N8N_REPORT_DISPATCH_WEBHOOK_TOKEN>",
         },
         null,
         2
@@ -297,7 +296,6 @@ export default function AdminAutomationsPage() {
         "Crie um workflow com nó Webhook (POST).",
         "Copie a URL do Webhook e configure na variável N8N_REPORT_DISPATCH_WEBHOOK_URL no Vercel.",
         "Defina um token real em N8N_REPORT_DISPATCH_WEBHOOK_TOKEN e valide o header Authorization no n8n.",
-        "Defina um secret real em N8N_REPORT_DISPATCH_WEBHOOK_SECRET e valide X-S4X-Signature (HMAC SHA-256).",
         "Use IA com report.summary, report.comparativo, report.funil, report.topItems, report.series e report.insights.",
         "Envie por e-mail e WhatsApp no fim do fluxo.",
       ].join("\n"),
