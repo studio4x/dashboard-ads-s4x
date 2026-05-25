@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Globe, Plus, Building2, X, Loader2, Save, Trash2, AlertTriangle } from "lucide-react";
+import { Globe, Plus, Building2, X, Loader2, Save, Trash2, AlertTriangle, Phone, Mail } from "lucide-react";
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [contactTarget, setContactTarget] = useState<any | null>(null);
+  const [isSavingContact, setIsSavingContact] = useState(false);
 
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
@@ -19,6 +21,16 @@ export default function ClientsPage() {
     company_name: "",
     website_url: "",
     primary_color: "#2563EB",
+    email: "",
+    emails: "",
+    whatsapp: "",
+    phones: "",
+  });
+  const [contactForm, setContactForm] = useState({
+    email: "",
+    emails: "",
+    whatsapp: "",
+    phones: "",
   });
 
   useEffect(() => { fetchClients(); }, []);
@@ -49,7 +61,16 @@ export default function ClientsPage() {
       if (!result.success) { alert("Erro: " + result.error); return; }
 
       setIsModalOpen(false);
-      setFormData({ name: "", company_name: "", website_url: "", primary_color: "#2563EB" });
+      setFormData({
+        name: "",
+        company_name: "",
+        website_url: "",
+        primary_color: "#2563EB",
+        email: "",
+        emails: "",
+        whatsapp: "",
+        phones: "",
+      });
       fetchClients();
     } catch {
       alert("Erro ao conectar com o servidor.");
@@ -74,6 +95,40 @@ export default function ClientsPage() {
       alert("Erro ao conectar com o servidor.");
     } finally {
       setIsDeleting(false);
+    }
+  }
+
+  function openContactModal(client: any) {
+    setContactTarget(client);
+    setContactForm({
+      email: client?.email || "",
+      emails: client?.emails || "",
+      whatsapp: client?.whatsapp || "",
+      phones: client?.phones || client?.phone || "",
+    });
+  }
+
+  async function handleSaveContact(e: React.FormEvent) {
+    e.preventDefault();
+    if (!contactTarget) return;
+    setIsSavingContact(true);
+    try {
+      const res = await fetch(`/api/admin/clients/${contactTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contactForm),
+      });
+      const result = await res.json();
+      if (!result?.success) {
+        alert("Erro ao salvar contatos: " + (result?.error || "Falha desconhecida"));
+        return;
+      }
+      setContactTarget(null);
+      fetchClients();
+    } catch {
+      alert("Erro ao conectar com o servidor.");
+    } finally {
+      setIsSavingContact(false);
     }
   }
 
@@ -136,6 +191,16 @@ export default function ClientsPage() {
                   <span style={{ fontSize: 12, color: "#64748B", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4 }}>
                     <strong>{client.sources_count}</strong> {client.sources_count === 1 ? "fonte conectada" : "fontes conectadas"}
                   </span>
+                  {(client.email || client.emails) && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "#475569", background: "#F8FAFC", padding: "2px 6px", borderRadius: 4 }}>
+                      <Mail size={11} /> contato cadastrado
+                    </span>
+                  )}
+                  {(client.whatsapp || client.phone || client.phones) && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "#475569", background: "#F8FAFC", padding: "2px 6px", borderRadius: 4 }}>
+                      <Phone size={11} /> telefone cadastrado
+                    </span>
+                  )}
                   {client.website_url && (
                     <>
                       <span style={{ fontSize: 12, color: "#94A3B8" }}>•</span>
@@ -152,6 +217,14 @@ export default function ClientsPage() {
                 <Link href={`/admin/clients/${client.id}`} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8, background: "#EFF6FF", fontSize: 13, color: "#2563EB", textDecoration: "none", fontWeight: 500 }}>
                   Abrir
                 </Link>
+                <button
+                  onClick={() => openContactModal(client)}
+                  title="Editar contatos"
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 10px", borderRadius: 8, background: "#EFF6FF", border: "1px solid #DBEAFE", color: "#1D4ED8", cursor: "pointer", fontWeight: 500 }}
+                >
+                  <Phone size={14} />
+                  Contatos
+                </button>
                 <button
                   onClick={() => setDeleteTarget(client)}
                   title="Excluir cliente"
@@ -191,6 +264,28 @@ export default function ClientsPage() {
                 <input value={formData.website_url} onChange={e => setFormData({ ...formData, website_url: e.target.value })} placeholder="https://exemplo.com.br" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
               </div>
 
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>E-mail principal</label>
+                  <input value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="contato@cliente.com" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>WhatsApp principal</label>
+                  <input value={formData.whatsapp} onChange={e => setFormData({ ...formData, whatsapp: e.target.value })} placeholder="5511999999999" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>E-mails adicionais</label>
+                  <input value={formData.emails} onChange={e => setFormData({ ...formData, emails: e.target.value })} placeholder="financeiro@...; marketing@..." style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Telefones adicionais</label>
+                  <input value={formData.phones} onChange={e => setFormData({ ...formData, phones: e.target.value })} placeholder="5511888888888; 5511777777777" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
+                </div>
+              </div>
+
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Cor Primária (Branding)</label>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -203,6 +298,49 @@ export default function ClientsPage() {
                 <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: "12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>Cancelar</button>
                 <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: "12px", borderRadius: 8, border: "none", background: "#2563EB", color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                   {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> Salvar Cliente</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────── Modal: Editar Contatos ──────────── */}
+      {contactTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div className="card" style={{ width: "100%", maxWidth: 560, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Contatos para Automação • {contactTarget.name}</h2>
+              <button onClick={() => setContactTarget(null)} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveContact} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>E-mail principal</label>
+                  <input value={contactForm.email} onChange={e => setContactForm({ ...contactForm, email: e.target.value })} placeholder="contato@cliente.com" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>WhatsApp principal</label>
+                  <input value={contactForm.whatsapp} onChange={e => setContactForm({ ...contactForm, whatsapp: e.target.value })} placeholder="5511999999999" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>E-mails adicionais</label>
+                  <input value={contactForm.emails} onChange={e => setContactForm({ ...contactForm, emails: e.target.value })} placeholder="financeiro@...; marketing@..." style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Telefones adicionais</label>
+                  <input value={contactForm.phones} onChange={e => setContactForm({ ...contactForm, phones: e.target.value })} placeholder="5511888888888; 5511777777777" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                <button type="button" onClick={() => setContactTarget(null)} style={{ flex: 1, padding: "12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>Cancelar</button>
+                <button type="submit" disabled={isSavingContact} style={{ flex: 1, padding: "12px", borderRadius: 8, border: "none", background: "#2563EB", color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  {isSavingContact ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> Salvar Contatos</>}
                 </button>
               </div>
             </form>

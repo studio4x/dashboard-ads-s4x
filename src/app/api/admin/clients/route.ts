@@ -20,7 +20,17 @@ export async function POST(request: Request) {
     if (authError) return authError;
 
     const body = await request.json();
-    const { name, company_name, website_url, primary_color } = body;
+    const {
+      name,
+      company_name,
+      website_url,
+      primary_color,
+      email,
+      emails,
+      phone,
+      phones,
+      whatsapp,
+    } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Nome é obrigatório" }, { status: 400 });
@@ -31,6 +41,11 @@ export async function POST(request: Request) {
       company_name,
       website_url,
       primary_color,
+      email,
+      emails,
+      phone,
+      phones,
+      whatsapp,
       status: 'active'
     });
 
