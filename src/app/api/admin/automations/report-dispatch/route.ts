@@ -96,14 +96,14 @@ async function getWebhookUrlFromVercelEnv() {
 }
 
 async function resolveWebhookUrl() {
-  const fromRuntime = String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim();
-  if (!isPlaceholderWebhook(fromRuntime) && isValidWebhookUrl(fromRuntime)) {
-    return { url: fromRuntime, source: "runtime_env" as const };
-  }
-
   const fromVercel = String((await getWebhookUrlFromVercelEnv()) || "").trim();
   if (!isPlaceholderWebhook(fromVercel) && isValidWebhookUrl(fromVercel)) {
     return { url: fromVercel, source: "vercel_api" as const };
+  }
+
+  const fromRuntime = String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim();
+  if (!isPlaceholderWebhook(fromRuntime) && isValidWebhookUrl(fromRuntime)) {
+    return { url: fromRuntime, source: "runtime_env" as const };
   }
 
   return { url: "", source: "none" as const };
