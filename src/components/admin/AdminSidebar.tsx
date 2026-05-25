@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Building2, PieChart, Database,
   FileSpreadsheet, LayoutTemplate, ScrollText, Settings,
-  ChevronRight, BarChart3, X,
+  ChevronRight, BarChart3, X, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
@@ -13,13 +13,14 @@ import { logout } from "@/app/login/actions";
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Building2, PieChart, Database,
-  FileSpreadsheet, LayoutTemplate, ScrollText, Settings,
+  FileSpreadsheet, LayoutTemplate, ScrollText, Settings, Send,
 };
 
 const navItems = [
   { href: "/admin", label: "Visão Geral", icon: "LayoutDashboard", exact: true },
   { href: "/admin/clients", label: "Clientes", icon: "Building2" },
   { href: "/admin/dashboards", label: "Dashboards", icon: "PieChart" },
+  { href: "/admin/automations", label: "Automações", icon: "Send" },
   { href: "/admin/data-sources", label: "Fontes de Dados", icon: "Database" },
   { href: "/admin/google-sheets", label: "Google Sheets", icon: "FileSpreadsheet" },
   { href: "/admin/templates", label: "Templates", icon: "LayoutTemplate" },
