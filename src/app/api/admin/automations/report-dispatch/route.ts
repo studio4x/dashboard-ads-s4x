@@ -46,6 +46,15 @@ function maskUrl(url: string) {
   }
 }
 
+function isTestWebhookUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname.includes("/webhook-test/");
+  } catch {
+    return false;
+  }
+}
+
 function getErrorDetails(error: unknown) {
   const err = error as any;
   return {
@@ -223,6 +232,18 @@ export async function POST(request: Request) {
             runtimeValueConfigured: !isPlaceholderWebhook(String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim()),
           },
           payloadPreview: payload,
+        },
+        { status: 400 }
+      );
+    }
+    if (isTestWebhookUrl(webhookUrl)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Webhook de teste detectado (/webhook-test). Para disparo real use a URL de produção do n8n (/webhook/...).",
+          webhookUrl: maskUrl(webhookUrl),
+          resolutionSource: resolvedWebhook.source,
         },
         { status: 400 }
       );
