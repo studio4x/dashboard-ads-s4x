@@ -25,6 +25,7 @@ type ResolvedRecipients = {
 
 const WEBHOOK_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_URL";
 const TOKEN_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_TOKEN";
+const OPENAI_ENV_KEY = "OPENAI_API_KEY";
 const MAX_SERIES_POINTS = 90;
 const MAX_TOP_ITEMS = 7;
 const MAX_INSIGHTS = 10;
@@ -213,6 +214,119 @@ async function resolveWebhookToken() {
   }
 
   return "";
+}
+
+async function resolveOpenAiApiKey() {
+  const fromVercel = String((await getProjectEnvVarFromVercel(OPENAI_ENV_KEY)) || "").trim();
+  if (fromVercel && !isPlaceholderCredential(fromVercel)) return fromVercel;
+
+  const fromRuntime = String(process.env.OPENAI_API_KEY || "").trim();
+  if (fromRuntime && !isPlaceholderCredential(fromRuntime)) return fromRuntime;
+
+  return "";
+}
+
+type AiInterpretationResult = {
+  enabled: boolean;
+  model: string | null;
+  generated: boolean;
+  text: string | null;
+  error?: string;
+};
+
+async function generateAiInterpretation(params: {
+  report: any;
+  dashboardName: string;
+  clientName: string | null;
+  periodFrom: string | null;
+  periodTo: string | null;
+}): Promise<AiInterpretationResult> {
+  const apiKey = await resolveOpenAiApiKey();
+  if (!apiKey) {
+    return {
+      enabled: false,
+      model: null,
+      generated: false,
+      text: null,
+      error: "OPENAI_API_KEY não configurada.",
+    };
+  }
+
+  const model = process.env.OPENAI_REPORT_MODEL || "gpt-4.1-mini";
+  const inputContext = {
+    dashboard: params.dashboardName,
+    client: params.clientName,
+    period: { from: params.periodFrom, to: params.periodTo },
+    summary: params.report?.summary || {},
+    comparativo: params.report?.comparativo || {},
+    funil: params.report?.funil || {},
+    topItems: params.report?.topItems || {},
+    insights: Array.isArray(params.report?.insights) ? params.report.insights.slice(0, 5) : [],
+  };
+
+  const prompt = [
+    "Você é um analista de mídia de performance.",
+    "Gere uma interpretação objetiva em pt-BR com no máximo 900 caracteres.",
+    "Formato obrigatório:",
+    "1) Resumo executivo (2 frases).",
+    "2) O que piorou/melhorou (até 3 bullets).",
+    "3) Próximas ações (até 3 bullets acionáveis).",
+    "Não invente dados; use apenas as métricas fornecidas.",
+    "",
+    `DADOS: ${JSON.stringify(inputContext)}`,
+  ].join("\n");
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        input: prompt,
+      }),
+    });
+
+    if (!response.ok) {
+      const raw = await response.text();
+      return {
+        enabled: true,
+        model,
+        generated: false,
+        text: null,
+        error: `Falha OpenAI (${response.status}): ${raw.slice(0, 300)}`,
+      };
+    }
+
+    const json = await response.json();
+    const text = String(json?.output_text || "").trim();
+    if (!text) {
+      return {
+        enabled: true,
+        model,
+        generated: false,
+        text: null,
+        error: "Resposta da OpenAI sem texto.",
+      };
+    }
+
+    return {
+      enabled: true,
+      model,
+      generated: true,
+      text,
+    };
+  } catch (error: any) {
+    return {
+      enabled: true,
+      model,
+      generated: false,
+      text: null,
+      error: error?.message || "Erro inesperado na geração de interpretação por IA.",
+    };
+  }
 }
 
 function toFiniteNumber(value: unknown) {
@@ -615,6 +729,15 @@ export async function POST(request: Request) {
 
     const channels = normalizeChannels(body.channels);
 
+    const report = getReportMetrics(data);
+    const aiInterpretation = await generateAiInterpretation({
+      report,
+      dashboardName: dashboard.name,
+      clientName: dashboard.clients?.name || null,
+      periodFrom: body.from || null,
+      periodTo: body.to || null,
+    });
+
     const payload = {
       event: "dashboard_report_dispatch",
       dispatchedAt: new Date().toISOString(),
@@ -637,7 +760,10 @@ export async function POST(request: Request) {
       share: {
         url: shareUrl,
       },
-      report: getReportMetrics(data),
+      report: {
+        ...report,
+        aiInterpretation,
+      },
       pdf: {
         mode: "client_side_export",
         available: false,
