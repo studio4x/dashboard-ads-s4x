@@ -3,6 +3,8 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 import { DashboardService } from "@/services/dashboard-service";
 import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 
 type DispatchBody = {
   dashboardId?: string;
@@ -31,6 +33,7 @@ const GEMINI_ENV_KEY = "GEMINI_API_KEY";
 const MAX_SERIES_POINTS = 90;
 const MAX_TOP_ITEMS = 7;
 const MAX_INSIGHTS = 10;
+let promptTemplateCache: string | null = null;
 
 function isPlaceholderWebhook(value: string) {
   return (
@@ -238,6 +241,53 @@ type AiInterpretationResult = {
   fallbackUsed?: boolean;
 };
 
+async function loadAnalysisPromptTemplate() {
+  if (promptTemplateCache) return promptTemplateCache;
+  const promptPath = path.join(process.cwd(), "docs", "prompt-analise-ia.md");
+  promptTemplateCache = await readFile(promptPath, "utf-8");
+  return promptTemplateCache;
+}
+
+function formatPercent(value: unknown) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "Não disponível";
+  return `${num.toFixed(2).replace(".", ",")}%`;
+}
+
+function formatNumber(value: unknown) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "Não disponível";
+  return num.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+}
+
+function formatCurrency(value: unknown) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "Não disponível";
+  return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function buildDashboardTextForPrompt(report: any) {
+  const atual = report?.comparativo?.atual || {};
+  const anterior = report?.comparativo?.anterior || {};
+  const variacao = report?.comparativo?.variacaoPercentual || {};
+  const camp = report?.totaisNumericos?.campaigns || {};
+
+  const lines = [
+    `Impressões | Semana atual: ${formatNumber(atual.impressoes)} | Semana anterior: ${formatNumber(anterior.impressoes)} | Variação: ${formatPercent(variacao.impressoes)}`,
+    `Cliques | Semana atual: ${formatNumber(atual.cliques)} | Semana anterior: ${formatNumber(anterior.cliques)} | Variação: ${formatPercent(variacao.cliques)}`,
+    `CTR | Semana atual: ${formatPercent(atual.ctr)} | Semana anterior: ${formatPercent(anterior.ctr)} | Variação: ${formatPercent(variacao.ctr)}`,
+    `Conversões | Semana atual: ${formatNumber(atual.conversoes)} | Semana anterior: ${formatNumber(anterior.conversoes)} | Variação: ${formatPercent(variacao.conversoes)}`,
+    `Taxa de Conversões | Semana atual: ${formatPercent(atual.taxaConversao)} | Semana anterior: ${formatPercent(anterior.taxaConversao)} | Variação: ${formatPercent(variacao.taxaConversao)}`,
+    `Custo por Conversão | Semana atual: ${formatCurrency(atual.cpa)} | Semana anterior: ${formatCurrency(anterior.cpa)} | Variação: ${formatPercent(variacao.cpa)}`,
+    `Custo por Clique | Semana atual: ${formatCurrency(atual.cpc)} | Semana anterior: ${formatCurrency(anterior.cpc)} | Variação: ${formatPercent(variacao.cpc)}`,
+    `Impressões na Parte Superior | Semana atual: ${formatPercent(Number(camp.searchImpressionShare) * 100)} | Semana anterior: Não disponível | Variação: Não disponível`,
+    `Impressões na 1ª Posição | Semana atual: ${formatPercent(Number(camp.searchRankLostImpressionShare) * 100)} | Semana anterior: Não disponível | Variação: Não disponível`,
+    `Valor Total Investido | Semana atual: ${formatCurrency(atual.investimento)} | Semana anterior: ${formatCurrency(anterior.investimento)} | Variação: ${formatPercent(variacao.investimento)}`,
+  ];
+
+  return lines.join("\n");
+}
+
 async function generateAiInterpretation(params: {
   report: any;
   dashboardName: string;
@@ -259,18 +309,12 @@ async function generateAiInterpretation(params: {
     topItems: params.report?.topItems || {},
     insights: Array.isArray(params.report?.insights) ? params.report.insights.slice(0, 5) : [],
   };
-
-  const prompt = [
-    "Você é um analista de mídia de performance.",
-    "Gere uma interpretação objetiva em pt-BR com no máximo 900 caracteres.",
-    "Formato obrigatório:",
-    "1) Resumo executivo (2 frases).",
-    "2) O que piorou/melhorou (até 3 bullets).",
-    "3) Próximas ações (até 3 bullets acionáveis).",
-    "Não invente dados; use apenas as métricas fornecidas.",
-    "",
-    `DADOS: ${JSON.stringify(inputContext)}`,
-  ].join("\n");
+  const dashboardText = buildDashboardTextForPrompt({
+    ...params.report,
+    totaisNumericos: params.report?.totaisNumericos || {},
+  });
+  const template = await loadAnalysisPromptTemplate();
+  const prompt = template.replace(/\{\{[\s\S]*\}\}/m, dashboardText);
 
   if (!openAiApiKey && !geminiApiKey) {
     return {
