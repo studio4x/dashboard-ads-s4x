@@ -74,12 +74,41 @@ async function upsertVercelEnvVar(value: string) {
   return { ok: true };
 }
 
+async function getWebhookFromVercel() {
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const token = process.env.VERCEL_TOKEN;
+  if (!projectId || !token) return null;
+
+  try {
+    const response = await fetch(
+      `https://api.vercel.com/v8/projects/${projectId}/env?decrypt=true`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) return null;
+    const json = await response.json();
+    const envs = Array.isArray(json?.envs) ? json.envs : [];
+    const hit = envs.find((item: any) => item?.key === ENV_KEY);
+    const value = String(hit?.value || "").trim();
+    return value || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET() {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
 
-    const currentValue = (process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim();
+    const fromVercelApi = await getWebhookFromVercel();
+    const currentValue = (fromVercelApi || process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim();
     const configured =
       currentValue.length > 0 &&
       !currentValue.includes("SEU_N8N_WEBHOOK_URL_AQUI") &&
@@ -90,6 +119,7 @@ export async function GET() {
       configured,
       webhookUrl: configured ? currentValue : "",
       webhookUrlMasked: configured ? maskUrl(currentValue) : "",
+      source: fromVercelApi ? "vercel_api" : "runtime_env",
       targetScopes: TARGETS,
       note:
         "A leitura reflete o ambiente em runtime. Após atualizar variável na Vercel, pode ser necessário novo deploy para refletir imediatamente em todas as instâncias.",
@@ -157,4 +187,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

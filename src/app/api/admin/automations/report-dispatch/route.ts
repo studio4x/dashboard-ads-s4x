@@ -18,6 +18,88 @@ type DispatchBody = {
   dryRun?: boolean;
 };
 
+const WEBHOOK_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_URL";
+
+function isPlaceholderWebhook(value: string) {
+  return (
+    !value ||
+    value.includes("SEU_N8N_WEBHOOK_URL_AQUI") ||
+    value === "https://SEU_N8N_WEBHOOK_URL_AQUI"
+  );
+}
+
+function isValidWebhookUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" || parsed.hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
+function maskUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  } catch {
+    return "url inválida";
+  }
+}
+
+function getErrorDetails(error: unknown) {
+  const err = error as any;
+  return {
+    message: String(err?.message || "Erro de rede"),
+    name: err?.name || null,
+    cause: err?.cause
+      ? {
+          code: err.cause?.code || null,
+          message: err.cause?.message || String(err.cause),
+          name: err.cause?.name || null,
+        }
+      : null,
+  };
+}
+
+async function getWebhookUrlFromVercelEnv() {
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const token = process.env.VERCEL_TOKEN;
+  if (!projectId || !token) return null;
+
+  try {
+    const response = await fetch(`https://api.vercel.com/v8/projects/${projectId}/env?decrypt=true`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) return null;
+    const json = await response.json();
+    const envs = Array.isArray(json?.envs) ? json.envs : [];
+    const hit = envs.find((item: any) => item?.key === WEBHOOK_ENV_KEY);
+    const value = String(hit?.value || "").trim();
+    return value || null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveWebhookUrl() {
+  const fromRuntime = String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim();
+  if (!isPlaceholderWebhook(fromRuntime) && isValidWebhookUrl(fromRuntime)) {
+    return { url: fromRuntime, source: "runtime_env" as const };
+  }
+
+  const fromVercel = String((await getWebhookUrlFromVercelEnv()) || "").trim();
+  if (!isPlaceholderWebhook(fromVercel) && isValidWebhookUrl(fromVercel)) {
+    return { url: fromVercel, source: "vercel_api" as const };
+  }
+
+  return { url: "", source: "none" as const };
+}
+
 function getSummaryMetrics(data: any) {
   const current = data?.summary?.current || data?.summary || {};
 
@@ -128,13 +210,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, dryRun: true, payload });
     }
 
-    const webhookUrl = process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL;
+    const resolvedWebhook = await resolveWebhookUrl();
+    const webhookUrl = resolvedWebhook.url;
     if (!webhookUrl) {
       return NextResponse.json(
         {
           success: false,
           error:
             "N8N_REPORT_DISPATCH_WEBHOOK_URL não configurado. Defina a variável de ambiente para habilitar o disparo.",
+          diagnostic: {
+            resolutionSource: resolvedWebhook.source,
+            runtimeValueConfigured: !isPlaceholderWebhook(String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim()),
+          },
           payloadPreview: payload,
         },
         { status: 400 }
@@ -160,7 +247,7 @@ export async function POST(request: Request) {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     let webhookResponse: Response;
     try {
@@ -170,6 +257,17 @@ export async function POST(request: Request) {
         body: payloadJson,
         signal: controller.signal,
       });
+    } catch (networkError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Falha de rede ao enviar para o webhook n8n.",
+          webhookUrl: maskUrl(webhookUrl),
+          resolutionSource: resolvedWebhook.source,
+          details: getErrorDetails(networkError),
+        },
+        { status: 502 }
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -197,6 +295,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: "Disparo enviado ao n8n com sucesso.",
+      webhookUrl: maskUrl(webhookUrl),
+      resolutionSource: resolvedWebhook.source,
       n8nResponse: parsed,
       dispatchedAt: payload.dispatchedAt,
       dashboardId,
@@ -210,4 +310,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

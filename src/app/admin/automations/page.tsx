@@ -416,6 +416,20 @@ export default function AdminAutomationsPage() {
           <p style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", marginBottom: 12 }}>
             Testar Disparo Agora
           </p>
+          <div
+            style={{
+              marginBottom: 12,
+              borderRadius: 8,
+              border: "1px solid #FDE68A",
+              background: "#FFFBEB",
+              color: "#92400E",
+              fontSize: 12,
+              padding: "8px 10px",
+              lineHeight: 1.45,
+            }}
+          >
+            <strong>Importante:</strong> o botão <strong>Teste Dry Run</strong> não envia requisição ao n8n. Ele apenas simula o payload para validação. Para enviar ao webhook, use <strong>Teste Real no n8n</strong>.
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Dashboard</label>
@@ -429,7 +443,7 @@ export default function AdminAutomationsPage() {
                 ) : (
                   dashboards.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name} ({d.id})
+                      {d.name} | {d.clients?.name || "Sem cliente"} ({d.id})
                     </option>
                   ))
                 )}
