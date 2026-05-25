@@ -614,7 +614,6 @@ export async function POST(request: Request) {
     const shareUrl = await getShareUrl(dashboardId, origin, body.shareLinkId);
 
     const channels = normalizeChannels(body.channels);
-    const defaultChannels = normalizeChannels(dashboard.automation_channels);
 
     const payload = {
       event: "dashboard_report_dispatch",
@@ -630,7 +629,7 @@ export async function POST(request: Request) {
         from: body.from || null,
         to: body.to || null,
       },
-      channels: channels.length > 0 ? channels : (defaultChannels.length > 0 ? defaultChannels : ["email", "whatsapp"]),
+      channels: channels.length > 0 ? channels : ["email", "whatsapp"],
       recipients: resolveRecipients({
         client: dashboard.clients,
         manual: body.recipients,

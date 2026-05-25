@@ -30,8 +30,6 @@ type AutomationForm = {
   hour: number;
   minute: number;
   periodDays: number;
-  email: boolean;
-  whatsapp: boolean;
 };
 
 export default function AdminDashboardsPage() {
@@ -93,7 +91,6 @@ export default function AdminDashboardsPage() {
       if (Array.isArray(dashboardsData)) {
         const nextForms: Record<string, AutomationForm> = {};
         dashboardsData.forEach((d: any) => {
-          const channels = Array.isArray(d.automation_channels) ? d.automation_channels : ["email", "whatsapp"];
           nextForms[d.id] = {
             enabled: Boolean(d.automation_enabled),
             frequency: d.automation_frequency === "daily" ? "daily" : "weekly",
@@ -101,8 +98,6 @@ export default function AdminDashboardsPage() {
             hour: Number.isInteger(d.automation_hour) ? d.automation_hour : 8,
             minute: Number.isInteger(d.automation_minute) ? d.automation_minute : 0,
             periodDays: Number.isInteger(d.automation_period_days) ? d.automation_period_days : 7,
-            email: channels.includes("email"),
-            whatsapp: channels.includes("whatsapp"),
           };
         });
         setAutomationForms(nextForms);
@@ -435,9 +430,6 @@ export default function AdminDashboardsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           dashboardId: dashboard.id,
-          channels: Array.isArray(dashboard.automation_channels) && dashboard.automation_channels.length > 0
-            ? dashboard.automation_channels
-            : ["email", "whatsapp"],
         }),
       });
 
@@ -469,8 +461,6 @@ export default function AdminDashboardsPage() {
           hour: 8,
           minute: 0,
           periodDays: 7,
-          email: true,
-          whatsapp: true,
         }),
         ...patch,
       },
@@ -480,16 +470,6 @@ export default function AdminDashboardsPage() {
   async function handleSaveAutomation(dashboardId: string) {
     const form = automationForms[dashboardId];
     if (!form) return;
-
-    const channels = [
-      ...(form.email ? ["email"] : []),
-      ...(form.whatsapp ? ["whatsapp"] : []),
-    ];
-
-    if (form.enabled && channels.length === 0) {
-      alert("Selecione ao menos um canal para automação.");
-      return;
-    }
 
     setSavingAutomationByDashboardId((prev) => ({ ...prev, [dashboardId]: true }));
     try {
@@ -503,7 +483,6 @@ export default function AdminDashboardsPage() {
           automation_hour: form.hour,
           automation_minute: form.minute,
           automation_period_days: form.periodDays,
-          automation_channels: channels,
         }),
       });
       const result = await response.json();
@@ -746,8 +725,6 @@ export default function AdminDashboardsPage() {
                   hour: 8,
                   minute: 0,
                   periodDays: 7,
-                  email: true,
-                  whatsapp: true,
                 };
 
                 return (
@@ -844,25 +821,9 @@ export default function AdminDashboardsPage() {
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <div style={{ display: "flex", gap: 12 }}>
-                        <label style={{ fontSize: 12, color: "#334155", display: "flex", alignItems: "center", gap: 6 }}>
-                          <input
-                            type="checkbox"
-                            checked={form.email}
-                            onChange={(e) => handleAutomationFieldChange(d.id, { email: e.target.checked })}
-                          />
-                          E-mail
-                        </label>
-                        <label style={{ fontSize: 12, color: "#334155", display: "flex", alignItems: "center", gap: 6 }}>
-                          <input
-                            type="checkbox"
-                            checked={form.whatsapp}
-                            onChange={(e) => handleAutomationFieldChange(d.id, { whatsapp: e.target.checked })}
-                          />
-                          WhatsApp
-                        </label>
-                      </div>
-
+                      <span style={{ fontSize: 12, color: "#475569" }}>
+                        Contatos padrão do cliente serão usados no payload.
+                      </span>
                       <button
                         onClick={() => handleSaveAutomation(d.id)}
                         disabled={Boolean(savingAutomationByDashboardId[d.id])}
