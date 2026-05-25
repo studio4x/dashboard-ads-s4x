@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send } from "lucide-react";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
@@ -37,6 +37,7 @@ export default function AdminDashboardsPage() {
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSavingIntegration, setIsSavingIntegration] = useState(false);
+  const [runningDispatchByDashboardId, setRunningDispatchByDashboardId] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState({
     name: "",
@@ -382,6 +383,37 @@ export default function AdminDashboardsPage() {
     }
   }
 
+  async function handleDispatchAutomation(dashboard: any) {
+    const confirmRun = confirm(
+      `Disparar automação para "${dashboard.name}" agora?\n\nIsso enviará os dados para o webhook do n8n configurado no ambiente.`
+    );
+    if (!confirmRun) return;
+
+    setRunningDispatchByDashboardId((prev) => ({ ...prev, [dashboard.id]: true }));
+    try {
+      const response = await fetch("/api/admin/automations/report-dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dashboardId: dashboard.id,
+          channels: ["email", "whatsapp"],
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        alert(`Falha no disparo: ${result.error || "erro desconhecido"}`);
+        return;
+      }
+
+      alert("Automação disparada com sucesso para o n8n.");
+    } catch {
+      alert("Erro ao conectar com o servidor para disparo da automação.");
+    } finally {
+      setRunningDispatchByDashboardId((prev) => ({ ...prev, [dashboard.id]: false }));
+    }
+  }
+
   if (isLoading && dashboards.length === 0) {
     return (
       <div style={{ display: "flex", height: "50vh", alignItems: "center", justifyContent: "center" }}>
@@ -637,6 +669,21 @@ export default function AdminDashboardsPage() {
                     }}
                   >
                     Compartilhar
+                  </button>
+
+                  <button
+                    onClick={() => handleDispatchAutomation(d)}
+                    disabled={Boolean(runningDispatchByDashboardId[d.id])}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+                      borderRadius: 8, background: "#EFF6FF", fontSize: 13, color: "#1D4ED8",
+                      border: "1px solid #BFDBFE", cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.2s", opacity: runningDispatchByDashboardId[d.id] ? 0.7 : 1
+                    }}
+                    title="Disparar automação para o n8n"
+                  >
+                    {runningDispatchByDashboardId[d.id] ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}
+                    Disparar Automação
                   </button>
                   
                   <button 
