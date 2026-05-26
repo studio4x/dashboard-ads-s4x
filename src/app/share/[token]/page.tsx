@@ -21,6 +21,7 @@ import { SharedDashboardHeader } from "@/components/dashboard/SharedDashboardHea
 import { SharedDashboardFooter } from "@/components/dashboard/SharedDashboardFooter";
 import { SharedDashboardTabs } from "@/components/dashboard/SharedDashboardTabs";
 import { AlertCircle } from "lucide-react";
+import type { ReactNode } from "react";
 
 const pageTitles: Record<string, string> = {
   "executive-summary": "Resumo Executivo",
@@ -42,6 +43,26 @@ const pageTitles: Record<string, string> = {
   "negative-keywords": "Palavras-Chave Negativas",
 };
 
+const pdfSections: Array<{ key: string; title: string; node: ReactNode }> = [
+  { key: "executive-summary", title: "Resumo Executivo", node: <ExecutiveSummaryPage /> },
+  { key: "google-ads", title: "Google Ads", node: <GoogleAdsPage /> },
+  { key: "meta-ads", title: "Meta Ads", node: <MetaAdsPage /> },
+  { key: "campanhas", title: "Campanhas", node: <CampanhasPage /> },
+  { key: "conjuntos", title: "Conjuntos", node: <ConjuntosPage /> },
+  { key: "anuncios", title: "Anúncios", node: <AnunciosPage /> },
+  { key: "funil", title: "Funil", node: <FunilPage /> },
+  { key: "engajamento", title: "Engajamento", node: <EngajamentoPage /> },
+  { key: "conversions", title: "Conversões", node: <ConversionsPage /> },
+  { key: "audience", title: "Público e Canais", node: <AudiencePage /> },
+  { key: "search-console", title: "Google Search Console", node: <SearchConsolePage /> },
+  { key: "campaigns", title: "Campanhas", node: <CampaignsPage /> },
+  { key: "ad-groups", title: "Grupos de Anúncios", node: <AdGroupsPage /> },
+  { key: "keywords", title: "Palavras-chave", node: <KeywordsPage /> },
+  { key: "search-terms", title: "Termos de Pesquisa", node: <SearchTermsPage /> },
+  { key: "ads-assets", title: "Recursos de Anúncio", node: <AdsAssetsPage /> },
+  { key: "negative-keywords", title: "Palavras-Chave Negativas", node: <NegativeKeywordsPage /> },
+];
+
 export default async function SharedDashboardPage(
   props: { 
     params: Promise<{ token: string }>;
@@ -53,6 +74,7 @@ export default async function SharedDashboardPage(
   const token = params.token;
   const requestedPage = (searchParams?.page as string) || "executive-summary";
   const currentPage = pageTitles[requestedPage] ? requestedPage : "executive-summary";
+  const isPdfMode = String(searchParams?.pdf || "") === "1";
 
   // Validate Token
   const validation = await ShareService.validateShareToken(token);
@@ -100,31 +122,45 @@ export default async function SharedDashboardPage(
           pageSubtitle="Relatório de desempenho de tráfego pago e inteligência de dados"
         />
 
-        {/* Navegação Compacta */}
-        <div className="shared-dashboard-box px-4 sm:px-6 lg:px-8 mt-4">
-          <SharedDashboardTabs token={token} />
-        </div>
+        {!isPdfMode && (
+          <div className="shared-dashboard-box px-4 sm:px-6 lg:px-8 mt-4">
+            <SharedDashboardTabs token={token} />
+          </div>
+        )}
 
         {/* Content */}
         <main className="w-full flex justify-center px-4 sm:px-6 lg:px-8">
           <div className="shared-dashboard-box">
-          {currentPage === "executive-summary" && <ExecutiveSummaryPage />}
-          {currentPage === "google-ads" && <GoogleAdsPage />}
-          {currentPage === "meta-ads" && <MetaAdsPage />}
-          {currentPage === "campanhas" && <CampanhasPage />}
-          {currentPage === "conjuntos" && <ConjuntosPage />}
-          {currentPage === "anuncios" && <AnunciosPage />}
-          {currentPage === "funil" && <FunilPage />}
-          {currentPage === "engajamento" && <EngajamentoPage />}
-          {currentPage === "conversions" && <ConversionsPage />}
-          {currentPage === "audience" && <AudiencePage />}
-          {currentPage === "search-console" && <SearchConsolePage />}
-          {currentPage === "campaigns" && <CampaignsPage />}
-          {currentPage === "ad-groups" && <AdGroupsPage />}
-          {currentPage === "keywords" && <KeywordsPage />}
-          {currentPage === "search-terms" && <SearchTermsPage />}
-          {currentPage === "ads-assets" && <AdsAssetsPage />}
-          {currentPage === "negative-keywords" && <NegativeKeywordsPage />}
+          {isPdfMode ? (
+            <div className="space-y-8">
+              {pdfSections.map((section) => (
+                <section key={section.key} className="space-y-4">
+                  <h2 className="text-lg font-semibold text-slate-800">{section.title}</h2>
+                  {section.node}
+                </section>
+              ))}
+            </div>
+          ) : (
+            <>
+              {currentPage === "executive-summary" && <ExecutiveSummaryPage />}
+              {currentPage === "google-ads" && <GoogleAdsPage />}
+              {currentPage === "meta-ads" && <MetaAdsPage />}
+              {currentPage === "campanhas" && <CampanhasPage />}
+              {currentPage === "conjuntos" && <ConjuntosPage />}
+              {currentPage === "anuncios" && <AnunciosPage />}
+              {currentPage === "funil" && <FunilPage />}
+              {currentPage === "engajamento" && <EngajamentoPage />}
+              {currentPage === "conversions" && <ConversionsPage />}
+              {currentPage === "audience" && <AudiencePage />}
+              {currentPage === "search-console" && <SearchConsolePage />}
+              {currentPage === "campaigns" && <CampaignsPage />}
+              {currentPage === "ad-groups" && <AdGroupsPage />}
+              {currentPage === "keywords" && <KeywordsPage />}
+              {currentPage === "search-terms" && <SearchTermsPage />}
+              {currentPage === "ads-assets" && <AdsAssetsPage />}
+              {currentPage === "negative-keywords" && <NegativeKeywordsPage />}
+            </>
+          )}
           </div>
         </main>
 

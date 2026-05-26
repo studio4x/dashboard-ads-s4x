@@ -904,14 +904,18 @@ export async function POST(request: Request) {
     const pdfFilename = `${dashboardPart}__${clientPart}__${periodPart}.pdf`;
     const pdfUrl =
       includePdf && shareToken
-        ? `${origin}/api/share/${shareToken}/dashboard.pdf${periodFrom || periodTo ? `?${new URLSearchParams(
-            Object.fromEntries(
-              Object.entries({
-                ...(periodFrom ? { from: periodFrom } : {}),
-                ...(periodTo ? { to: periodTo } : {}),
-              })
-            )
-          ).toString()}` : ""}`
+        ? `${origin}/api/share/${shareToken}/${encodeURIComponent(pdfFilename)}${
+            periodFrom || periodTo
+              ? `?${new URLSearchParams(
+                  Object.fromEntries(
+                    Object.entries({
+                      ...(periodFrom ? { from: periodFrom } : {}),
+                      ...(periodTo ? { to: periodTo } : {}),
+                    })
+                  )
+                ).toString()}`
+              : ""
+          }`
         : null;
 
     const payload = {
@@ -951,6 +955,28 @@ export async function POST(request: Request) {
 
     if (body.dryRun) {
       return NextResponse.json({ success: true, dryRun: true, payload });
+    }
+
+    if (includePdf && pdfUrl) {
+      try {
+        const warmup = new AbortController();
+        const warmupTimeout = setTimeout(() => warmup.abort(), 90000);
+        try {
+          await fetch(pdfUrl, { method: "GET", cache: "no-store", signal: warmup.signal });
+        } finally {
+          clearTimeout(warmupTimeout);
+        }
+      } catch (pdfWarmupError) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Falha ao pré-gerar PDF antes do envio do webhook.",
+            details: getErrorDetails(pdfWarmupError),
+            pdfUrl,
+          },
+          { status: 500 }
+        );
+      }
     }
 
     const resolvedWebhook = await resolveWebhookUrl();
