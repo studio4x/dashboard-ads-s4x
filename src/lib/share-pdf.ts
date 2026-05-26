@@ -254,10 +254,23 @@ function renderTopList(title: string, items: any[] | undefined, field: string) {
 }
 
 function renderAiBlock(text: string | null | undefined) {
-  if (!text) return "";
+  if (!text) {
+    return `
+      <section class="analysis-shell">
+        <div class="analysis-empty">
+          <h3>Analise automatizada</h3>
+          <p>A analise da IA nao estava disponivel no momento da geracao deste PDF.</p>
+        </div>
+      </section>
+    `;
+  }
+
   return `
-    <section class="panel section-block">
-      <h3>Analise automatizada</h3>
+    <section class="analysis-shell">
+      <div class="analysis-header">
+        <h3>Analise automatizada</h3>
+        <p>Resumo comparativo consolidado para envio ao cliente.</p>
+      </div>
       <div class="ai-block">${text}</div>
     </section>
   `;
@@ -269,40 +282,10 @@ function buildPdfHtml(params: {
   periodLabel: string;
   report: ReportData;
 }) {
-  const summary = params.report.summary || {};
-  const funnel = params.report.funil || {};
-  const topItems = params.report.topItems || {};
   const aiText =
     params.report.aiInterpretation?.generated && params.report.aiInterpretation?.text
       ? params.report.aiInterpretation.text
       : null;
-
-  const funnelRows = [
-    { key: "impressoes", label: "Impressoes" },
-    { key: "alcance", label: "Alcance" },
-    { key: "cliques", label: "Cliques" },
-    { key: "conversoes", label: "Conversoes" },
-    { key: "engajamentos", label: "Engajamentos" },
-    { key: "leads", label: "Leads" },
-    { key: "mensagens", label: "Mensagens" },
-    { key: "ctr", label: "CTR" },
-    { key: "cpc", label: "CPC" },
-    { key: "cpm", label: "CPM" },
-    { key: "cpa", label: "CPA" },
-    { key: "roas", label: "ROAS" },
-  ];
-
-  const totalsRows = [
-    { key: "cost", label: "Investimento" },
-    { key: "impressions", label: "Impressoes" },
-    { key: "clicks", label: "Cliques" },
-    { key: "ctr", label: "CTR" },
-    { key: "avgCpc", label: "CPC medio" },
-    { key: "avgCpm", label: "CPM medio" },
-    { key: "conversions", label: "Conversoes" },
-    { key: "conversionRate", label: "Taxa de conversao" },
-    { key: "roas", label: "ROAS" },
-  ];
 
   return `
     <!DOCTYPE html>
@@ -315,7 +298,7 @@ function buildPdfHtml(params: {
           body {
             margin: 0;
             font-family: Arial, sans-serif;
-            background: #f5f7fb;
+            background: #eef3fb;
             color: #0f172a;
           }
           html, body {
@@ -323,106 +306,117 @@ function buildPdfHtml(params: {
           }
           .page {
             width: 100%;
-            padding: 24px;
+            min-height: 100vh;
+            padding: 18px 20px;
           }
           .hero {
-            background: linear-gradient(135deg, #0f172a, #1d4ed8);
+            background: linear-gradient(135deg, #0f172a, #1e40af 58%, #2563eb);
             color: white;
-            border-radius: 18px;
-            padding: 24px;
-            margin-bottom: 20px;
+            border-radius: 16px;
+            padding: 18px 20px;
+            margin-bottom: 14px;
+            box-shadow: 0 18px 40px rgba(37, 99, 235, 0.18);
           }
           .hero h1 {
-            margin: 0 0 8px;
-            font-size: 26px;
+            margin: 0 0 6px;
+            font-size: 24px;
+          }
+          .hero-meta {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
           }
           .hero p {
             margin: 0;
-            font-size: 13px;
+            font-size: 12px;
             opacity: 0.92;
           }
-          .section-title {
-            font-size: 18px;
-            margin: 0 0 12px;
-          }
-          .section-block {
-            margin-bottom: 18px;
-            break-inside: avoid-page;
-            page-break-inside: avoid;
-          }
-          .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 12px;
-            margin-bottom: 20px;
-          }
-          .kpi-card, .panel {
+          .analysis-shell {
             background: white;
-            border: 1px solid #dbe4f0;
-            border-radius: 14px;
+            border: 1px solid #d8e3f2;
+            border-radius: 16px;
             padding: 16px;
-            break-inside: avoid-page;
-            page-break-inside: avoid;
+            min-height: calc(100vh - 130px);
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
           }
-          .kpi-label {
-            font-size: 12px;
-            color: #64748b;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-          }
-          .kpi-value {
-            font-size: 22px;
-            font-weight: 700;
-          }
-          .nested-panel h4 {
-            margin: 0 0 12px;
-            font-size: 15px;
-          }
-          .stack {
-            display: grid;
+          .analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
             gap: 16px;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-            break-inside: avoid-page;
-            page-break-inside: avoid;
-          }
-          th, td {
-            text-align: left;
-            padding: 10px 8px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
             border-bottom: 1px solid #e2e8f0;
-            vertical-align: top;
           }
-          th {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
+          .analysis-header h3 {
+            margin: 0;
+            font-size: 18px;
+          }
+          .analysis-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 12px;
+          }
+          .analysis-empty {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
             color: #475569;
           }
-          thead {
-            display: table-header-group;
-          }
-          tr {
-            break-inside: avoid-page;
-            page-break-inside: avoid;
+          .analysis-empty h3 {
+            margin: 0 0 8px;
+            color: #0f172a;
           }
           .ai-block {
-            font-size: 13px;
-            line-height: 1.6;
+            font-size: 12px;
+            line-height: 1.42;
+            color: #0f172a;
           }
-          .ai-block section,
-          .ai-block div {
-            margin-bottom: 10px;
+          .ai-block .ai-metrics-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px 12px;
           }
-          .ai-block * {
-            max-width: 100%;
+          .ai-block .metric-item {
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            padding: 12px 13px;
+            min-height: 0;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .ai-block .metric-item h3 {
+            margin: 0 0 6px;
+            font-size: 14px;
+            line-height: 1.2;
+          }
+          .ai-block .metric-item p {
+            margin: 4px 0;
+          }
+          .ai-block .metric-description {
+            color: #475569;
+            font-size: 11px;
+          }
+          .ai-block .metric-value,
+          .ai-block .metric-comparison,
+          .ai-block .metric-variation {
+            font-size: 11.5px;
+          }
+          .ai-block .metric-value {
+            font-weight: 700;
+            color: #0f172a;
+          }
+          .ai-block .metric-variation {
+            font-weight: 700;
+            color: #1d4ed8;
           }
           @page {
             size: A4 landscape;
-            margin: 10mm 8mm;
+            margin: 8mm;
           }
         </style>
       </head>
@@ -430,48 +424,10 @@ function buildPdfHtml(params: {
         <div class="page">
           <section class="hero">
             <h1>${escapeHtml(params.dashboardName)}</h1>
-            <p>Cliente: ${escapeHtml(params.clientName || "Cliente")}</p>
-            <p>Periodo: ${escapeHtml(params.periodLabel)}</p>
-          </section>
-
-          <section class="section-block">
-            <h2 class="section-title">Resumo executivo</h2>
-            <section class="kpi-grid">
-              ${renderKpiCards(summary)}
-            </section>
-          </section>
-
-          <section class="panel section-block">
-            <h3>Comparativo do periodo</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Metrica</th>
-                  <th>Atual</th>
-                  <th>Anterior</th>
-                  <th>Variacao</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${renderComparisonTable(params.report)}
-              </tbody>
-            </table>
-          </section>
-
-          ${
-            hasAnyFiniteValue(funnel, funnelRows.map((item) => item.key))
-              ? renderMetricTable("Funil consolidado", funnel, funnelRows)
-              : ""
-          }
-
-          ${renderGroupedMetricTables("Totais numericos", params.report.totaisNumericos, totalsRows)}
-          ${renderGroupedMetricTables("Medias numericas", params.report.mediasNumericas, totalsRows)}
-
-          <section class="stack section-block">
-            ${renderTopList("Top campanhas por investimento", topItems?.campanhas?.porInvestimento, "investimento")}
-            ${renderTopList("Top palavras-chave por investimento", topItems?.palavrasChave?.porInvestimento, "investimento")}
-            ${renderTopList("Top termos de pesquisa", topItems?.termosPesquisa?.porInvestimento, "investimento")}
-            ${renderTopList("Top anuncios por cliques", topItems?.anuncios?.porCliques, "cliques")}
+            <div class="hero-meta">
+              <p>Cliente: ${escapeHtml(params.clientName || "Cliente")}</p>
+              <p>Periodo: ${escapeHtml(params.periodLabel)}</p>
+            </div>
           </section>
 
           ${renderAiBlock(aiText)}
