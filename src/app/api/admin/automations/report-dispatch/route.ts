@@ -906,7 +906,7 @@ export async function POST(request: Request) {
       pdf: {
         mode: includePdf ? "share_url_pdf_reference" : "client_side_export",
         available: includePdf && Boolean(shareToken),
-        url: includePdf && shareToken ? `${origin}/api/share/${shareToken}/pdf` : null,
+        url: includePdf && shareToken ? `${origin}/api/share/${shareToken}/dashboard.pdf` : null,
         filename: includePdf ? `dashboard-${dashboard.id}.pdf` : null,
         note: includePdf
           ? "URL direta de PDF gerada pelo backend. Use esta URL para baixar/anexar no workflow do n8n."
