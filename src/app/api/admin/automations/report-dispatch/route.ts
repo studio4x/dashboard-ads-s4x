@@ -846,6 +846,7 @@ export async function POST(request: Request) {
 
     const origin = new URL(request.url).origin;
     const shareUrl = await getShareUrl(dashboardId, origin, body.shareLinkId);
+    const shareToken = shareUrl ? shareUrl.split("/").pop() || null : null;
 
     const channels = normalizeChannels(body.channels);
 
@@ -904,11 +905,11 @@ export async function POST(request: Request) {
       report: reportPayload,
       pdf: {
         mode: includePdf ? "share_url_pdf_reference" : "client_side_export",
-        available: includePdf && Boolean(shareUrl),
-        url: includePdf ? shareUrl : null,
+        available: includePdf && Boolean(shareToken),
+        url: includePdf && shareToken ? `${origin}/api/share/${shareToken}/pdf` : null,
         filename: includePdf ? `dashboard-${dashboard.id}.pdf` : null,
         note: includePdf
-          ? "Use a URL de compartilhamento como referência para geração/anexo de PDF no workflow do n8n."
+          ? "URL direta de PDF gerada pelo backend. Use esta URL para baixar/anexar no workflow do n8n."
           : "Nesta fase, o PDF é gerado no frontend. Recomenda-se envio de análise + link compartilhado via n8n.",
       },
     };
