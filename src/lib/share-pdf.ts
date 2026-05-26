@@ -2,6 +2,26 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 const PDF_BUCKET = process.env.PDF_STORAGE_BUCKET || "reports";
 
+async function ensurePdfBucket() {
+  const supabase = await createAdminClient();
+  const { data, error } = await supabase.storage.getBucket(PDF_BUCKET);
+  if (!error && data) {
+    return supabase;
+  }
+
+  const { error: createError } = await supabase.storage.createBucket(PDF_BUCKET, {
+    public: false,
+    fileSizeLimit: "52428800",
+    allowedMimeTypes: ["application/pdf"],
+  });
+
+  if (createError && !String(createError.message || "").toLowerCase().includes("already exists")) {
+    throw new Error(`Falha ao preparar bucket de PDF: ${createError.message}`);
+  }
+
+  return supabase;
+}
+
 export function sanitizePdfFilePart(value: string) {
   return String(value || "")
     .normalize("NFD")
@@ -40,14 +60,14 @@ export function buildSharePdfStoragePath(params: {
 }
 
 export async function getCachedSharePdf(path: string) {
-  const supabase = await createAdminClient();
+  const supabase = await ensurePdfBucket();
   const { data, error } = await supabase.storage.from(PDF_BUCKET).download(path);
   if (error || !data) return null;
   return Buffer.from(await data.arrayBuffer());
 }
 
 export async function storeSharePdf(path: string, pdf: Buffer) {
-  const supabase = await createAdminClient();
+  const supabase = await ensurePdfBucket();
   const { error } = await supabase.storage.from(PDF_BUCKET).upload(path, pdf, {
     contentType: "application/pdf",
     upsert: true,
