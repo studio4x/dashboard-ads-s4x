@@ -553,29 +553,6 @@ export default function AdminAutomationsPage() {
           )}
         </div>
 
-        <div className="card" style={{ padding: 20 }}>
-          <CopyBlock title="Endpoint de Disparo (Admin API)" value={DISPATCH_ENDPOINT} rows={2} />
-        </div>
-
-        <div className="card" style={{ padding: 20 }}>
-          <CopyBlock title="Payload mínimo para disparo" value={samplePayload} rows={14} />
-        </div>
-
-        <div className="card" style={{ padding: 20 }}>
-          <CopyBlock title="Payload de teste (dryRun)" value={dryRunPayload} rows={7} />
-        </div>
-
-        <div className="card" style={{ padding: 20 }}>
-          <CopyBlock title="Headers enviados da plataforma para o webhook n8n" value={webhookHeaders} rows={10} />
-        </div>
-
-        <div className="card" style={{ padding: 20 }}>
-          <CopyBlock title="Exemplo cURL de chamada manual" value={curlExample} rows={12} />
-        </div>
-
-        <div className="card" style={{ padding: 20 }}>
-          <CopyBlock title="Checklist de configuração no n8n" value={n8nChecklist} rows={10} />
-        </div>
       </div>
     </div>
   );
