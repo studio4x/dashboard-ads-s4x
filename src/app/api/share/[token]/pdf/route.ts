@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+export const runtime = "nodejs";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
