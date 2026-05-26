@@ -100,6 +100,7 @@ export const DashboardService = {
         | "analysis_only"
         | "metrics_only"
         | "both"
+        | "pdf_only"
         | "analysis_pdf"
         | "both_pdf";
     }

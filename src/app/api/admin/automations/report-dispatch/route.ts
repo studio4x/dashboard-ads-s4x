@@ -17,7 +17,7 @@ type DispatchBody = {
   shareLinkId?: string;
   dryRun?: boolean;
   source?: "manual" | "scheduled";
-  reportMode?: "analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf";
+  reportMode?: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
 };
 
 type ResolvedRecipients = {
@@ -443,9 +443,9 @@ async function resolveGeminiApiKey() {
   return "";
 }
 
-function normalizeReportMode(value: unknown): "analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf" {
+function normalizeReportMode(value: unknown): "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf" {
   const str = String(value || "").trim().toLowerCase();
-  if (str === "analysis_only" || str === "metrics_only" || str === "both" || str === "analysis_pdf" || str === "both_pdf") return str;
+  if (str === "analysis_only" || str === "metrics_only" || str === "both" || str === "pdf_only" || str === "analysis_pdf" || str === "both_pdf") return str;
   return "both";
 }
 
@@ -867,7 +867,7 @@ export async function POST(request: Request) {
 
     const reportMode = normalizeReportMode(body.reportMode || dashboard.automation_report_mode);
     const report = getReportMetrics(data);
-    const aiInterpretation = reportMode !== "metrics_only"
+    const aiInterpretation = reportMode !== "metrics_only" && reportMode !== "pdf_only"
       ? await generateAiInterpretation({
           report,
           dashboardName: dashboard.name,
@@ -881,18 +881,20 @@ export async function POST(request: Request) {
           model: null,
           generated: false,
           text: null,
-          error: "Interpretação desativada pelo modo metrics_only.",
+          error: reportMode === "pdf_only" ? "Interpretação desativada pelo modo pdf_only." : "Interpretação desativada pelo modo metrics_only.",
           fallbackUsed: false,
         };
 
     const reportPayload =
-      reportMode === "analysis_only" || reportMode === "analysis_pdf"
+      reportMode === "pdf_only"
+        ? {}
+        : reportMode === "analysis_only" || reportMode === "analysis_pdf"
         ? { aiInterpretation }
         : reportMode === "metrics_only"
           ? report
           : { ...report, aiInterpretation };
 
-    const includePdf = reportMode === "analysis_pdf" || reportMode === "both_pdf";
+    const includePdf = reportMode === "pdf_only" || reportMode === "analysis_pdf" || reportMode === "both_pdf";
     const periodFrom = normalizePeriodPart(body.from);
     const periodTo = normalizePeriodPart(body.to);
     const periodPart =

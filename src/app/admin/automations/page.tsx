@@ -94,7 +94,7 @@ export default function AdminAutomationsPage() {
   const [dashboardId, setDashboardId] = useState("");
   const [testFrom, setTestFrom] = useState(defaultFrom);
   const [testTo, setTestTo] = useState(defaultTo);
-  const [testReportMode, setTestReportMode] = useState<"analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf">("both");
+  const [testReportMode, setTestReportMode] = useState<"analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf">("both");
   const [isTesting, setIsTesting] = useState(false);
   const [testResponse, setTestResponse] = useState("");
 
@@ -489,12 +489,13 @@ export default function AdminAutomationsPage() {
               <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Conteúdo do payload</label>
               <select
                 value={testReportMode}
-                onChange={(e) => setTestReportMode(e.target.value as "analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf")}
+                onChange={(e) => setTestReportMode(e.target.value as "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf")}
                 style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "white" }}
               >
                 <option value="both">Métricas + Análise</option>
                 <option value="analysis_only">Somente Análise</option>
                 <option value="metrics_only">Somente Métricas</option>
+                <option value="pdf_only">Somente PDF</option>
                 <option value="analysis_pdf">Análise + PDF</option>
                 <option value="both_pdf">Análise + Métricas + PDF</option>
               </select>

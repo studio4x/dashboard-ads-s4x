@@ -30,7 +30,7 @@ type AutomationForm = {
   hour: number;
   minute: number;
   periodDays: number;
-  reportMode: "analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf";
+  reportMode: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
 };
 
 export default function AdminDashboardsPage() {
@@ -99,7 +99,7 @@ export default function AdminDashboardsPage() {
             hour: Number.isInteger(d.automation_hour) ? d.automation_hour : 8,
             minute: Number.isInteger(d.automation_minute) ? d.automation_minute : 0,
             periodDays: Number.isInteger(d.automation_period_days) ? d.automation_period_days : 7,
-            reportMode: ["analysis_only", "metrics_only", "both", "analysis_pdf", "both_pdf"].includes(String(d.automation_report_mode))
+            reportMode: ["analysis_only", "metrics_only", "both", "pdf_only", "analysis_pdf", "both_pdf"].includes(String(d.automation_report_mode))
               ? d.automation_report_mode
               : "both",
           };
@@ -831,12 +831,13 @@ export default function AdminDashboardsPage() {
                         Conteúdo do payload
                         <select
                           value={form.reportMode}
-                          onChange={(e) => handleAutomationFieldChange(d.id, { reportMode: e.target.value as "analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf" })}
+                          onChange={(e) => handleAutomationFieldChange(d.id, { reportMode: e.target.value as "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf" })}
                           style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13, background: "#fff" }}
                         >
                           <option value="both">Métricas + Análise</option>
                           <option value="analysis_only">Somente Análise</option>
                           <option value="metrics_only">Somente Métricas</option>
+                          <option value="pdf_only">Somente PDF</option>
                           <option value="analysis_pdf">Análise + PDF</option>
                           <option value="both_pdf">Análise + Métricas + PDF</option>
                         </select>
