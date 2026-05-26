@@ -14,6 +14,21 @@ function getErrorMessage(error: unknown) {
   return String(err?.message || "Erro ao gerar PDF.");
 }
 
+function sanitizeFilePart(value: string) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
+}
+
+function normalizePeriodPart(value: string | null) {
+  if (!value) return null;
+  const onlyDate = String(value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(onlyDate) ? onlyDate : null;
+}
+
 export async function GET(request: Request, { params }: RouteParams) {
   let browser: any = null;
   try {
@@ -41,9 +56,19 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     const { data: dashboard } = await supabase
       .from("dashboards")
-      .select("id, name")
+      .select("id, name, client_id")
       .eq("id", link.dashboard_id)
       .maybeSingle();
+
+    let clientName: string | null = null;
+    if (dashboard?.client_id) {
+      const { data: client } = await supabase
+        .from("clients")
+        .select("name")
+        .eq("id", dashboard.client_id)
+        .maybeSingle();
+      clientName = String(client?.name || "").trim() || null;
+    }
 
     const origin = new URL(request.url).origin;
     const renderUrl = `${origin}/share/${shareToken}?pdf=1`;
@@ -71,10 +96,12 @@ export async function GET(request: Request, { params }: RouteParams) {
       preferCSSPageSize: true,
     });
 
-    const safeName = String(dashboard?.name || `dashboard-${link.dashboard_id}`)
-      .replace(/[^\w\-]+/g, "_")
-      .slice(0, 100);
-    const filename = `${safeName}.pdf`;
+    const from = normalizePeriodPart(new URL(request.url).searchParams.get("from"));
+    const to = normalizePeriodPart(new URL(request.url).searchParams.get("to"));
+    const periodPart = from && to ? `${from}_a_${to}` : from || to || "periodo_nao_disponivel";
+    const dashboardPart = sanitizeFilePart(String(dashboard?.name || `dashboard-${link.dashboard_id}`)) || "dashboard";
+    const clientPart = sanitizeFilePart(clientName || "cliente");
+    const filename = `${dashboardPart}__${clientPart}__${periodPart}.pdf`;
 
     return new Response(pdf, {
       status: 200,

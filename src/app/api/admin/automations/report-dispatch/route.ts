@@ -449,6 +449,21 @@ function normalizeReportMode(value: unknown): "analysis_only" | "metrics_only" |
   return "both";
 }
 
+function sanitizeFilePart(value: string) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
+}
+
+function normalizePeriodPart(value: string | null | undefined) {
+  if (!value) return null;
+  const onlyDate = String(value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(onlyDate) ? onlyDate : null;
+}
+
 function toFiniteNumber(value: unknown) {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value === "string") {
@@ -878,6 +893,26 @@ export async function POST(request: Request) {
           : { ...report, aiInterpretation };
 
     const includePdf = reportMode === "analysis_pdf" || reportMode === "both_pdf";
+    const periodFrom = normalizePeriodPart(body.from);
+    const periodTo = normalizePeriodPart(body.to);
+    const periodPart =
+      periodFrom && periodTo
+        ? `${periodFrom}_a_${periodTo}`
+        : periodFrom || periodTo || "periodo_nao_disponivel";
+    const dashboardPart = sanitizeFilePart(dashboard.name || "dashboard");
+    const clientPart = sanitizeFilePart(dashboard.clients?.name || "cliente");
+    const pdfFilename = `${dashboardPart}__${clientPart}__${periodPart}.pdf`;
+    const pdfUrl =
+      includePdf && shareToken
+        ? `${origin}/api/share/${shareToken}/dashboard.pdf${periodFrom || periodTo ? `?${new URLSearchParams(
+            Object.fromEntries(
+              Object.entries({
+                ...(periodFrom ? { from: periodFrom } : {}),
+                ...(periodTo ? { to: periodTo } : {}),
+              })
+            )
+          ).toString()}` : ""}`
+        : null;
 
     const payload = {
       event: "dashboard_report_dispatch",
@@ -906,8 +941,8 @@ export async function POST(request: Request) {
       pdf: {
         mode: includePdf ? "share_url_pdf_reference" : "client_side_export",
         available: includePdf && Boolean(shareToken),
-        url: includePdf && shareToken ? `${origin}/api/share/${shareToken}/dashboard.pdf` : null,
-        filename: includePdf ? `dashboard-${dashboard.id}.pdf` : null,
+        url: pdfUrl,
+        filename: includePdf ? pdfFilename : null,
         note: includePdf
           ? "URL direta de PDF gerada pelo backend. Use esta URL para baixar/anexar no workflow do n8n."
           : "Nesta fase, o PDF é gerado no frontend. Recomenda-se envio de análise + link compartilhado via n8n.",
