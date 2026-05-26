@@ -8,6 +8,7 @@ import {
   buildPdfPeriodPart,
   buildSharePdfFilename,
   buildSharePdfStoragePath,
+  createSharePdfSignedUrl,
   getCachedSharePdf,
   normalizePdfPeriodPart,
   renderAndStoreSharePdf,
@@ -899,7 +900,15 @@ export async function POST(request: Request) {
       clientName: `${clientPart}`,
       periodPart,
     });
-    const pdfUrl =
+    const storagePath =
+      includePdf && shareToken
+        ? buildSharePdfStoragePath({
+            shareToken: String(shareToken),
+            periodPart,
+            filename: pdfFilename,
+          })
+        : null;
+    let pdfUrl =
       includePdf && shareToken
         ? `${origin}/api/share/${shareToken}/${encodeURIComponent(pdfFilename)}${
             periodFrom || periodTo
@@ -914,6 +923,32 @@ export async function POST(request: Request) {
               : ""
           }`
         : null;
+
+    if (includePdf && !body.dryRun && storagePath) {
+      try {
+        await renderAndStoreSharePdf({
+          dashboardName: dashboard.name,
+          clientName: dashboard.clients?.name || null,
+          periodLabel:
+            periodFrom && periodTo
+              ? `${periodFrom} a ${periodTo}`
+              : periodFrom || periodTo || "Periodo nao informado",
+          report: reportPayload as any,
+          storagePath,
+        });
+        pdfUrl = await createSharePdfSignedUrl(storagePath);
+      } catch (pdfWarmupError) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Falha ao pré-gerar PDF antes do envio do webhook.",
+            details: getErrorDetails(pdfWarmupError),
+            pdfUrl,
+          },
+          { status: 500 }
+        );
+      }
+    }
 
     const payload = {
       event: "dashboard_report_dispatch",
@@ -940,48 +975,18 @@ export async function POST(request: Request) {
       reportMode,
       report: reportPayload,
       pdf: {
-        mode: includePdf ? "share_url_pdf_reference" : "client_side_export",
+        mode: includePdf ? "storage_signed_pdf_url" : "client_side_export",
         available: includePdf && Boolean(shareToken),
         url: pdfUrl,
         filename: includePdf ? pdfFilename : null,
         note: includePdf
-          ? "URL direta de PDF gerada pelo backend. Use esta URL para baixar/anexar no workflow do n8n."
+          ? "URL assinada do arquivo PDF salvo no storage. Use esta URL para baixar/anexar no workflow do n8n."
           : "Nesta fase, o PDF é gerado no frontend. Recomenda-se envio de análise + link compartilhado via n8n.",
       },
     };
 
     if (body.dryRun) {
       return NextResponse.json({ success: true, dryRun: true, payload });
-    }
-
-    if (includePdf && pdfUrl) {
-      try {
-        const storagePath = buildSharePdfStoragePath({
-          shareToken: String(shareToken),
-          periodPart,
-          filename: pdfFilename,
-        });
-        const cachedPdf = await getCachedSharePdf(storagePath);
-        if (!cachedPdf) {
-          await renderAndStoreSharePdf({
-            origin,
-            shareToken: String(shareToken),
-            from: periodFrom,
-            to: periodTo,
-            storagePath,
-          });
-        }
-      } catch (pdfWarmupError) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Falha ao pré-gerar PDF antes do envio do webhook.",
-            details: getErrorDetails(pdfWarmupError),
-            pdfUrl,
-          },
-          { status: 500 }
-        );
-      }
     }
 
     const resolvedWebhook = await resolveWebhookUrl();
