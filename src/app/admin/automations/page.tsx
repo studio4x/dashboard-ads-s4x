@@ -6,6 +6,23 @@ import { Copy, CheckCircle2, Info, Loader2, Play, Save } from "lucide-react";
 const APP_BASE_URL = "https://dashboard-ads-s4x.vercel.app";
 const DISPATCH_ENDPOINT = `${APP_BASE_URL}/api/admin/automations/report-dispatch`;
 
+function extractPdfUrl(payload: any): string {
+  const candidates = [
+    payload?.response?.pdf?.url,
+    payload?.response?.pdfUrl,
+    payload?.pdf?.url,
+    payload?.pdfUrl,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
+}
+
 function CopyBlock({
   title,
   value,
@@ -97,6 +114,7 @@ export default function AdminAutomationsPage() {
   const [testReportMode, setTestReportMode] = useState<"analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf">("both");
   const [isTesting, setIsTesting] = useState(false);
   const [testResponse, setTestResponse] = useState("");
+  const [testPdfUrl, setTestPdfUrl] = useState("");
 
   useEffect(() => {
     const loadDashboards = async () => {
@@ -194,6 +212,7 @@ export default function AdminAutomationsPage() {
     }
     setIsTesting(true);
     setTestResponse("");
+    setTestPdfUrl("");
     try {
       const payload: Record<string, unknown> = {
         dashboardId,
@@ -209,18 +228,21 @@ export default function AdminAutomationsPage() {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
+      const responsePayload = {
+        httpStatus: res.status,
+        ok: res.ok,
+        response: json,
+      };
+      setTestPdfUrl(extractPdfUrl(responsePayload));
       setTestResponse(
         JSON.stringify(
-          {
-            httpStatus: res.status,
-            ok: res.ok,
-            response: json,
-          },
+          responsePayload,
           null,
           2
         )
       );
     } catch (error: any) {
+      setTestPdfUrl("");
       setTestResponse(
         JSON.stringify(
           {
@@ -549,6 +571,8 @@ export default function AdminAutomationsPage() {
 
           {testResponse && (
             <div style={{ marginTop: 14 }}>
+              {testPdfUrl ? <CopyBlock title="URL do PDF" value={testPdfUrl} rows={3} /> : null}
+              {testPdfUrl ? <div style={{ height: 12 }} /> : null}
               <CopyBlock title="Resultado do teste" value={testResponse} rows={16} />
             </div>
           )}
