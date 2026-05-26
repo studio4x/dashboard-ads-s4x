@@ -459,6 +459,14 @@ function normalizeReportMode(value: unknown): "analysis_only" | "metrics_only" |
   return "both";
 }
 
+function formatPdfDisplayDate(value: string | null | undefined) {
+  if (!value) return null;
+  const normalized = normalizePdfPeriodPart(value);
+  if (!normalized) return null;
+  const [year, month, day] = normalized.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 function toFiniteNumber(value: unknown) {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value === "string") {
@@ -861,8 +869,9 @@ export async function POST(request: Request) {
     const channels = normalizeChannels(body.channels);
 
     const reportMode = normalizeReportMode(body.reportMode || dashboard.automation_report_mode);
+    const includePdf = reportMode === "pdf_only" || reportMode === "analysis_pdf" || reportMode === "both_pdf";
     const report = getReportMetrics(data);
-    const aiInterpretation = reportMode !== "metrics_only" && reportMode !== "pdf_only"
+    const aiInterpretation = reportMode !== "metrics_only" || includePdf
       ? await generateAiInterpretation({
           report,
           dashboardName: dashboard.name,
@@ -876,7 +885,7 @@ export async function POST(request: Request) {
           model: null,
           generated: false,
           text: null,
-          error: reportMode === "pdf_only" ? "Interpretação desativada pelo modo pdf_only." : "Interpretação desativada pelo modo metrics_only.",
+          error: "Interpretação desativada pelo modo metrics_only.",
           fallbackUsed: false,
         };
 
@@ -894,9 +903,10 @@ export async function POST(request: Request) {
         ? { ...report, aiInterpretation }
         : report;
 
-    const includePdf = reportMode === "pdf_only" || reportMode === "analysis_pdf" || reportMode === "both_pdf";
     const periodFrom = normalizePdfPeriodPart(body.from);
     const periodTo = normalizePdfPeriodPart(body.to);
+    const periodFromDisplay = formatPdfDisplayDate(periodFrom);
+    const periodToDisplay = formatPdfDisplayDate(periodTo);
     const periodPart = buildPdfPeriodPart(periodFrom, periodTo);
     const dashboardPart = sanitizePdfFilePart(dashboard.name || "dashboard");
     const clientPart = sanitizePdfFilePart(dashboard.clients?.name || "cliente");
@@ -935,9 +945,9 @@ export async function POST(request: Request) {
           dashboardName: dashboard.name,
           clientName: dashboard.clients?.name || null,
           periodLabel:
-            periodFrom && periodTo
-              ? `${periodFrom} a ${periodTo}`
-              : periodFrom || periodTo || "Periodo nao informado",
+            periodFromDisplay && periodToDisplay
+              ? `${periodFromDisplay} a ${periodToDisplay}`
+              : periodFromDisplay || periodToDisplay || "Periodo nao informado",
           report: pdfReport as any,
           storagePath,
         });
