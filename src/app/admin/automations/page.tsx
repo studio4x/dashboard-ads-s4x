@@ -73,6 +73,14 @@ function CopyBlock({
 }
 
 export default function AdminAutomationsPage() {
+  const today = new Date();
+  const defaultToDate = new Date(today);
+  defaultToDate.setDate(defaultToDate.getDate() - 1);
+  const defaultFromDate = new Date(defaultToDate);
+  defaultFromDate.setDate(defaultFromDate.getDate() - 6);
+  const defaultFrom = defaultFromDate.toISOString().slice(0, 10);
+  const defaultTo = defaultToDate.toISOString().slice(0, 10);
+
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookMasked, setWebhookMasked] = useState("");
   const [isSavingWebhook, setIsSavingWebhook] = useState(false);
@@ -84,8 +92,8 @@ export default function AdminAutomationsPage() {
 
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [dashboardId, setDashboardId] = useState("");
-  const [testFrom, setTestFrom] = useState("");
-  const [testTo, setTestTo] = useState("");
+  const [testFrom, setTestFrom] = useState(defaultFrom);
+  const [testTo, setTestTo] = useState(defaultTo);
   const [testReportMode, setTestReportMode] = useState<"analysis_only" | "metrics_only" | "both" | "analysis_pdf" | "both_pdf">("both");
   const [isTesting, setIsTesting] = useState(false);
   const [testResponse, setTestResponse] = useState("");
