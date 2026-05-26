@@ -571,7 +571,33 @@ export default function AdminAutomationsPage() {
 
           {testResponse && (
             <div style={{ marginTop: 14 }}>
-              {testPdfUrl ? <CopyBlock title="URL do PDF" value={testPdfUrl} rows={3} /> : null}
+              {testPdfUrl ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <CopyBlock title="URL do PDF" value={testPdfUrl} rows={3} />
+                  <div>
+                    <a
+                      href={testPdfUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        borderRadius: 8,
+                        border: "1px solid #BFDBFE",
+                        background: "#EFF6FF",
+                        color: "#1D4ED8",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        padding: "10px 14px",
+                        textDecoration: "none",
+                      }}
+                    >
+                      Abrir PDF
+                    </a>
+                  </div>
+                </div>
+              ) : null}
               {testPdfUrl ? <div style={{ height: 12 }} /> : null}
               <CopyBlock title="Resultado do teste" value={testResponse} rows={16} />
             </div>
