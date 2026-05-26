@@ -87,7 +87,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 2200, deviceScaleFactor: 2 });
     await page.goto(renderUrl, { waitUntil: "networkidle2", timeout: 120000 });
-    await page.waitForTimeout(3000);
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     const pdf = await page.pdf({
       format: "A4",
