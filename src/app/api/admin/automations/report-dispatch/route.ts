@@ -4,6 +4,15 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { DashboardService } from "@/services/dashboard-service";
 import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
 import { PROMPT_ANALISE_IA_TEMPLATE } from "@/lib/ai/prompt-analise-ia";
+import {
+  buildPdfPeriodPart,
+  buildSharePdfFilename,
+  buildSharePdfStoragePath,
+  getCachedSharePdf,
+  normalizePdfPeriodPart,
+  renderAndStoreSharePdf,
+  sanitizePdfFilePart,
+} from "@/lib/share-pdf";
 
 type DispatchBody = {
   dashboardId?: string;
@@ -449,21 +458,6 @@ function normalizeReportMode(value: unknown): "analysis_only" | "metrics_only" |
   return "both";
 }
 
-function sanitizeFilePart(value: string) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w\-]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 80);
-}
-
-function normalizePeriodPart(value: string | null | undefined) {
-  if (!value) return null;
-  const onlyDate = String(value).slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(onlyDate) ? onlyDate : null;
-}
-
 function toFiniteNumber(value: unknown) {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value === "string") {
@@ -895,15 +889,16 @@ export async function POST(request: Request) {
           : { ...report, aiInterpretation };
 
     const includePdf = reportMode === "pdf_only" || reportMode === "analysis_pdf" || reportMode === "both_pdf";
-    const periodFrom = normalizePeriodPart(body.from);
-    const periodTo = normalizePeriodPart(body.to);
-    const periodPart =
-      periodFrom && periodTo
-        ? `${periodFrom}_a_${periodTo}`
-        : periodFrom || periodTo || "periodo_nao_disponivel";
-    const dashboardPart = sanitizeFilePart(dashboard.name || "dashboard");
-    const clientPart = sanitizeFilePart(dashboard.clients?.name || "cliente");
-    const pdfFilename = `${dashboardPart}__${clientPart}__${periodPart}.pdf`;
+    const periodFrom = normalizePdfPeriodPart(body.from);
+    const periodTo = normalizePdfPeriodPart(body.to);
+    const periodPart = buildPdfPeriodPart(periodFrom, periodTo);
+    const dashboardPart = sanitizePdfFilePart(dashboard.name || "dashboard");
+    const clientPart = sanitizePdfFilePart(dashboard.clients?.name || "cliente");
+    const pdfFilename = buildSharePdfFilename({
+      dashboardName: `${dashboardPart}`,
+      clientName: `${clientPart}`,
+      periodPart,
+    });
     const pdfUrl =
       includePdf && shareToken
         ? `${origin}/api/share/${shareToken}/${encodeURIComponent(pdfFilename)}${
@@ -961,12 +956,20 @@ export async function POST(request: Request) {
 
     if (includePdf && pdfUrl) {
       try {
-        const warmup = new AbortController();
-        const warmupTimeout = setTimeout(() => warmup.abort(), 90000);
-        try {
-          await fetch(pdfUrl, { method: "GET", cache: "no-store", signal: warmup.signal });
-        } finally {
-          clearTimeout(warmupTimeout);
+        const storagePath = buildSharePdfStoragePath({
+          shareToken: String(shareToken),
+          periodPart,
+          filename: pdfFilename,
+        });
+        const cachedPdf = await getCachedSharePdf(storagePath);
+        if (!cachedPdf) {
+          await renderAndStoreSharePdf({
+            origin,
+            shareToken: String(shareToken),
+            from: periodFrom,
+            to: periodTo,
+            storagePath,
+          });
         }
       } catch (pdfWarmupError) {
         return NextResponse.json(
