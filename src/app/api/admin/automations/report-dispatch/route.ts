@@ -1096,6 +1096,7 @@ export async function POST(request: Request) {
       dispatchedAt: payload.dispatchedAt,
       dashboardId,
       shareUrl,
+      pdf: payload.pdf,
     });
   } catch (error: any) {
     console.error("Report Dispatch Error:", error);
