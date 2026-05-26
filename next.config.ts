@@ -41,6 +41,7 @@ const commitCount = getGitCommitCount();
 const fullVersion = commitCount !== "0" ? `${baseVersion}.${commitCount}` : baseVersion;
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
   env: {
     NEXT_PUBLIC_APP_VERSION: fullVersion,
     NEXT_PUBLIC_GIT_HASH: getGitHash(),
