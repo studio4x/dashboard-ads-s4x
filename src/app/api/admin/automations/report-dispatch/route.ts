@@ -889,6 +889,11 @@ export async function POST(request: Request) {
           ? report
           : { ...report, aiInterpretation };
 
+    const pdfReport =
+      aiInterpretation?.generated && aiInterpretation?.text
+        ? { ...report, aiInterpretation }
+        : report;
+
     const includePdf = reportMode === "pdf_only" || reportMode === "analysis_pdf" || reportMode === "both_pdf";
     const periodFrom = normalizePdfPeriodPart(body.from);
     const periodTo = normalizePdfPeriodPart(body.to);
@@ -933,7 +938,7 @@ export async function POST(request: Request) {
             periodFrom && periodTo
               ? `${periodFrom} a ${periodTo}`
               : periodFrom || periodTo || "Periodo nao informado",
-          report: reportPayload as any,
+          report: pdfReport as any,
           storagePath,
         });
         pdfUrl = await createSharePdfSignedUrl(storagePath);

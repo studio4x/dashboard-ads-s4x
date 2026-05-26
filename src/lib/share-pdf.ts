@@ -11,6 +11,8 @@ type ReportData = {
     variacaoPercentual?: Record<string, unknown>;
   };
   funil?: Record<string, unknown>;
+  totaisNumericos?: Record<string, Record<string, unknown>>;
+  mediasNumericas?: Record<string, Record<string, unknown>>;
   topItems?: Record<string, any>;
   aiInterpretation?: {
     generated?: boolean;
@@ -95,6 +97,12 @@ function renderKpiCards(summary: Record<string, unknown>) {
     .join("");
 }
 
+function hasAnyFiniteValue(record: Record<string, unknown> | undefined, keys?: string[]) {
+  if (!record) return false;
+  const entries = keys ? keys.map((key) => [key, record[key]] as const) : Object.entries(record);
+  return entries.some(([, value]) => Number.isFinite(Number(value)));
+}
+
 function renderComparisonTable(report: ReportData) {
   const atual = report.comparativo?.atual || {};
   const anterior = report.comparativo?.anterior || {};
@@ -121,6 +129,97 @@ function renderComparisonTable(report: ReportData) {
       `
     )
     .join("");
+}
+
+function renderMetricTable(
+  title: string,
+  data: Record<string, unknown> | undefined,
+  rows: Array<{ key: string; label: string }>
+) {
+  if (!data || !rows.length) return "";
+
+  const body = rows
+    .map(
+      (row) => `
+        <tr>
+          <td>${escapeHtml(row.label)}</td>
+          <td>${escapeHtml(valueByMetric(row.key, data[row.key]))}</td>
+        </tr>
+      `
+    )
+    .join("");
+
+  return `
+    <section class="panel section-block">
+      <h3>${escapeHtml(title)}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Metrica</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </section>
+  `;
+}
+
+function renderGroupedMetricTables(
+  title: string,
+  groups: Record<string, Record<string, unknown>> | undefined,
+  rows: Array<{ key: string; label: string }>
+) {
+  if (!groups) return "";
+
+  const labels: Record<string, string> = {
+    dailyPerformance: "Desempenho diario",
+    campaigns: "Campanhas",
+    adGroups: "Grupos de anuncios",
+    keywords: "Palavras-chave",
+    searchTerms: "Termos de pesquisa",
+    adsAndAssets: "Anuncios e ativos",
+  };
+
+  const sections = Object.entries(groups)
+    .filter(([, value]) => value && typeof value === "object" && hasAnyFiniteValue(value))
+    .map(
+      ([groupKey, value]) => `
+        <section class="panel nested-panel">
+          <h4>${escapeHtml(labels[groupKey] || groupKey)}</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Metrica</th>
+                <th>Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows
+                .map(
+                  (row) => `
+                    <tr>
+                      <td>${escapeHtml(row.label)}</td>
+                      <td>${escapeHtml(valueByMetric(row.key, value[row.key]))}</td>
+                    </tr>
+                  `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </section>
+      `
+    )
+    .join("");
+
+  if (!sections) return "";
+
+  return `
+    <section class="section-block">
+      <h2 class="section-title">${escapeHtml(title)}</h2>
+      <div class="stack">${sections}</div>
+    </section>
+  `;
 }
 
 function renderTopList(title: string, items: any[] | undefined, field: string) {
@@ -157,7 +256,7 @@ function renderTopList(title: string, items: any[] | undefined, field: string) {
 function renderAiBlock(text: string | null | undefined) {
   if (!text) return "";
   return `
-    <section class="panel">
+    <section class="panel section-block">
       <h3>Analise automatizada</h3>
       <div class="ai-block">${text}</div>
     </section>
@@ -171,11 +270,39 @@ function buildPdfHtml(params: {
   report: ReportData;
 }) {
   const summary = params.report.summary || {};
+  const funnel = params.report.funil || {};
   const topItems = params.report.topItems || {};
   const aiText =
     params.report.aiInterpretation?.generated && params.report.aiInterpretation?.text
       ? params.report.aiInterpretation.text
       : null;
+
+  const funnelRows = [
+    { key: "impressoes", label: "Impressoes" },
+    { key: "alcance", label: "Alcance" },
+    { key: "cliques", label: "Cliques" },
+    { key: "conversoes", label: "Conversoes" },
+    { key: "engajamentos", label: "Engajamentos" },
+    { key: "leads", label: "Leads" },
+    { key: "mensagens", label: "Mensagens" },
+    { key: "ctr", label: "CTR" },
+    { key: "cpc", label: "CPC" },
+    { key: "cpm", label: "CPM" },
+    { key: "cpa", label: "CPA" },
+    { key: "roas", label: "ROAS" },
+  ];
+
+  const totalsRows = [
+    { key: "cost", label: "Investimento" },
+    { key: "impressions", label: "Impressoes" },
+    { key: "clicks", label: "Cliques" },
+    { key: "ctr", label: "CTR" },
+    { key: "avgCpc", label: "CPC medio" },
+    { key: "avgCpm", label: "CPM medio" },
+    { key: "conversions", label: "Conversoes" },
+    { key: "conversionRate", label: "Taxa de conversao" },
+    { key: "roas", label: "ROAS" },
+  ];
 
   return `
     <!DOCTYPE html>
@@ -190,6 +317,9 @@ function buildPdfHtml(params: {
             font-family: Arial, sans-serif;
             background: #f5f7fb;
             color: #0f172a;
+          }
+          html, body {
+            width: 100%;
           }
           .page {
             width: 100%;
@@ -215,6 +345,11 @@ function buildPdfHtml(params: {
             font-size: 18px;
             margin: 0 0 12px;
           }
+          .section-block {
+            margin-bottom: 18px;
+            break-inside: avoid-page;
+            page-break-inside: avoid;
+          }
           .kpi-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -226,6 +361,8 @@ function buildPdfHtml(params: {
             border: 1px solid #dbe4f0;
             border-radius: 14px;
             padding: 16px;
+            break-inside: avoid-page;
+            page-break-inside: avoid;
           }
           .kpi-label {
             font-size: 12px;
@@ -238,16 +375,20 @@ function buildPdfHtml(params: {
             font-size: 22px;
             font-weight: 700;
           }
-          .layout {
+          .nested-panel h4 {
+            margin: 0 0 12px;
+            font-size: 15px;
+          }
+          .stack {
             display: grid;
-            grid-template-columns: 1.4fr 1fr;
             gap: 16px;
-            margin-bottom: 16px;
           }
           table {
             width: 100%;
             border-collapse: collapse;
             font-size: 12px;
+            break-inside: avoid-page;
+            page-break-inside: avoid;
           }
           th, td {
             text-align: left;
@@ -261,9 +402,12 @@ function buildPdfHtml(params: {
             letter-spacing: 0.04em;
             color: #475569;
           }
-          .stack {
-            display: grid;
-            gap: 16px;
+          thead {
+            display: table-header-group;
+          }
+          tr {
+            break-inside: avoid-page;
+            page-break-inside: avoid;
           }
           .ai-block {
             font-size: 13px;
@@ -290,42 +434,47 @@ function buildPdfHtml(params: {
             <p>Periodo: ${escapeHtml(params.periodLabel)}</p>
           </section>
 
-          <h2 class="section-title">Resumo executivo</h2>
-          <section class="kpi-grid">
-            ${renderKpiCards(summary)}
-          </section>
-
-          <section class="layout">
-            <section class="panel">
-              <h3>Comparativo do periodo</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Metrica</th>
-                    <th>Atual</th>
-                    <th>Anterior</th>
-                    <th>Variacao</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${renderComparisonTable(params.report)}
-                </tbody>
-              </table>
-            </section>
-
-            <section class="stack">
-              ${renderTopList("Top campanhas por investimento", topItems?.campanhas?.porInvestimento, "investimento")}
-              ${renderTopList("Top palavras-chave por investimento", topItems?.palavrasChave?.porInvestimento, "investimento")}
+          <section class="section-block">
+            <h2 class="section-title">Resumo executivo</h2>
+            <section class="kpi-grid">
+              ${renderKpiCards(summary)}
             </section>
           </section>
 
-          <section class="layout">
-            <section class="stack">
-              ${renderTopList("Top termos de pesquisa", topItems?.termosPesquisa?.porInvestimento, "investimento")}
-              ${renderTopList("Top anuncios por cliques", topItems?.anuncios?.porCliques, "cliques")}
-            </section>
-            ${renderAiBlock(aiText)}
+          <section class="panel section-block">
+            <h3>Comparativo do periodo</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Metrica</th>
+                  <th>Atual</th>
+                  <th>Anterior</th>
+                  <th>Variacao</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${renderComparisonTable(params.report)}
+              </tbody>
+            </table>
           </section>
+
+          ${
+            hasAnyFiniteValue(funnel, funnelRows.map((item) => item.key))
+              ? renderMetricTable("Funil consolidado", funnel, funnelRows)
+              : ""
+          }
+
+          ${renderGroupedMetricTables("Totais numericos", params.report.totaisNumericos, totalsRows)}
+          ${renderGroupedMetricTables("Medias numericas", params.report.mediasNumericas, totalsRows)}
+
+          <section class="stack section-block">
+            ${renderTopList("Top campanhas por investimento", topItems?.campanhas?.porInvestimento, "investimento")}
+            ${renderTopList("Top palavras-chave por investimento", topItems?.palavrasChave?.porInvestimento, "investimento")}
+            ${renderTopList("Top termos de pesquisa", topItems?.termosPesquisa?.porInvestimento, "investimento")}
+            ${renderTopList("Top anuncios por cliques", topItems?.anuncios?.porCliques, "cliques")}
+          </section>
+
+          ${renderAiBlock(aiText)}
         </div>
       </body>
     </html>
