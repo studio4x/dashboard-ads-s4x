@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, CheckCircle2 } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, CheckCircle2, ChevronDown, ChevronRight } from "lucide-react";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
@@ -60,6 +60,7 @@ export default function AdminDashboardsPage() {
   const [automationForms, setAutomationForms] = useState<Record<string, AutomationForm>>({});
   const [savingAutomationByDashboardId, setSavingAutomationByDashboardId] = useState<Record<string, boolean>>({});
   const [expandedAutomationByDashboardId, setExpandedAutomationByDashboardId] = useState<Record<string, boolean>>({});
+  const [expandedCardsByDashboardId, setExpandedCardsByDashboardId] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState({
     name: "",
@@ -546,6 +547,9 @@ export default function AdminDashboardsPage() {
           </div>
         ) : (
           dashboards.map((d: any) => (
+            (() => {
+              const isCardExpanded = Boolean(expandedCardsByDashboardId[d.id]);
+              return (
             <div 
               key={d.id} 
               className="card card-hover" 
@@ -582,6 +586,28 @@ export default function AdminDashboardsPage() {
                 
                 {/* System Badges (Status & Type) */}
                 <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+                  <button
+                    onClick={() =>
+                      setExpandedCardsByDashboardId((prev) => ({ ...prev, [d.id]: !prev[d.id] }))
+                    }
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      border: "1px solid #E2E8F0",
+                      background: "#F8FAFC",
+                      color: "#475569",
+                      borderRadius: 999,
+                      padding: "4px 10px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                    title={isCardExpanded ? "Recolher card" : "Expandir card"}
+                  >
+                    {isCardExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                    {isCardExpanded ? "Recolher" : "Expandir"}
+                  </button>
                   <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 99, background: d.status === "active" ? "#DCFCE7" : "#FEF3C7", color: d.status === "active" ? "#16A34A" : "#D97706", fontWeight: 600 }}>
                     {d.status === "active" ? "Ativo" : "Inativo"}
                   </span>
@@ -591,6 +617,8 @@ export default function AdminDashboardsPage() {
                 </div>
               </div>
 
+              {isCardExpanded && (
+              <>
               {d.dashboard_type === META_TEMPLATE_ID && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>Objetivos:</span>
@@ -1049,7 +1077,11 @@ export default function AdminDashboardsPage() {
                   </Link>
                 </div>
               </div>
+              </>
+              )}
             </div>
+            );
+            })()
           ))
         )}
       </div>
