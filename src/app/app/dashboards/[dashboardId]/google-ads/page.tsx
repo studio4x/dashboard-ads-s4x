@@ -10,6 +10,7 @@ import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters"
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateGoogleAdsKpis } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
+import { normalizeGoogleAdsRowsToPeriod } from "@/lib/dashboard/google-ads-period-model";
 
 export default function GoogleAdsPage() {
   const { data } = useDashboard();
@@ -36,8 +37,19 @@ export default function GoogleAdsPage() {
     Investimento: r.cost !== undefined ? r.cost : r.value || 0,
   }));
 
-  const googleCampaigns = data.campaigns.filter((c: any) => 
+  const normalizedCampaigns = normalizeGoogleAdsRowsToPeriod(
+    Array.isArray(data.campaigns) ? data.campaigns : [],
+    Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
+    Array.isArray(data.campaigns) ? data.campaigns : [],
+  );
+  const googleCampaigns = normalizedCampaigns.filter((c: any) => 
     (c.platform?.toLowerCase().includes("google")) || (data.templateId === "google_ads_s4x")
+  );
+
+  const normalizedKeywords = normalizeGoogleAdsRowsToPeriod(
+    Array.isArray(data.keywords) ? data.keywords : [],
+    Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
+    Array.isArray(data.campaigns) ? data.campaigns : [],
   );
 
   const campaignBarData = googleCampaigns.slice(0, 10).map((c: any) => ({
@@ -84,7 +96,7 @@ export default function GoogleAdsPage() {
       <div className="card" style={{ padding: 20 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "#0F172A", marginBottom: 16 }}>Palavras-chave com Melhor Desempenho</h3>
         <DataTableWidget
-          data={data.keywords as unknown as Record<string, unknown>[]}
+          data={normalizedKeywords as unknown as Record<string, unknown>[]}
           columns={[
             { key: "keyword", label: "Palavra-chave", render: (v) => <span style={{ fontWeight: 500 }}>{String(v)}</span> },
             { key: "matchType", label: "Tipo", render: (v, row) => <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: "#F1F5F9", color: "#475569" }}>{String(v || row.match_type || "")}</span> },
