@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, CheckCircle2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
@@ -586,6 +586,12 @@ export default function AdminDashboardsPage() {
                 
                 {/* System Badges (Status & Type) */}
                 <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 99, background: d.status === "active" ? "#DCFCE7" : "#FEF3C7", color: d.status === "active" ? "#16A34A" : "#D97706", fontWeight: 600 }}>
+                    {d.status === "active" ? "Ativo" : "Inativo"}
+                  </span>
+                  <span style={{ fontSize: 11, color: "#475569", background: "#F1F5F9", padding: "4px 10px", borderRadius: 99, fontWeight: 600, border: "1px solid #E2E8F0" }}>
+                    {d.dashboard_type === "google_ads_s4x" ? "Google Ads — S4X" : d.dashboard_type === "meta_ads_s4x" ? "Meta Ads — S4X" : d.dashboard_type === "google_ads" ? "Google Ads (Legado)" : d.dashboard_type || "Custom"}
+                  </span>
                   <button
                     onClick={() =>
                       setExpandedCardsByDashboardId((prev) => ({ ...prev, [d.id]: !prev[d.id] }))
@@ -593,27 +599,20 @@ export default function AdminDashboardsPage() {
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
-                      gap: 6,
+                      justifyContent: "center",
                       border: "1px solid #E2E8F0",
                       background: "#F8FAFC",
                       color: "#475569",
                       borderRadius: 999,
-                      padding: "4px 10px",
-                      fontSize: 11,
-                      fontWeight: 700,
+                      width: 36,
+                      height: 36,
                       cursor: "pointer",
                     }}
                     title={isCardExpanded ? "Recolher card" : "Expandir card"}
+                    aria-label={isCardExpanded ? "Recolher card" : "Expandir card"}
                   >
-                    {isCardExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                    {isCardExpanded ? "Recolher" : "Expandir"}
+                    {isCardExpanded ? <ChevronUp size={22} /> : <ChevronDown size={22} />}
                   </button>
-                  <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 99, background: d.status === "active" ? "#DCFCE7" : "#FEF3C7", color: d.status === "active" ? "#16A34A" : "#D97706", fontWeight: 600 }}>
-                    {d.status === "active" ? "Ativo" : "Inativo"}
-                  </span>
-                  <span style={{ fontSize: 11, color: "#475569", background: "#F1F5F9", padding: "4px 10px", borderRadius: 99, fontWeight: 600, border: "1px solid #E2E8F0" }}>
-                    {d.dashboard_type === "google_ads_s4x" ? "Google Ads — S4X" : d.dashboard_type === "meta_ads_s4x" ? "Meta Ads — S4X" : d.dashboard_type === "google_ads" ? "Google Ads (Legado)" : d.dashboard_type || "Custom"}
-                  </span>
                 </div>
               </div>
 
