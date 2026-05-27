@@ -6,6 +6,7 @@ import { DataTableWidget } from "@/components/dashboard/DataTableWidget";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
+import { normalizeGoogleAdsRowsToPeriod } from "@/lib/dashboard/google-ads-period-model";
 import { Search, Filter, HelpCircle, CheckCircle2 } from "lucide-react";
 import { useState, useMemo } from "react";
 
@@ -16,7 +17,12 @@ export default function SearchTermsPage() {
 
   if (!data) return null;
 
-  const searchTerms = data.searchTerms || [];
+  const baseSearchTerms = Array.isArray(data.searchTerms) ? data.searchTerms : [];
+  const searchTerms = normalizeGoogleAdsRowsToPeriod(
+    baseSearchTerms,
+    Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
+    Array.isArray(data.campaigns) ? data.campaigns : [],
+  );
   const hasData = searchTerms.length > 0;
 
   if (!hasData && data.source !== "mock") {

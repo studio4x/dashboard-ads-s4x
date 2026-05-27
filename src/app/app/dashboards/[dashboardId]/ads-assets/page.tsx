@@ -6,6 +6,7 @@ import { DataTableWidget } from "@/components/dashboard/DataTableWidget";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
+import { normalizeGoogleAdsRowsToPeriod } from "@/lib/dashboard/google-ads-period-model";
 import { Search, Filter, Layers, AlertCircle } from "lucide-react";
 import { useState, useMemo } from "react";
 
@@ -16,7 +17,12 @@ export default function AdsAssetsPage() {
 
   if (!data) return null;
 
-  const adsAndAssets = data.adsAndAssets || [];
+  const baseAdsAndAssets = Array.isArray(data.adsAndAssets) ? data.adsAndAssets : [];
+  const adsAndAssets = normalizeGoogleAdsRowsToPeriod(
+    baseAdsAndAssets,
+    Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
+    Array.isArray(data.campaigns) ? data.campaigns : [],
+  );
   const hasData = adsAndAssets.length > 0;
 
   if (!hasData && data.source !== "mock") {
