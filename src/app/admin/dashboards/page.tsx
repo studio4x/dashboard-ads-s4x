@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, CheckCircle2 } from "lucide-react";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
@@ -59,6 +59,7 @@ export default function AdminDashboardsPage() {
   const [runningDispatchByDashboardId, setRunningDispatchByDashboardId] = useState<Record<string, boolean>>({});
   const [automationForms, setAutomationForms] = useState<Record<string, AutomationForm>>({});
   const [savingAutomationByDashboardId, setSavingAutomationByDashboardId] = useState<Record<string, boolean>>({});
+  const [expandedAutomationByDashboardId, setExpandedAutomationByDashboardId] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState({
     name: "",
@@ -735,6 +736,7 @@ export default function AdminDashboardsPage() {
                   periodDays: 7,
                   reportMode: "both",
                 };
+                const isCollapsed = form.enabled && !expandedAutomationByDashboardId[d.id];
 
                 return (
                   <div
@@ -757,13 +759,60 @@ export default function AdminDashboardsPage() {
                         <input
                           type="checkbox"
                           checked={form.enabled}
-                          onChange={(e) => handleAutomationFieldChange(d.id, { enabled: e.target.checked })}
+                          onChange={(e) => {
+                            const enabled = e.target.checked;
+                            handleAutomationFieldChange(d.id, { enabled });
+                            setExpandedAutomationByDashboardId((prev) => ({
+                              ...prev,
+                              [d.id]: !enabled,
+                            }));
+                          }}
                         />
                         Ativar programação
                       </label>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+                    {isCollapsed && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          border: "1px solid #BBF7D0",
+                          background: "#F0FDF4",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                          <CheckCircle2 size={16} color="#15803D" />
+                          <span style={{ fontSize: 12, color: "#166534", fontWeight: 700 }}>
+                            Programação ativada.
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setExpandedAutomationByDashboardId((prev) => ({ ...prev, [d.id]: true }))}
+                          style={{
+                            border: "1px solid #86EFAC",
+                            background: "#DCFCE7",
+                            color: "#166534",
+                            borderRadius: 8,
+                            padding: "6px 10px",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Editar programação
+                        </button>
+                      </div>
+                    )}
+
+                    {!isCollapsed && (
+                      <>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
                       <label style={{ fontSize: 12, color: "#334155", display: "flex", flexDirection: "column", gap: 4 }}>
                         Frequência
                         <select
@@ -871,6 +920,8 @@ export default function AdminDashboardsPage() {
                         Salvar Programação
                       </button>
                     </div>
+                      </>
+                    )}
                   </div>
                 );
               })()}
