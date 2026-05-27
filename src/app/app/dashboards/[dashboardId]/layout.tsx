@@ -10,19 +10,33 @@ export async function generateMetadata(
   { params }: { params: Promise<{ dashboardId: string }> }
 ): Promise<Metadata> {
   const { dashboardId } = await params;
+  const siteTitle = "Dashboard ADS S4X";
+  let clientName = "Cliente";
   let dashboardTitle = "Dashboard";
+  let hasFoundDb = false;
 
   try {
     const dbDashboard = await DashboardService.getDashboardById(dashboardId);
     if (dbDashboard) {
+      clientName = dbDashboard.clients?.name || "Cliente";
       dashboardTitle = dbDashboard.name || dbDashboard.title || "Dashboard";
+      hasFoundDb = true;
     }
   } catch {
     // fallback silencioso
   }
 
+  if (!hasFoundDb) {
+    const dashboard = mockDashboards.find((d) => d.id === dashboardId) ?? mockDashboards[0];
+    const client = mockClients.find((c) => c.id === dashboard?.client_id) ?? mockClients[0];
+    clientName = client?.name ?? "Cliente Demo";
+    dashboardTitle = dashboard?.title ?? "Dashboard";
+  }
+
   return {
-    title: `Dashboard Ads S4x | ${dashboardTitle}`,
+    title: {
+      absolute: `${clientName} | ${dashboardTitle} | ${siteTitle}`,
+    },
   };
 }
 
