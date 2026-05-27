@@ -7,6 +7,7 @@ import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 import { ClientLogoUploader } from "@/components/admin/ClientLogoUploader";
 import { ClientContactForm } from "@/components/admin/ClientContactForm";
 import { CreateDashboardModalButton } from "@/components/admin/CreateDashboardModalButton";
+import { ClientSourceLinker } from "@/components/admin/ClientSourceLinker";
 
 export default async function ClientHubPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -125,6 +126,18 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
                             <span style={{ fontSize: 12, color: hasDashImport ? "#334155" : "#94A3B8" }}>Primeira importação realizada</span>
                           </div>
                         </div>
+                        {!hasDashSource && (
+                          <div style={{ marginTop: 10 }}>
+                            <ClientSourceLinker
+                              clientId={client.id}
+                              dashboards={dashboards}
+                              dataSources={dataSources}
+                              presetDashboardId={d.id}
+                              triggerLabel="Vincular fonte de dados"
+                              triggerVariant="secondary"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -139,9 +152,18 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A", display: "flex", alignItems: "center", gap: 8 }}>
                 <FileSpreadsheet size={20} color="#059669" /> Fontes Google Sheets
               </h2>
-              <Link href="/admin/google-sheets" style={{ fontSize: 13, padding: "6px 12px", background: "#EFF6FF", color: "#2563EB", borderRadius: 6, textDecoration: "none", fontWeight: 500 }}>
-                Gerenciar Fontes
-              </Link>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ClientSourceLinker
+                  clientId={client.id}
+                  dashboards={dashboards}
+                  dataSources={dataSources}
+                  triggerLabel="Criar e vincular"
+                  triggerVariant="primary"
+                />
+                <Link href="/admin/google-sheets" style={{ fontSize: 13, padding: "6px 12px", background: "#EFF6FF", color: "#2563EB", borderRadius: 6, textDecoration: "none", fontWeight: 500 }}>
+                  Gerenciar Fontes
+                </Link>
+              </div>
             </div>
             
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
