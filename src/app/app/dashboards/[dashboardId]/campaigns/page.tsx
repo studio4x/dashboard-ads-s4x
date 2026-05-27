@@ -15,7 +15,60 @@ export default function CampaignsPage() {
 
   if (!data) return null;
 
-  const campaigns = data.campaigns || [];
+  const baseCampaigns = Array.isArray(data.campaigns) ? data.campaigns : [];
+  const dailyRows = Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [];
+
+  // Map base campaign metadata for status/channel labels.
+  const baseCampaignMeta = new Map<string, any>();
+  for (const row of baseCampaigns) {
+    const key = String(row?.campaignName || "").trim();
+    if (!key) continue;
+    if (!baseCampaignMeta.has(key)) baseCampaignMeta.set(key, row);
+  }
+
+  // Build period-consistent campaigns list from the already filtered dailyPerformance.
+  const campaignAgg = new Map<string, any>();
+  for (const row of dailyRows) {
+    const campaignName = String(row?.campaignName || "").trim();
+    if (!campaignName) continue;
+
+    const current = campaignAgg.get(campaignName) || {
+      campaignName,
+      campaignStatus: baseCampaignMeta.get(campaignName)?.campaignStatus || "PAUSED",
+      channelType: baseCampaignMeta.get(campaignName)?.channelType || "SEARCH",
+      impressions: 0,
+      clicks: 0,
+      cost: 0,
+      conversions: 0,
+      conversionValue: 0,
+      ctr: 0,
+      avgCpc: 0,
+      cpa: 0,
+      roas: 0,
+    };
+
+    current.impressions += Number(row?.impressions || 0);
+    current.clicks += Number(row?.clicks || 0);
+    current.cost += Number(row?.cost || row?.total_spend || 0);
+    current.conversions += Number(row?.conversions || 0);
+    current.conversionValue += Number(row?.conversionValue || row?.total_revenue || 0);
+    campaignAgg.set(campaignName, current);
+  }
+
+  let campaigns = Array.from(campaignAgg.values());
+  campaigns = campaigns.map((item) => {
+    const ctr = item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0;
+    const avgCpc = item.clicks > 0 ? item.cost / item.clicks : 0;
+    const cpa = item.conversions > 0 ? item.cost / item.conversions : 0;
+    const roas = item.cost > 0 ? item.conversionValue / item.cost : 0;
+    return { ...item, ctr, avgCpc, cpa, roas };
+  });
+
+  // Fallback for older payloads that may not have dailyPerformance.
+  if (campaigns.length === 0 && baseCampaigns.length > 0) {
+    campaigns = baseCampaigns;
+  }
+
   const hasData = campaigns.length > 0;
 
   if (!hasData && data.source !== "mock") {
@@ -31,7 +84,7 @@ export default function CampaignsPage() {
 
   // Filtro
   const filteredCampaigns = campaigns.filter(c => 
-    c.campaignName.toLowerCase().includes(searchTerm.toLowerCase())
+    String(c.campaignName || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Ordenação padrão: Custo Desc
@@ -110,7 +163,7 @@ export default function CampaignsPage() {
             { key: "avgCpc", label: "CPC", align: "right", render: (v) => v !== null ? formatCurrency(Number(v)) : "—" },
             { key: "cost", label: "Custo", align: "right", render: (v) => formatCurrency(Number(v)) },
             { key: "conversions", label: "Conv.", align: "right", render: (v) => formatNumber(Number(v)) },
-            { key: "cpa", label: "CPA", align: "right", render: (v) => v !== null ? formatCurrency(Number(v)) : "—" },
+            { key: "cpa", label: "CPA", align: "right", render: (v) => Number.isFinite(Number(v)) ? formatCurrency(Number(v)) : "—" },
             { key: "conversionValue", label: "Valor Conv.", align: "right", render: (v) => formatCurrency(Number(v)) },
             { key: "roas", label: "ROAS", align: "right", render: (v) => v !== null ? `${Number(v).toFixed(2)}x` : "—" },
           ]}
