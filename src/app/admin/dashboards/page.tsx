@@ -13,6 +13,12 @@ const ACTIVE_TEMPLATES = DASHBOARD_TEMPLATES.filter(t => t.status === "active");
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
 type MetaObjective = (typeof META_ADS_OBJECTIVES)[number]["id"];
 const META_TEMPLATE_ID = "meta_ads_s4x";
+const DASHBOARD_TYPE_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  google_ads_s4x: { label: "Google Ads — S4X", bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
+  meta_ads_s4x: { label: "Meta Ads — S4X", bg: "#EEF2FF", color: "#4338CA", border: "#C7D2FE" },
+  google_ads: { label: "Google Ads (Legado)", bg: "#FFFBEB", color: "#B45309", border: "#FDE68A" },
+  custom: { label: "Custom", bg: "#F1F5F9", color: "#475569", border: "#E2E8F0" },
+};
 const WEEK_DAYS = [
   { value: 0, label: "Domingo" },
   { value: 1, label: "Segunda" },
@@ -552,6 +558,12 @@ export default function AdminDashboardsPage() {
               const automationEnabled = Boolean(
                 automationForms[d.id]?.enabled ?? d.automation_enabled
               );
+              const dashboardTypeBadge = DASHBOARD_TYPE_BADGE[d.dashboard_type] || {
+                label: d.dashboard_type || "Custom",
+                bg: "#F1F5F9",
+                color: "#475569",
+                border: "#E2E8F0",
+              };
               return (
             <div 
               key={d.id} 
@@ -608,8 +620,18 @@ export default function AdminDashboardsPage() {
                   <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 99, background: d.status === "active" ? "#DCFCE7" : "#FEF3C7", color: d.status === "active" ? "#16A34A" : "#D97706", fontWeight: 600 }}>
                     {d.status === "active" ? "Ativo" : "Inativo"}
                   </span>
-                  <span style={{ fontSize: 11, color: "#475569", background: "#F1F5F9", padding: "4px 10px", borderRadius: 99, fontWeight: 600, border: "1px solid #E2E8F0" }}>
-                    {d.dashboard_type === "google_ads_s4x" ? "Google Ads — S4X" : d.dashboard_type === "meta_ads_s4x" ? "Meta Ads — S4X" : d.dashboard_type === "google_ads" ? "Google Ads (Legado)" : d.dashboard_type || "Custom"}
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: dashboardTypeBadge.color,
+                      background: dashboardTypeBadge.bg,
+                      padding: "4px 10px",
+                      borderRadius: 99,
+                      fontWeight: 600,
+                      border: `1px solid ${dashboardTypeBadge.border}`,
+                    }}
+                  >
+                    {dashboardTypeBadge.label}
                   </span>
                   <button
                     onClick={() =>
