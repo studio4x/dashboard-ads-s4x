@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, Info, Download, Loader2 } from "lucide-react";
+import { CalendarDays, Info, Download, Loader2, RefreshCcw } from "lucide-react";
 import { DateRangeSelector } from "./DateRangeSelector";
 import { useDashboard } from "./DashboardDataContext";
 import { cn } from "@/lib/utils";
@@ -29,8 +29,9 @@ export function SharedDashboardHeader({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { rangePreset, includeToday, updateRange, from, to, data } = useDashboard();
+  const { rangePreset, includeToday, updateRange, from, to, data, refresh } = useDashboard();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isRefreshingData, setIsRefreshingData] = useState(false);
 
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
   const subtitleParts = [dashboardName, clientName].filter(Boolean);
@@ -255,6 +256,16 @@ export function SharedDashboardHeader({
     }
   }
 
+  async function handleRefreshData() {
+    if (isRefreshingData) return;
+    try {
+      setIsRefreshingData(true);
+      await refresh();
+    } finally {
+      setIsRefreshingData(false);
+    }
+  }
+
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
       <div className="shared-dashboard-box px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -306,6 +317,16 @@ export function SharedDashboardHeader({
                </span>
             </div>
           )}
+
+          <button
+            onClick={handleRefreshData}
+            disabled={isRefreshingData}
+            className="flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm w-full sm:w-auto min-w-[180px] gap-2 disabled:opacity-60"
+            title="Atualizar dados da aba atual"
+          >
+            {isRefreshingData ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
+            {isRefreshingData ? "Atualizando..." : "Atualizar dados"}
+          </button>
 
           <button
             onClick={handleExportPdf}

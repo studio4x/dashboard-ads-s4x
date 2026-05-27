@@ -158,7 +158,7 @@ export async function getDashboardData(
         google_ads_summary: google_ads_summary || data.google_ads_summary,
         meta_ads_summary: meta_ads_summary || data.meta_ads_summary,
         source: snapshot.source_type || "google_sheets",
-        lastUpdated: new Date(snapshot.imported_at).toLocaleString("pt-BR"),
+        lastUpdated: `${new Date(snapshot.imported_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} (UTC-3)`,
         templateId: dashboard?.dashboard_type || "google_ads_s4x",
         templateVersion: dashboard?.template_version || "1.0",
         platform: dashboard?.platform || "google_ads",

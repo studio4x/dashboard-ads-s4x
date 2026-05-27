@@ -1358,7 +1358,7 @@ export default function AdminDashboardsPage() {
                     <div style={{ borderTop: "1px solid #F1F5F9", paddingTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ fontSize: 12, color: "#64748B" }}>
-                          Última sincronização: <strong>{source.google_sheet_sources?.last_import_at ? new Date(source.google_sheet_sources.last_import_at).toLocaleString('pt-BR') : "Nunca"}</strong>
+                          Última sincronização: <strong>{source.google_sheet_sources?.last_import_at ? `${new Date(source.google_sheet_sources.last_import_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (UTC-3)` : "Nunca"}</strong>
                         </span>
                         {source.google_sheet_sources?.spreadsheet_id && (
                           <a 

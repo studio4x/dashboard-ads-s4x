@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BarChart3, Bell, Settings, LogOut, Download, Loader2 } from "lucide-react";
+import { BarChart3, Bell, Settings, LogOut, Download, Loader2, RefreshCcw } from "lucide-react";
 import { logout } from "@/app/login/actions";
 import { DateRangeSelector } from "./DateRangeSelector";
 import { useDashboard } from "./DashboardDataContext";
@@ -28,8 +28,9 @@ export function DashboardHeader({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { rangePreset, includeToday, updateRange, from, to, data } = useDashboard();
+  const { rangePreset, includeToday, updateRange, from, to, data, refresh } = useDashboard();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isRefreshingData, setIsRefreshingData] = useState(false);
   
   const metricsSource = data?.config?.Fonte || data?.config?.fonte || (data?.source === "mock" ? "Mocks" : "Google Sheets");
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
@@ -278,6 +279,16 @@ export function DashboardHeader({
     }
   }
 
+  async function handleRefreshData() {
+    if (isRefreshingData) return;
+    try {
+      setIsRefreshingData(true);
+      await refresh();
+    } finally {
+      setIsRefreshingData(false);
+    }
+  }
+
   return (
     <header
       style={{
@@ -342,6 +353,31 @@ export function DashboardHeader({
 
         {/* Right: Period + actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={handleRefreshData}
+            disabled={isRefreshingData}
+            style={{
+              height: 34,
+              borderRadius: 8,
+              border: "1px solid #E2E8F0",
+              background: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: isRefreshingData ? "wait" : "pointer",
+              color: "#334155",
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "0 10px",
+              gap: 6,
+              whiteSpace: "nowrap",
+            }}
+            title="Atualizar dados da aba atual"
+          >
+            {isRefreshingData ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
+            {isRefreshingData ? "Atualizando..." : "Atualizar dados"}
+          </button>
+
           <button
             onClick={handleExportPdf}
             disabled={isExportingPdf}

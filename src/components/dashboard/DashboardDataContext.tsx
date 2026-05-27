@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getDateRangePreset, formatDateISO, DateRangePreset } from "@/lib/dashboard/date-utils";
 
 interface DashboardData {
@@ -71,6 +71,7 @@ interface DashboardDataProviderProps {
 
 export function DashboardDataProvider({ children, overrideDashboardId, shareToken }: DashboardDataProviderProps) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const router = useRouter();
   const params = useParams();
   const dashboardId = overrideDashboardId || (params.dashboardId as string);
@@ -135,7 +136,7 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
     } finally {
       setLoading(false);
     }
-  }, [dashboardId, from, to]);
+  }, [dashboardId, from, to, shareToken]);
 
   const updateRange = (
     preset: DateRangePreset, 
@@ -167,6 +168,11 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Refresh when user changes tab/page inside the same dashboard.
+  useEffect(() => {
+    fetchData();
+  }, [pathname, fetchData]);
 
   return (
     <DashboardDataContext.Provider value={{ 
