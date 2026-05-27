@@ -8,6 +8,7 @@ import { ClientLogoUploader } from "@/components/admin/ClientLogoUploader";
 import { ClientContactForm } from "@/components/admin/ClientContactForm";
 import { CreateDashboardModalButton } from "@/components/admin/CreateDashboardModalButton";
 import { ClientSourceLinker } from "@/components/admin/ClientSourceLinker";
+import { ClientSourceSyncModalButton } from "@/components/admin/ClientSourceSyncModalButton";
 
 export default async function ClientHubPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -86,6 +87,7 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
                 dashboards.map((d: any) => {
                   const dashSources = dataSources.filter((s: any) => s.dashboard_id === d.id);
                   const hasDashSource = dashSources.length > 0;
+                  const primaryDashSource = dashSources[0];
                   const hasDashImport = dashSources.some((s: any) => {
                     const sync = getSourceSyncData(s);
                     return sync.lastImportStatus === "success" || sync.lastImportStatus === "success_with_warnings";
@@ -138,6 +140,17 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
                             />
                           </div>
                         )}
+                        {hasDashSource && primaryDashSource && (
+                          <div style={{ marginTop: 10 }}>
+                            <ClientSourceSyncModalButton
+                              clientId={client.id}
+                              dashboardId={d.id}
+                              dashboardName={String(d.title || d.name || "Dashboard")}
+                              source={primaryDashSource}
+                              triggerVariant="inline"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -182,7 +195,16 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
                         : "Pendente";
                   return (
                     <div key={s.id} style={{ padding: 16, borderRadius: 8, border: "1px solid #E2E8F0" }}>
-                      <p style={{ fontSize: 14, fontWeight: 500, color: "#0F172A" }}>{s.name}</p>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <p style={{ fontSize: 14, fontWeight: 500, color: "#0F172A" }}>{s.name}</p>
+                        <ClientSourceSyncModalButton
+                          clientId={client.id}
+                          dashboardId={String(s.dashboard_id)}
+                          dashboardName={String(dashboards.find((item: any) => item.id === s.dashboard_id)?.title || dashboards.find((item: any) => item.id === s.dashboard_id)?.name || "Dashboard")}
+                          source={s}
+                          triggerVariant="card"
+                        />
+                      </div>
                       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 12, color: "#64748B" }}>
                           Última imp.: {hasSyncedAtLeastOnce ? new Date(sync.lastImportAt).toLocaleString("pt-BR") : "Nunca"}
