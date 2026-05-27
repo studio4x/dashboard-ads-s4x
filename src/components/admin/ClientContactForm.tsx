@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Save, Mail, Phone } from "lucide-react";
+import { Loader2, Save, Mail, Phone, Building2, Globe } from "lucide-react";
 
 interface ClientContactFormProps {
   clientId: string;
+  initialCompanyName?: string | null;
+  initialWebsiteUrl?: string | null;
   initialEmail?: string | null;
   initialEmails?: string | null;
   initialWhatsapp?: string | null;
@@ -13,12 +15,16 @@ interface ClientContactFormProps {
 
 export function ClientContactForm({
   clientId,
+  initialCompanyName,
+  initialWebsiteUrl,
   initialEmail,
   initialEmails,
   initialWhatsapp,
   initialPhones,
 }: ClientContactFormProps) {
   const [formData, setFormData] = useState({
+    company_name: initialCompanyName || "",
+    website_url: initialWebsiteUrl || "",
     email: initialEmail || "",
     emails: initialEmails || "",
     whatsapp: initialWhatsapp || "",
@@ -57,6 +63,30 @@ export function ClientContactForm({
       </h3>
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
+            <Building2 size={13} /> Razão social
+          </label>
+          <input
+            value={formData.company_name}
+            onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+            placeholder="Razão social da empresa"
+            style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
+          />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
+            <Globe size={13} /> URL do site
+          </label>
+          <input
+            value={formData.website_url}
+            onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+            placeholder="https://www.exemplo.com"
+            style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
+          />
+        </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
             <Mail size={13} /> E-mail principal
@@ -143,4 +173,3 @@ export function ClientContactForm({
     </div>
   );
 }
-

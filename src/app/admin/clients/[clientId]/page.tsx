@@ -246,6 +246,8 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
 
           <ClientContactForm
             clientId={client.id}
+            initialCompanyName={client.company_name}
+            initialWebsiteUrl={client.website_url}
             initialEmail={client.email}
             initialEmails={client.emails}
             initialWhatsapp={client.whatsapp}
