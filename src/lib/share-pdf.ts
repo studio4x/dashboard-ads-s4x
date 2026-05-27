@@ -286,6 +286,16 @@ function buildPdfHtml(params: {
     params.report.aiInterpretation?.generated && params.report.aiInterpretation?.text
       ? params.report.aiInterpretation.text
       : null;
+  const generatedAtLabel = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(new Date());
 
   return `
     <!DOCTYPE html>
@@ -306,20 +316,20 @@ function buildPdfHtml(params: {
           }
           .page {
             width: 100%;
-            min-height: 100vh;
-            padding: 18px 20px;
+            padding: 14px 16px 36px;
+            position: relative;
           }
           .hero {
             background: linear-gradient(135deg, #0f172a, #1e40af 58%, #2563eb);
             color: white;
             border-radius: 16px;
-            padding: 18px 20px;
-            margin-bottom: 14px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
             box-shadow: 0 18px 40px rgba(37, 99, 235, 0.18);
           }
           .hero h1 {
-            margin: 0 0 6px;
-            font-size: 24px;
+            margin: 0 0 4px;
+            font-size: 18px;
           }
           .hero-meta {
             display: flex;
@@ -328,15 +338,14 @@ function buildPdfHtml(params: {
           }
           .hero p {
             margin: 0;
-            font-size: 12px;
+            font-size: 10px;
             opacity: 0.92;
           }
           .analysis-shell {
             background: white;
             border: 1px solid #d8e3f2;
             border-radius: 16px;
-            padding: 16px;
-            min-height: calc(100vh - 130px);
+            padding: 12px;
             box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
           }
           .analysis-header {
@@ -344,18 +353,18 @@ function buildPdfHtml(params: {
             justify-content: space-between;
             align-items: flex-end;
             gap: 16px;
-            margin-bottom: 12px;
-            padding-bottom: 10px;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
             border-bottom: 1px solid #e2e8f0;
           }
           .analysis-header h3 {
             margin: 0;
-            font-size: 18px;
+            font-size: 14px;
           }
           .analysis-header p {
             margin: 0;
             color: #64748b;
-            font-size: 12px;
+            font-size: 10px;
           }
           .analysis-empty {
             height: 100%;
@@ -371,40 +380,40 @@ function buildPdfHtml(params: {
             color: #0f172a;
           }
           .ai-block {
-            font-size: 12px;
-            line-height: 1.42;
+            font-size: 10px;
+            line-height: 1.25;
             color: #0f172a;
           }
           .ai-block .ai-metrics-summary {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px 12px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px 8px;
           }
           .ai-block .metric-item {
             border: 1px solid #dbe4f0;
-            border-radius: 12px;
+            border-radius: 10px;
             background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-            padding: 12px 13px;
+            padding: 8px 9px;
             min-height: 0;
             break-inside: avoid;
             page-break-inside: avoid;
           }
           .ai-block .metric-item h3 {
-            margin: 0 0 6px;
-            font-size: 14px;
+            margin: 0 0 4px;
+            font-size: 11px;
             line-height: 1.2;
           }
           .ai-block .metric-item p {
-            margin: 4px 0;
+            margin: 2px 0;
           }
           .ai-block .metric-description {
             color: #475569;
-            font-size: 11px;
+            font-size: 9px;
           }
           .ai-block .metric-value,
           .ai-block .metric-comparison,
           .ai-block .metric-variation {
-            font-size: 11.5px;
+            font-size: 9px;
           }
           .ai-block .metric-value {
             font-weight: 700;
@@ -413,6 +422,16 @@ function buildPdfHtml(params: {
           .ai-block .metric-variation {
             font-weight: 700;
             color: #1d4ed8;
+          }
+          .pdf-footer {
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            bottom: 10px;
+            display: flex;
+            justify-content: flex-end;
+            color: #64748b;
+            font-size: 9px;
           }
           @page {
             size: A4 landscape;
@@ -431,6 +450,7 @@ function buildPdfHtml(params: {
           </section>
 
           ${renderAiBlock(aiText)}
+          <footer class="pdf-footer">PDF gerado em ${escapeHtml(generatedAtLabel)}</footer>
         </div>
       </body>
     </html>
