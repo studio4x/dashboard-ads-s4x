@@ -12,33 +12,33 @@ interface MetricCardProps {
 export function MetricCard({ metric, className }: MetricCardProps) {
   const isPositive = metric.change_direction === "up";
   const isNegative = metric.change_direction === "down";
-  const isNeutral = metric.change_direction === "neutral";
+  const isNeutral = metric.change_direction === "neutral" || metric.change_percent === 0;
 
   const TrendIcon = isPositive ? TrendingUp : isNegative ? TrendingDown : Minus;
-  const trendClass = isPositive ? "trend-up" : isNegative ? "trend-down" : "trend-neutral";
-  const trendBg = isPositive
+  const trendColor = isPositive ? "text-green-700" : isNegative ? "text-red-700" : "text-slate-500";
+  const trendBadgeBg = isPositive
     ? "bg-green-50 text-green-700"
     : isNegative
-    ? "bg-red-50 text-red-700"
-    : "bg-slate-100 text-slate-500";
+      ? "bg-red-50 text-red-700"
+      : "bg-slate-100 text-slate-500";
 
   const changePrefix = isPositive ? "+" : "";
 
   return (
     <div
       className={cn(
-        "card card-hover p-5 flex flex-col gap-3 animate-fade-in",
+        "rounded-2xl border border-slate-200 bg-white shadow-sm p-4 sm:p-5 flex flex-col justify-between min-h-[132px] transition-all hover:shadow-md animate-fade-in",
         className
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-slate-500 leading-tight">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase leading-tight">
           {metric.label}
         </p>
         <span
           className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap",
-            trendBg
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap",
+            trendBadgeBg
           )}
         >
           <TrendIcon size={11} />
@@ -47,13 +47,20 @@ export function MetricCard({ metric, className }: MetricCardProps) {
         </span>
       </div>
 
-      <div>
-        <p className="text-2xl font-bold text-slate-900 leading-none tracking-tight">
+      <div className="mt-2">
+        <p className="text-2xl font-extrabold text-slate-900 leading-tight tracking-tight">
           {metric.formatted_value}
         </p>
-        {metric.description && (
-          <p className="text-xs text-slate-400 mt-1">{metric.description}</p>
-        )}
+        <div className={cn("mt-1 flex items-center gap-1 text-[11px] font-semibold", trendColor)}>
+          {!isNeutral && <TrendIcon size={13} />}
+          <span>
+            {changePrefix}
+            {metric.change_percent.toFixed(1)}%
+          </span>
+          <span className="text-[10px] text-slate-400 font-medium">
+            vs. anterior
+          </span>
+        </div>
       </div>
     </div>
   );
