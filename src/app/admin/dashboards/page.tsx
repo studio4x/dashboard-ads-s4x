@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff } from "lucide-react";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
@@ -549,6 +549,9 @@ export default function AdminDashboardsPage() {
           dashboards.map((d: any) => (
             (() => {
               const isCardExpanded = Boolean(expandedCardsByDashboardId[d.id]);
+              const automationEnabled = Boolean(
+                automationForms[d.id]?.enabled ?? d.automation_enabled
+              );
               return (
             <div 
               key={d.id} 
@@ -586,6 +589,22 @@ export default function AdminDashboardsPage() {
                 
                 {/* System Badges (Status & Type) */}
                 <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+                  <span
+                    title={automationEnabled ? "Programação da automação ativada" : "Programação da automação desativada"}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 28,
+                      height: 28,
+                      borderRadius: 999,
+                      border: automationEnabled ? "1px solid #BBF7D0" : "1px solid #E2E8F0",
+                      background: automationEnabled ? "#F0FDF4" : "#F8FAFC",
+                      color: automationEnabled ? "#15803D" : "#64748B",
+                    }}
+                  >
+                    {automationEnabled ? <BellRing size={14} /> : <BellOff size={14} />}
+                  </span>
                   <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 99, background: d.status === "active" ? "#DCFCE7" : "#FEF3C7", color: d.status === "active" ? "#16A34A" : "#D97706", fontWeight: 600 }}>
                     {d.status === "active" ? "Ativo" : "Inativo"}
                   </span>
