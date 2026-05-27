@@ -2,18 +2,21 @@ import {
   subDays, 
   startOfMonth, 
   endOfMonth, 
-  startOfYesterday, 
-  endOfYesterday, 
   format, 
   parseISO, 
   isWithinInterval,
-  subMonths
+  subMonths,
+  startOfWeek,
+  endOfWeek,
+  subWeeks,
 } from "date-fns";
 
 export type DateRangePreset = 
   | "last_7_days" 
   | "last_14_days" 
   | "last_30_days" 
+  | "last_week"
+  | "all_time"
   | "this_month" 
   | "last_month" 
   | "custom";
@@ -51,6 +54,22 @@ export function getDateRangePreset(
         to: referenceDate,
         label: "Últimos 30 dias"
       };
+    case "last_week": {
+      const weekRef = subWeeks(referenceDate, 1);
+      return {
+        from: startOfWeek(weekRef, { weekStartsOn: 1 }),
+        to: endOfWeek(weekRef, { weekStartsOn: 1 }),
+        label: "Semana passada (Seg-Dom)"
+      };
+    }
+    case "all_time":
+      if (customRange) {
+        return {
+          ...customRange,
+          label: "Todo o período"
+        };
+      }
+      return getDateRangePreset("last_30_days", undefined, includeToday);
     case "this_month":
       return {
         from: startOfMonth(referenceDate),

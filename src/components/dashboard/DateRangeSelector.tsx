@@ -13,12 +13,15 @@ interface DateRangeSelectorProps {
   includeToday?: boolean;
   from?: string;
   to?: string;
+  availableRange?: { from: string; to: string } | null;
 }
 
 const presets: { value: DateRangePreset; label: string }[] = [
   { value: "last_7_days", label: "Últimos 7 dias" },
   { value: "last_14_days", label: "Últimos 14 dias" },
   { value: "last_30_days", label: "Últimos 30 dias" },
+  { value: "last_week", label: "Semana passada (Segunda a Domingo)" },
+  { value: "all_time", label: "Todo o período" },
   { value: "this_month", label: "Mês atual" },
   { value: "last_month", label: "Mês anterior" },
 ];
@@ -31,23 +34,30 @@ export function DateRangeSelector({
   includeToday = false,
   from,
   to,
+  availableRange,
 }: DateRangeSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const parseDate = (dStr: string) => {
+    const [y, m, d] = dStr.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
 
   // Parse active custom range from parent props if provided
   let customRange: { from: Date, to: Date } | undefined = undefined;
   if (from && to) {
-    const parseDate = (dStr: string) => {
-      const [y, m, d] = dStr.split("-").map(Number);
-      return new Date(y, m - 1, d);
-    };
     customRange = {
       from: parseDate(from),
       to: parseDate(to)
     };
   }
 
-  const currentRange = getDateRangePreset(currentPreset, customRange, includeToday);
+  const allTimeRange =
+    availableRange?.from && availableRange?.to
+      ? { from: parseDate(availableRange.from), to: parseDate(availableRange.to) }
+      : undefined;
+  const effectiveRangeArg =
+    currentPreset === "all_time" ? allTimeRange || customRange : customRange;
+  const currentRange = getDateRangePreset(currentPreset, effectiveRangeArg, includeToday);
 
   const [startDateStr, setStartDateStr] = useState("");
   const [endDateStr, setEndDateStr] = useState("");
@@ -58,11 +68,11 @@ export function DateRangeSelector({
   // This avoids resetting values on every keystroke when typing custom dates.
   useEffect(() => {
     if (isOpen) {
-      const range = getDateRangePreset(currentPreset, customRange, includeToday);
+      const range = getDateRangePreset(currentPreset, effectiveRangeArg, includeToday);
       setStartDateStr(formatDateISO(range.from));
       setEndDateStr(formatDateISO(range.to));
     }
-  }, [isOpen, currentPreset, includeToday, from, to]);
+  }, [isOpen, currentPreset, includeToday, from, to, availableRange?.from, availableRange?.to]);
 
   const formatDateRange = (from: Date, to: Date) => {
     const fmt = (d: Date) => {
@@ -104,13 +114,20 @@ export function DateRangeSelector({
           >
             <div className="flex flex-col gap-1">
               {presets.map((preset) => {
-                const range = getDateRangePreset(preset.value, undefined, includeToday);
+                const range =
+                  preset.value === "all_time"
+                    ? getDateRangePreset("all_time", allTimeRange, includeToday)
+                    : getDateRangePreset(preset.value, undefined, includeToday);
                 const isSelected = currentPreset === preset.value;
                 return (
                   <button
                     key={preset.value}
                     onClick={() => {
-                      onPresetChange(preset.value, undefined, includeToday);
+                      if (preset.value === "all_time" && allTimeRange) {
+                        onPresetChange("all_time", allTimeRange, includeToday);
+                      } else {
+                        onPresetChange(preset.value, undefined, includeToday);
+                      }
                       setIsOpen(false);
                     }}
                     style={{

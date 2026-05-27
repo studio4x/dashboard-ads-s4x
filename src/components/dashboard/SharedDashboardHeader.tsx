@@ -328,6 +328,7 @@ export function SharedDashboardHeader({
                 includeToday={includeToday}
                 from={from}
                 to={to}
+                availableRange={data?.availableDateRange || null}
               />
             </div>
           </div>

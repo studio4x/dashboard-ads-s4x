@@ -14,6 +14,33 @@ import { DashboardAggregator } from "./dashboard-aggregator";
 import { parseISO } from "date-fns";
 import { isDateInRange } from "./date-utils";
 
+function extractAvailableDateRange(data: any): { from: string; to: string } | null {
+  const candidates = [
+    data?.dailyPerformance,
+    data?.overview,
+    data?.google_ads,
+    data?.meta_ads,
+    data?.campaigns,
+    data?.keywords,
+    data?.searchTerms,
+    data?.adGroups,
+    data?.adsAndAssets,
+  ];
+
+  const dates: string[] = [];
+  for (const list of candidates) {
+    if (!Array.isArray(list)) continue;
+    for (const row of list) {
+      const raw = String(row?.date || row?.data || "").slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) dates.push(raw);
+    }
+  }
+
+  if (dates.length === 0) return null;
+  dates.sort();
+  return { from: dates[0], to: dates[dates.length - 1] };
+}
+
 export async function getDashboardData(
   dashboardId: string,
   options?: { from?: string, to?: string, bypassRls?: boolean }
@@ -29,6 +56,7 @@ export async function getDashboardData(
     const snapshot = await DashboardService.getLatestSnapshot(dashboardId, { bypassRls: options?.bypassRls });
     if (snapshot && snapshot.payload_json) {
       let data = snapshot.payload_json;
+      const availableDateRange = extractAvailableDateRange(data);
       
       // Se houver range, calculamos os resumos comparativos e filtramos os dados
       let summary = null;
@@ -138,6 +166,7 @@ export async function getDashboardData(
         metaPrimaryObjective: dashboard?.meta_primary_objective || data?.metaPrimaryObjective || null,
         metaValidationStatus: dashboard?.meta_validation_status || data?.metaValidationStatus || "not_configured",
         metaValidationNotes: dashboard?.meta_validation_notes || data?.metaValidationNotes || {},
+        availableDateRange,
       };
     }
   } catch (dbError) {
@@ -150,6 +179,7 @@ export async function getDashboardData(
     const templateId = dashboard?.dashboard_type || "google_ads_s4x";
 
     if (templateId === "google_ads_s4x") {
+      const availableDateRange = extractAvailableDateRange(mockGoogleAdsS4XPayload);
       return {
         ...mockGoogleAdsS4XPayload,
         // Mantém campos legado vazios ou mapeados para evitar quebra de componentes antigos
@@ -163,7 +193,8 @@ export async function getDashboardData(
         source: "mock",
         templateId: "google_ads_s4x",
         templateVersion: "1.0",
-        platform: "google_ads"
+        platform: "google_ads",
+        availableDateRange,
       };
     }
 
@@ -214,10 +245,11 @@ export async function getDashboardData(
         metaPrimaryObjective: mockPayload.metaPrimaryObjective || null,
         metaValidationStatus: mockPayload.metaValidationStatus || "not_configured",
         metaValidationNotes: mockPayload.metaValidationNotes || {},
+        availableDateRange: extractAvailableDateRange(mockPayload),
       };
     }
 
-    return {
+    const legacyMock = {
       overview: mockOverview.mockOverviewRows,
       google_ads: mockGoogleAds.mockGoogleAdsDaily,
       meta_ads: mockMetaAds.mockMetaAdsDaily,
@@ -235,6 +267,11 @@ export async function getDashboardData(
       templateId: "google_ads_s4x",
       templateVersion: "1.0",
       platform: "google_ads"
+    } as any;
+
+    return {
+      ...legacyMock,
+      availableDateRange: extractAvailableDateRange(legacyMock),
     };
   }
 

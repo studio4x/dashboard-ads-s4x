@@ -40,6 +40,7 @@ interface DashboardData {
   viewerRole?: string;
   source: "mock" | "google_sheets" | "google_sheets_cache";
   lastUpdated?: string;
+  availableDateRange?: { from: string; to: string } | null;
 }
 
 interface DashboardDataContextType {
@@ -147,10 +148,10 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
     const activeIncludeToday = includeTodayOverride !== undefined ? includeTodayOverride : includeToday;
     params.set("include_today", activeIncludeToday ? "true" : "false");
     
-    if (preset === "custom" && customDatesOverride) {
+    if (customDatesOverride && (preset === "custom" || preset === "all_time")) {
       params.set("from", formatDateISO(customDatesOverride.from));
       params.set("to", formatDateISO(customDatesOverride.to));
-    } else if (preset === "custom") {
+    } else if (preset === "custom" || preset === "all_time") {
       // Preserve current from/to if we are just switching/saving custom without new parameters
       params.set("from", from);
       params.set("to", to);

@@ -373,6 +373,7 @@ export function DashboardHeader({
             includeToday={includeToday}
             from={from}
             to={to}
+            availableRange={data?.availableDateRange || null}
           />
 
           <button
