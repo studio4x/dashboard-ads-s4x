@@ -89,7 +89,7 @@ export const AdminService = {
     // 3. Fontes de Dados
     const { data: dataSources } = await supabase
       .from('data_sources')
-      .select('*')
+      .select('*, google_sheet_sources(*)')
       .eq('client_id', clientId)
 
     // 4. Usuários Vinculados (Client Users)

@@ -2,10 +2,11 @@ import { AdminService } from "@/services/admin-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Building2, LayoutDashboard, FileSpreadsheet, Users, CheckCircle2, Circle, ArrowLeft, Plus, Link as LinkIcon } from "lucide-react";
+import { LayoutDashboard, FileSpreadsheet, Users, CheckCircle2, Circle, ArrowLeft, Link as LinkIcon } from "lucide-react";
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 import { ClientLogoUploader } from "@/components/admin/ClientLogoUploader";
 import { ClientContactForm } from "@/components/admin/ClientContactForm";
+import { CreateDashboardModalButton } from "@/components/admin/CreateDashboardModalButton";
 
 export default async function ClientHubPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -18,12 +19,22 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
   }
 
   const { client, dashboards, dataSources, userRoles } = hubData;
+  const getSourceSyncData = (source: any) => {
+    const gSheet = Array.isArray(source.google_sheet_sources) ? source.google_sheet_sources[0] : source.google_sheet_sources;
+    return {
+      lastImportStatus: gSheet?.last_import_status || null,
+      lastImportAt: gSheet?.last_import_at || null,
+    };
+  };
 
   // Onboarding Checklist Logic
   const hasClient = !!client;
   const hasDashboard = dashboards.length > 0;
   const hasSource = dataSources.length > 0;
-  const hasImport = dataSources.some((s: any) => s.last_import_status === "success" || s.last_import_status === "success_with_warnings");
+  const hasImport = dataSources.some((s: any) => {
+    const sync = getSourceSyncData(s);
+    return sync.lastImportStatus === "success" || sync.lastImportStatus === "success_with_warnings";
+  });
   const hasUser = userRoles.length > 0;
 
   const checklist = [
@@ -64,9 +75,7 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A", display: "flex", alignItems: "center", gap: 8 }}>
                 <LayoutDashboard size={20} color="#7C3AED" /> Dashboards Vinculados
               </h2>
-              <button disabled style={{ fontSize: 13, padding: "6px 12px", background: "#F1F5F9", color: "#94A3B8", borderRadius: 6, border: "none", cursor: "not-allowed" }}>
-                + Novo Dashboard
-              </button>
+              <CreateDashboardModalButton clientId={clientId} />
             </div>
             
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -76,7 +85,10 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
                 dashboards.map((d: any) => {
                   const dashSources = dataSources.filter((s: any) => s.dashboard_id === d.id);
                   const hasDashSource = dashSources.length > 0;
-                  const hasDashImport = dashSources.some((s: any) => s.last_import_status === "success" || s.last_import_status === "success_with_warnings");
+                  const hasDashImport = dashSources.some((s: any) => {
+                    const sync = getSourceSyncData(s);
+                    return sync.lastImportStatus === "success" || sync.lastImportStatus === "success_with_warnings";
+                  });
                   
                   return (
                     <div key={d.id} style={{ padding: 16, borderRadius: 8, border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -136,15 +148,32 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
               {dataSources.length === 0 ? (
                 <p style={{ fontSize: 14, color: "#64748B", textAlign: "center", padding: "20px 0" }}>Nenhuma fonte conectada.</p>
               ) : (
-                dataSources.map((s: any) => (
-                  <div key={s.id} style={{ padding: 16, borderRadius: 8, border: "1px solid #E2E8F0" }}>
-                    <p style={{ fontSize: 14, fontWeight: 500, color: "#0F172A" }}>{s.name}</p>
-                    <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
-                      <span style={{ fontSize: 12, color: "#64748B" }}>Última imp.: {s.last_import_status || "Nunca"}</span>
-                      {s.last_import_at && <span style={{ fontSize: 12, color: "#64748B" }}>Em: {new Date(s.last_import_at).toLocaleString('pt-BR')}</span>}
+                dataSources.map((s: any) => {
+                  const sync = getSourceSyncData(s);
+                  const hasSyncedAtLeastOnce = !!sync.lastImportAt;
+                  const statusLabel = sync.lastImportStatus === "success"
+                    ? "Sucesso"
+                    : sync.lastImportStatus === "success_with_warnings"
+                      ? "Sucesso com avisos"
+                      : sync.lastImportStatus === "error"
+                        ? "Erro"
+                        : "Pendente";
+                  return (
+                    <div key={s.id} style={{ padding: 16, borderRadius: 8, border: "1px solid #E2E8F0" }}>
+                      <p style={{ fontSize: 14, fontWeight: 500, color: "#0F172A" }}>{s.name}</p>
+                      <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 12, color: "#64748B" }}>
+                          Última imp.: {hasSyncedAtLeastOnce ? new Date(sync.lastImportAt).toLocaleString("pt-BR") : "Nunca"}
+                        </span>
+                        {hasSyncedAtLeastOnce && (
+                          <span style={{ fontSize: 12, color: "#64748B" }}>
+                            Status: {statusLabel}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
