@@ -252,6 +252,7 @@ export default function AdminDashboardsPage() {
           alert(`Integração salva, mas a sincronização automática falhou: ${syncError}`);
         }
         alert(existingSource ? "Integração atualizada com sucesso!" : "Integração criada com sucesso!");
+        setIntegrationModalDashboard(null);
         await fetchData();
       } else {
         alert("Erro ao salvar integração: " + result.error);
