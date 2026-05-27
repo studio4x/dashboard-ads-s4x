@@ -187,6 +187,7 @@ export const ADMIN_NAV = [
   { href: "/admin/clients", label: "Clientes", icon: "Building2" },
   { href: "/admin/dashboards", label: "Dashboards", icon: "PieChart" },
   { href: "/admin/automations", label: "Automações", icon: "Send" },
+  { href: "/admin/scheduled-tasks", label: "Monitor Agendamentos", icon: "Clock3" },
   { href: "/admin/data-sources", label: "Fontes de Dados", icon: "Database" },
   { href: "/admin/google-sheets", label: "Google Sheets", icon: "FileSpreadsheet" },
   { href: "/admin/templates", label: "Templates", icon: "LayoutTemplate" },
