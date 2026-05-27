@@ -801,30 +801,79 @@ function getReportMetrics(data: any) {
   };
 }
 
-async function getShareUrl(dashboardId: string, origin: string, shareLinkId?: string) {
+function sanitizeShareNamePart(value: string | null | undefined) {
+  const str = String(value || "").trim();
+  return str || "Sem nome";
+}
+
+async function ensureShareUrl(params: {
+  dashboardId: string;
+  clientId: string;
+  clientName?: string | null;
+  dashboardName?: string | null;
+  origin: string;
+  shareLinkId?: string;
+}) {
   const supabase = await createAdminClient();
 
   let query = supabase
     .from("dashboard_share_links")
     .select("id, status, expires_at, created_at")
-    .eq("dashboard_id", dashboardId)
+    .eq("dashboard_id", params.dashboardId)
     .eq("status", "active");
 
-  if (shareLinkId) {
-    query = query.eq("id", shareLinkId);
+  if (params.shareLinkId) {
+    query = query.eq("id", params.shareLinkId);
   }
 
   const { data, error } = await query.order("created_at", { ascending: false }).limit(1);
-  if (error || !data || data.length === 0) {
+  if (!error && data && data.length > 0) {
+    const link = data[0];
+    const isExpired = link.expires_at && new Date(link.expires_at) < new Date();
+    if (!isExpired) {
+      return `${params.origin}/share/${link.id}`;
+    }
+  }
+
+  const fallback = await supabase
+    .from("dashboard_share_links")
+    .select("id, status, expires_at, created_at")
+    .eq("dashboard_id", params.dashboardId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (!fallback.error && fallback.data && fallback.data.length > 0) {
+    const link = fallback.data[0];
+    const isExpired = link.expires_at && new Date(link.expires_at) < new Date();
+    if (!isExpired) {
+      return `${params.origin}/share/${link.id}`;
+    }
+  }
+
+  const clientName = sanitizeShareNamePart(params.clientName);
+  const dashboardName = sanitizeShareNamePart(params.dashboardName);
+  const autoName = `Auto | ${clientName} | ${dashboardName}`;
+
+  const { data: createdLink, error: createError } = await supabase
+    .from("dashboard_share_links")
+    .insert([
+      {
+        dashboard_id: params.dashboardId,
+        client_id: params.clientId,
+        name: autoName,
+        status: "active",
+        expires_at: null,
+      },
+    ])
+    .select("id")
+    .single();
+
+  if (createError || !createdLink?.id) {
     return null;
   }
 
-  const link = data[0];
-  if (link.expires_at && new Date(link.expires_at) < new Date()) {
-    return null;
-  }
-
-  return `${origin}/share/${link.id}`;
+  return `${params.origin}/share/${createdLink.id}`;
 }
 
 export async function POST(request: Request) {
@@ -863,7 +912,14 @@ export async function POST(request: Request) {
     }
 
     const origin = new URL(request.url).origin;
-    const shareUrl = await getShareUrl(dashboardId, origin, body.shareLinkId);
+    const shareUrl = await ensureShareUrl({
+      dashboardId,
+      clientId: dashboard.client_id,
+      clientName: dashboard.clients?.name || null,
+      dashboardName: dashboard.name || null,
+      origin,
+      shareLinkId: body.shareLinkId,
+    });
     const shareToken = shareUrl ? shareUrl.split("/").pop() || null : null;
 
     const channels = normalizeChannels(body.channels);
