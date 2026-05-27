@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BarChart3, Bell, Settings, LogOut, Download, Loader2, RefreshCcw } from "lucide-react";
+import { BarChart3, Settings, LogOut, Download, Loader2, RefreshCcw } from "lucide-react";
 import { logout } from "@/app/login/actions";
 import { DateRangeSelector } from "./DateRangeSelector";
 import { useDashboard } from "./DashboardDataContext";
@@ -411,16 +411,6 @@ export function DashboardHeader({
             to={to}
             availableRange={data?.availableDateRange || null}
           />
-
-          <button
-            style={{
-              width: 34, height: 34, borderRadius: 8, border: "1px solid #E2E8F0",
-              background: "white", display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: "#64748B",
-            }}
-          >
-            <Bell size={16} />
-          </button>
 
           <Link
             href="/admin"
