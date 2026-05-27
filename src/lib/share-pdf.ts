@@ -298,7 +298,7 @@ function buildPdfHtml(params: {
     second: "2-digit",
     hour12: false,
   }).format(new Date());
-  const studioFallbackLogoSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="56" viewBox="0 0 220 56"><rect x="1" y="1" width="218" height="54" rx="10" fill="#0f172a"/><text x="18" y="35" fill="#ffffff" font-family="Arial, sans-serif" font-size="24" font-weight="700">Studio 4x</text></svg>`;
+  const studioFallbackLogoSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="56" viewBox="0 0 220 56"><text x="2" y="36" fill="#ffffff" font-family="Arial, sans-serif" font-size="24" font-weight="700">Studio 4x</text></svg>`;
   const studioFallbackLogoDataUri = `data:image/svg+xml;utf8,${encodeURIComponent(studioFallbackLogoSvg)}`;
   const studioLogoToUse = params.studioLogoUrl || studioFallbackLogoDataUri;
   const clientLogoToUse = params.clientLogoUrl || studioLogoToUse;
@@ -358,21 +358,22 @@ function buildPdfHtml(params: {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            padding: 6px 8px;
-            min-height: 46px;
-            min-width: 120px;
+            padding: 0;
+            min-height: 42px;
+            min-width: 104px;
+          }
+          .client-logo {
+            max-width: 180px;
+          }
+          .studio-logo {
+            max-width: 150px;
+            justify-self: end;
           }
           .brand-logo img {
             display: block;
-            max-height: 34px;
-            max-width: 160px;
+            max-height: 32px;
+            max-width: 100%;
             object-fit: contain;
-          }
-          .studio-logo {
-            justify-self: end;
           }
           .analysis-shell {
             background: white;
