@@ -35,19 +35,19 @@ export function getDateRangePreset(
   switch (preset) {
     case "last_7_days":
       return {
-        from: subDays(referenceDate, 7),
+        from: subDays(referenceDate, 6),
         to: referenceDate,
         label: "Últimos 7 dias"
       };
     case "last_14_days":
       return {
-        from: subDays(referenceDate, 14),
+        from: subDays(referenceDate, 13),
         to: referenceDate,
         label: "Últimos 14 dias"
       };
     case "last_30_days":
       return {
-        from: subDays(referenceDate, 30),
+        from: subDays(referenceDate, 29),
         to: referenceDate,
         label: "Últimos 30 dias"
       };
