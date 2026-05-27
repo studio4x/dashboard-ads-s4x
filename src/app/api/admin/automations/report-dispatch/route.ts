@@ -944,6 +944,8 @@ export async function POST(request: Request) {
         await renderAndStoreSharePdf({
           dashboardName: dashboard.name,
           clientName: dashboard.clients?.name || null,
+          clientLogoUrl: dashboard.clients?.logo_url || null,
+          studioLogoUrl: String(process.env.S4X_STUDIO_LOGO_URL || "").trim() || null,
           periodLabel:
             periodFromDisplay && periodToDisplay
               ? `${periodFromDisplay} a ${periodToDisplay}`

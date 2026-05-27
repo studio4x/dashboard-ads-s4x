@@ -279,6 +279,8 @@ function renderAiBlock(text: string | null | undefined) {
 function buildPdfHtml(params: {
   dashboardName: string;
   clientName: string | null;
+  clientLogoUrl?: string | null;
+  studioLogoUrl?: string | null;
   periodLabel: string;
   report: ReportData;
 }) {
@@ -296,6 +298,10 @@ function buildPdfHtml(params: {
     second: "2-digit",
     hour12: false,
   }).format(new Date());
+  const studioFallbackLogoSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="56" viewBox="0 0 220 56"><rect x="1" y="1" width="218" height="54" rx="10" fill="#0f172a"/><text x="18" y="35" fill="#ffffff" font-family="Arial, sans-serif" font-size="24" font-weight="700">Studio 4x</text></svg>`;
+  const studioFallbackLogoDataUri = `data:image/svg+xml;utf8,${encodeURIComponent(studioFallbackLogoSvg)}`;
+  const studioLogoToUse = params.studioLogoUrl || studioFallbackLogoDataUri;
+  const clientLogoToUse = params.clientLogoUrl || studioLogoToUse;
 
   return `
     <!DOCTYPE html>
@@ -323,9 +329,16 @@ function buildPdfHtml(params: {
             background: linear-gradient(135deg, #0f172a, #1e40af 58%, #2563eb);
             color: white;
             border-radius: 16px;
-            padding: 14px 16px;
+            padding: 12px 14px;
             margin-bottom: 10px;
             box-shadow: 0 18px 40px rgba(37, 99, 235, 0.18);
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            align-items: center;
+            column-gap: 12px;
+          }
+          .hero-main {
+            min-width: 0;
           }
           .hero h1 {
             margin: 0 0 4px;
@@ -340,6 +353,26 @@ function buildPdfHtml(params: {
             margin: 0;
             font-size: 10px;
             opacity: 0.92;
+          }
+          .brand-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 6px 8px;
+            min-height: 46px;
+            min-width: 120px;
+          }
+          .brand-logo img {
+            display: block;
+            max-height: 34px;
+            max-width: 160px;
+            object-fit: contain;
+          }
+          .studio-logo {
+            justify-self: end;
           }
           .analysis-shell {
             background: white;
@@ -442,11 +475,15 @@ function buildPdfHtml(params: {
       <body>
         <div class="page">
           <section class="hero">
-            <h1>${escapeHtml(params.dashboardName)}</h1>
-            <div class="hero-meta">
-              <p>Cliente: ${escapeHtml(params.clientName || "Cliente")}</p>
-              <p>Periodo: ${escapeHtml(params.periodLabel)}</p>
+            <div class="hero-main">
+              <h1>${escapeHtml(params.dashboardName)}</h1>
+              <div class="hero-meta">
+                <p>Cliente: ${escapeHtml(params.clientName || "Cliente")}</p>
+                <p>Periodo: ${escapeHtml(params.periodLabel)}</p>
+              </div>
             </div>
+            <div class="brand-logo client-logo"><img src="${escapeHtml(clientLogoToUse)}" alt="Logo do cliente" /></div>
+            <div class="brand-logo studio-logo"><img src="${escapeHtml(studioLogoToUse)}" alt="Logo Studio 4x" /></div>
           </section>
 
           ${renderAiBlock(aiText)}
@@ -530,6 +567,8 @@ export async function storeSharePdf(path: string, pdf: Buffer) {
 export async function renderAndStoreSharePdf(params: {
   dashboardName: string;
   clientName: string | null;
+  clientLogoUrl?: string | null;
+  studioLogoUrl?: string | null;
   periodLabel: string;
   report: ReportData;
   storagePath: string;
@@ -555,6 +594,8 @@ export async function renderAndStoreSharePdf(params: {
       buildPdfHtml({
         dashboardName: params.dashboardName,
         clientName: params.clientName,
+        clientLogoUrl: params.clientLogoUrl,
+        studioLogoUrl: params.studioLogoUrl,
         periodLabel: params.periodLabel,
         report: params.report,
       }),
