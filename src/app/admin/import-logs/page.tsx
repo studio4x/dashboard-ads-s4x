@@ -3,13 +3,16 @@
 import React, { useState, useEffect } from "react";
 import { ImportStatusBadge } from "@/components/admin/ImportStatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { History, ChevronDown, ChevronUp, ExternalLink, Search } from "lucide-react";
+import { History, ChevronDown, ChevronUp, ExternalLink, Search, Trash2 } from "lucide-react";
+
+const ITEMS_PER_PAGE = 10;
 
 export default function ImportLogsPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("");
@@ -31,6 +34,7 @@ export default function ImportLogsPage() {
       );
     }
     setFilteredLogs(result);
+    setCurrentPage(1);
   }, [logs, statusFilter, clientFilter, search]);
 
   async function fetchLogs() {
@@ -50,6 +54,26 @@ export default function ImportLogsPage() {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  async function handleDeleteAllLogs() {
+    if (!confirm("Deseja realmente deletar todos os logs de importação? Esta ação não pode ser desfeita.")) return;
+    try {
+      const res = await fetch("/api/admin/import-logs", { method: "DELETE" });
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        alert(result?.error || "Erro ao deletar os logs.");
+        return;
+      }
+      setExpandedId(null);
+      await fetchLogs();
+    } catch {
+      alert("Erro ao deletar os logs.");
+    }
+  }
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedLogs = filteredLogs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
   return (
     <div style={{ padding: 32, maxWidth: 1200 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
@@ -57,6 +81,25 @@ export default function ImportLogsPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Logs de Importação</h1>
           <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>Histórico de sincronizações com Google Sheets</p>
         </div>
+        <button
+          onClick={handleDeleteAllLogs}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            border: "1px solid #FECACA",
+            background: "#FEF2F2",
+            color: "#B91C1C",
+            padding: "8px 12px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          <Trash2 size={14} />
+          Deletar todos os logs
+        </button>
       </div>
 
       <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
@@ -109,7 +152,7 @@ export default function ImportLogsPage() {
                 </td>
               </tr>
             ) : (
-              filteredLogs.map((log: any) => (
+              paginatedLogs.map((log: any) => (
                 <React.Fragment key={log.id}>
                   <tr style={{ borderBottom: expandedId === log.id ? "none" : "1px solid #F1F5F9", cursor: "pointer", background: expandedId === log.id ? "#F8FAFC" : "transparent" }} onClick={() => toggleExpand(log.id)}>
                     <td style={{ padding: "12px 16px", color: "#0F172A" }}>
@@ -171,7 +214,51 @@ export default function ImportLogsPage() {
           </tbody>
         </table>
       </div>
+
+      {filteredLogs.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16 }}>
+          <span style={{ fontSize: 12, color: "#64748B" }}>
+            Exibindo {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, filteredLogs.length)} de {filteredLogs.length} logs
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 8,
+                border: "1px solid #E2E8F0",
+                background: currentPage === 1 ? "#F8FAFC" : "white",
+                color: currentPage === 1 ? "#94A3B8" : "#334155",
+                cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              Anterior
+            </button>
+            <span style={{ padding: "6px 10px", fontSize: 12, color: "#334155", fontWeight: 600 }}>
+              Página {currentPage} de {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 8,
+                border: "1px solid #E2E8F0",
+                background: currentPage === totalPages ? "#F8FAFC" : "white",
+                color: currentPage === totalPages ? "#94A3B8" : "#334155",
+                cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
