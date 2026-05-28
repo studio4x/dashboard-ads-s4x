@@ -34,11 +34,18 @@ export function DashboardHeader({
   
   const metricsSource = data?.config?.Fonte || data?.config?.fonte || (data?.source === "mock" ? "Mocks" : "Google Sheets");
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
-  const dashboardModelLabel = (() => {
+  const dashboardModelBadge = (() => {
     const type = String(dashboardType || "").toLowerCase();
-    if (type.includes("meta")) return "Meta Ads";
-    if (type.includes("google")) return "Google Ads";
-    return "Custom";
+    if (type === "google_meta_ads_s4x") {
+      return { label: "Google + Meta", color: "#FFFFFF", background: "#DC2626", border: "#DC2626" };
+    }
+    if (type.includes("meta")) {
+      return { label: "Meta Ads", color: "#FFFFFF", background: "#4338CA", border: "#4338CA" };
+    }
+    if (type.includes("google")) {
+      return { label: "Google Ads", color: "#FFFFFF", background: "#16A34A", border: "#16A34A" };
+    }
+    return { label: "Custom", color: "#475569", background: "#F1F5F9", border: "#E2E8F0" };
   })();
   const MAX_NAVIGATION_WAIT_MS = 20000;
   const MAX_ROOT_WAIT_MS = 12000;
@@ -331,15 +338,14 @@ export function DashboardHeader({
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: 0.4,
-                textTransform: "uppercase",
-                color: "#1D4ED8",
-                background: "#EFF6FF",
-                border: "1px solid #BFDBFE",
+                color: dashboardModelBadge.color,
+                background: dashboardModelBadge.background,
+                border: `1px solid ${dashboardModelBadge.border}`,
                 borderRadius: 999,
                 padding: "2px 8px",
               }}
             >
-              {dashboardModelLabel}
+              {dashboardModelBadge.label}
             </span>
             
             {/* Badges de Fonte e Conta */}
