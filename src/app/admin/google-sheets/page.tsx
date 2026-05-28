@@ -413,8 +413,8 @@ export default function GoogleSheetsAdminPage() {
 
       {/* Modal de Nova Fonte / Edição */}
       {isModalOpen && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
-          <div className="card" style={{ width: "100%", maxWidth: 500, padding: 0, overflow: "hidden" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 100, padding: 20, overflowY: "auto" }}>
+          <div className="card" style={{ width: "100%", maxWidth: 500, padding: 0, overflow: "hidden", maxHeight: "calc(100vh - 40px)", display: "flex", flexDirection: "column", margin: "auto 0" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>
                 {editingSourceId ? "Editar Fonte Google Sheets" : "Nova Fonte Google Sheets"}
@@ -423,7 +423,7 @@ export default function GoogleSheetsAdminPage() {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+            <form onSubmit={handleSubmit} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20, overflowY: "auto", flex: 1 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Fonte (Ex: Loja XYZ — Ads)</label>
                 <input 
