@@ -27,7 +27,7 @@ export const AdminService = {
     const { count: recentErrors } = await supabase
       .from('import_logs')
       .select('*', { count: 'exact', head: true })
-      .in('status', ['error', 'success_with_warnings'])
+      .in('status', ['failed', 'success_with_warnings'])
       .gte('created_at', sevenDaysAgo.toISOString())
 
     // Clientes recentes

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { AdminService } from "@/services/admin-service";
 
 export const metadata: Metadata = { title: "Cockpit Operacional" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AdminPage() {
   const stats = await AdminService.getDashboardStats();
