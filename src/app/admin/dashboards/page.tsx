@@ -59,7 +59,11 @@ export default function AdminDashboardsPage() {
   const [integrationModalDashboard, setIntegrationModalDashboard] = useState<any | null>(null);
   const [integrationForm, setIntegrationForm] = useState({
     spreadsheetId: "",
-    name: ""
+    name: "",
+    googleAdsSpreadsheetId: "",
+    googleAdsName: "",
+    metaAdsSpreadsheetId: "",
+    metaAdsName: "",
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSavingIntegration, setIsSavingIntegration] = useState(false);
@@ -146,22 +150,51 @@ export default function AdminDashboardsPage() {
     });
   };
 
+  const getSourceRole = (source: any): "google_ads" | "meta_ads" | null => {
+    const gsheet = Array.isArray(source?.google_sheet_sources)
+      ? source.google_sheet_sources[0]
+      : source?.google_sheet_sources;
+    return (gsheet?.source_role as "google_ads" | "meta_ads" | null) || null;
+  };
+
+  const getDashboardSheetSources = (dashboardId: string) => {
+    return sources.filter((s: any) => s.dashboard_id === dashboardId && s.type === "google_sheets");
+  };
+
   const handleOpenIntegration = (dash: any) => {
+    setIntegrationModalDashboard(dash);
+    const dashSources = getDashboardSheetSources(dash.id);
     if (dash.dashboard_type === "google_meta_ads_s4x") {
-      alert("Para dashboards Google + Meta, configure duas fontes na tela Admin > Google Sheets (uma Google Ads e outra Meta Ads).");
+      const googleSource = dashSources.find((s: any) => getSourceRole(s) === "google_ads");
+      const metaSource = dashSources.find((s: any) => getSourceRole(s) === "meta_ads");
+      setIntegrationForm({
+        spreadsheetId: "",
+        name: "",
+        googleAdsSpreadsheetId: googleSource?.google_sheet_sources?.spreadsheet_id || "",
+        googleAdsName: googleSource?.name || `Planilha Google Ads - ${dash.name}`,
+        metaAdsSpreadsheetId: metaSource?.google_sheet_sources?.spreadsheet_id || "",
+        metaAdsName: metaSource?.name || `Planilha Meta Ads - ${dash.name}`,
+      });
       return;
     }
-    setIntegrationModalDashboard(dash);
-    const source = sources.find((s: any) => s.dashboard_id === dash.id);
+    const source = dashSources[0];
     if (source) {
       setIntegrationForm({
         spreadsheetId: source.google_sheet_sources?.spreadsheet_id || "",
-        name: source.name || `Planilha - ${dash.name}`
+        name: source.name || `Planilha - ${dash.name}`,
+        googleAdsSpreadsheetId: "",
+        googleAdsName: "",
+        metaAdsSpreadsheetId: "",
+        metaAdsName: "",
       });
     } else {
       setIntegrationForm({
         spreadsheetId: "",
-        name: `Planilha - ${dash.name}`
+        name: `Planilha - ${dash.name}`,
+        googleAdsSpreadsheetId: "",
+        googleAdsName: "",
+        metaAdsSpreadsheetId: "",
+        metaAdsName: "",
       });
     }
   };
@@ -225,53 +258,105 @@ export default function AdminDashboardsPage() {
     if (!integrationModalDashboard) return;
     
     setIsSavingIntegration(true);
-    const existingSource = sources.find((s: any) => s.dashboard_id === integrationModalDashboard.id);
+    const dashSources = getDashboardSheetSources(integrationModalDashboard.id);
     
     try {
-      const url = existingSource ? `/api/admin/google-sheets/${existingSource.id}` : "/api/admin/google-sheets";
-      const method = existingSource ? "PATCH" : "POST";
-      
-      const body = {
-        clientId: integrationModalDashboard.client_id,
-        dashboardId: integrationModalDashboard.id,
-        name: integrationForm.name || `Planilha - ${integrationModalDashboard.name}`,
-        spreadsheetId: integrationForm.spreadsheetId
-      };
-      
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      
-      const result = await res.json();
-      if (result.success) {
-        const dataSourceId = existingSource?.id || result?.source?.id;
+      const syncSavedSource = async (source: any, spreadsheetId: string) => {
         const syncResponse = await fetch("/api/admin/google-sheets/import", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             clientId: integrationModalDashboard.client_id,
             dashboardId: integrationModalDashboard.id,
-            spreadsheetId: integrationForm.spreadsheetId,
-            dataSourceId,
+            spreadsheetId,
+            dataSourceId: source.id,
           }),
         });
         const syncResult = await syncResponse.json();
         if (!syncResponse.ok || !syncResult.success) {
-          const syncError = syncResult?.error
-            || (syncResult?.errors?.[0]?.message)
-            || "Erro ao validar/sincronizar a planilha.";
-          alert(`Integração salva, mas a sincronização automática falhou: ${syncError}`);
+          throw new Error(
+            syncResult?.error
+              || (syncResult?.errors?.[0]?.message)
+              || "Erro ao validar/sincronizar a planilha."
+          );
         }
-        alert(existingSource ? "Integração atualizada com sucesso!" : "Integração criada com sucesso!");
-        setIntegrationModalDashboard(null);
-        await fetchData();
+      };
+
+      const saveOrUpdateSource = async (params: {
+        existingSource?: any;
+        name: string;
+        spreadsheetId: string;
+        sourceRole?: "google_ads" | "meta_ads";
+      }) => {
+        const url = params.existingSource ? `/api/admin/google-sheets/${params.existingSource.id}` : "/api/admin/google-sheets";
+        const method = params.existingSource ? "PATCH" : "POST";
+        const body = {
+          clientId: integrationModalDashboard.client_id,
+          dashboardId: integrationModalDashboard.id,
+          name: params.name,
+          spreadsheetId: params.spreadsheetId,
+          sourceRole: params.sourceRole,
+        };
+        const res = await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          throw new Error(result?.error || "Erro ao salvar integração.");
+        }
+        return params.existingSource || result.source;
+      };
+
+      if (integrationModalDashboard.dashboard_type === "google_meta_ads_s4x") {
+        if (
+          !integrationForm.googleAdsSpreadsheetId.trim()
+          || !integrationForm.googleAdsName.trim()
+          || !integrationForm.metaAdsSpreadsheetId.trim()
+          || !integrationForm.metaAdsName.trim()
+        ) {
+          alert("Preencha as duas planilhas (Google Ads e Meta Ads) para o dashboard integrado.");
+          return;
+        }
+
+        const existingGoogleSource = dashSources.find((s: any) => getSourceRole(s) === "google_ads");
+        const existingMetaSource = dashSources.find((s: any) => getSourceRole(s) === "meta_ads");
+
+        const savedGoogleSource = await saveOrUpdateSource({
+          existingSource: existingGoogleSource,
+          name: integrationForm.googleAdsName.trim(),
+          spreadsheetId: integrationForm.googleAdsSpreadsheetId.trim(),
+          sourceRole: "google_ads",
+        });
+        const savedMetaSource = await saveOrUpdateSource({
+          existingSource: existingMetaSource,
+          name: integrationForm.metaAdsName.trim(),
+          spreadsheetId: integrationForm.metaAdsSpreadsheetId.trim(),
+          sourceRole: "meta_ads",
+        });
+
+        await syncSavedSource(savedGoogleSource, integrationForm.googleAdsSpreadsheetId.trim());
+        await syncSavedSource(savedMetaSource, integrationForm.metaAdsSpreadsheetId.trim());
       } else {
-        alert("Erro ao salvar integração: " + result.error);
+        if (!integrationForm.name.trim() || !integrationForm.spreadsheetId.trim()) {
+          alert("Preencha nome e ID da planilha.");
+          return;
+        }
+        const existingSource = dashSources[0];
+        const savedSource = await saveOrUpdateSource({
+          existingSource,
+          name: integrationForm.name.trim(),
+          spreadsheetId: integrationForm.spreadsheetId.trim(),
+        });
+        await syncSavedSource(savedSource, integrationForm.spreadsheetId.trim());
       }
+
+      alert("Integração salva e sincronizada com sucesso!");
+      setIntegrationModalDashboard(null);
+      await fetchData();
     } catch (error) {
-      alert("Erro de conexão com o servidor ao salvar integração.");
+      alert(error instanceof Error ? error.message : "Erro de conexão com o servidor ao salvar integração.");
     } finally {
       setIsSavingIntegration(false);
     }
@@ -323,35 +408,36 @@ export default function AdminDashboardsPage() {
 
   const handleSyncIntegration = async () => {
     if (!integrationModalDashboard) return;
-    const source = sources.find((s: any) => s.dashboard_id === integrationModalDashboard.id);
-    if (!source) {
+    const dashSources = getDashboardSheetSources(integrationModalDashboard.id);
+    if (dashSources.length === 0) {
       alert("Por favor, salve a integração com o ID da planilha antes de sincronizar!");
       return;
     }
     
     setIsSyncing(true);
     try {
-      const response = await fetch("/api/admin/google-sheets/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId: source.client_id,
-          dashboardId: source.dashboard_id,
-          spreadsheetId: source.google_sheet_sources?.spreadsheet_id,
-          dataSourceId: source.id
-        })
-      });
+      for (const source of dashSources) {
+        const response = await fetch("/api/admin/google-sheets/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId: source.client_id,
+            dashboardId: source.dashboard_id,
+            spreadsheetId: source.google_sheet_sources?.spreadsheet_id,
+            dataSourceId: source.id
+          })
+        });
 
-      const result = await response.json();
-      if (result.success) {
-        alert("Sincronização concluída com sucesso! Todos os dados foram atualizados.");
-        fetchData();
-      } else {
-        const errorMsg = result.error || (result.errors && result.errors.length > 0 ? result.errors[0].message : "Erro desconhecido");
-        alert(`Erro na sincronização: ${errorMsg}`);
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          const errorMsg = result.error || (result.errors && result.errors.length > 0 ? result.errors[0].message : "Erro desconhecido");
+          throw new Error(errorMsg);
+        }
       }
+      alert("Sincronização concluída com sucesso! Todos os dados foram atualizados.");
+      fetchData();
     } catch (error) {
-      alert("Erro ao conectar com o servidor para sincronização.");
+      alert(error instanceof Error ? `Erro na sincronização: ${error.message}` : "Erro ao conectar com o servidor para sincronização.");
     } finally {
       setIsSyncing(false);
     }
@@ -695,8 +781,9 @@ export default function AdminDashboardsPage() {
               {/* MIDDLE ROW: Spreadsheet Integration Status (Spanning full width!) */}
               <div style={{ width: "100%" }}>
                 {(() => {
-                  const source = sources.find((s: any) => s.dashboard_id === d.id);
-                  if (source) {
+                  const dashSources = getDashboardSheetSources(d.id);
+                  if (dashSources.length > 0) {
+                    const firstSource = dashSources[0];
                     return (
                       <div 
                         style={{ 
@@ -716,12 +803,12 @@ export default function AdminDashboardsPage() {
                         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }}></span>
                           <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                            Planilha Vinculada: <strong>{source.name}</strong>
+                            {dashSources.length > 1 ? "Planilhas Vinculadas" : "Planilha Vinculada"}: <strong>{dashSources.length > 1 ? `${dashSources.length} fontes` : firstSource.name}</strong>
                           </span>
                         </div>
-                        {source.google_sheet_sources?.spreadsheet_id && (
+                        {firstSource.google_sheet_sources?.spreadsheet_id && (
                           <a 
-                            href={`https://docs.google.com/spreadsheets/d/${source.google_sheet_sources.spreadsheet_id}`}
+                            href={`https://docs.google.com/spreadsheets/d/${firstSource.google_sheet_sources.spreadsheet_id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{ fontSize: 11, color: "#166534", fontWeight: 600, textDecoration: "underline", flexShrink: 0 }}
@@ -1431,30 +1518,84 @@ export default function AdminDashboardsPage() {
                 <p style={{ fontSize: 11, color: "#1D4ED8", marginTop: 2 }}>Cliente: {clients.find(c => c.id === integrationModalDashboard.client_id)?.name || "Cliente"}</p>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Conexão</label>
-                <input 
-                  required
-                  value={integrationForm.name}
-                  onChange={e => setIntegrationForm({ ...integrationForm, name: e.target.value })}
-                  placeholder="Ex: Planilha de Vendas Google Ads"
-                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
-                />
-              </div>
+              {integrationModalDashboard.dashboard_type === "google_meta_ads_s4x" ? (
+                <>
+                  <div style={{ border: "1px solid #E2E8F0", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#166534" }}>Fonte 1: Google Ads</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Conexão</label>
+                      <input
+                        required
+                        value={integrationForm.googleAdsName}
+                        onChange={e => setIntegrationForm({ ...integrationForm, googleAdsName: e.target.value })}
+                        placeholder="Ex: Planilha Google Ads"
+                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ID da Planilha Google Ads</label>
+                      <input
+                        required
+                        value={integrationForm.googleAdsSpreadsheetId}
+                        onChange={e => setIntegrationForm({ ...integrationForm, googleAdsSpreadsheetId: e.target.value })}
+                        placeholder="Cole o ID da planilha do Google Ads"
+                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                      />
+                    </div>
+                  </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ID da Planilha (Spreadsheet ID)</label>
-                <input 
-                  required
-                  value={integrationForm.spreadsheetId}
-                  onChange={e => setIntegrationForm({ ...integrationForm, spreadsheetId: e.target.value })}
-                  placeholder="Cole o ID da planilha do Google Sheets"
-                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
-                />
-                <span style={{ fontSize: 11, color: "#94A3B8" }}>
-                  O ID fica na URL da planilha: docs.google.com/spreadsheets/d/<strong>[ID-AQUI]</strong>/edit
-                </span>
-              </div>
+                  <div style={{ border: "1px solid #E2E8F0", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>Fonte 2: Meta Ads</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Conexão</label>
+                      <input
+                        required
+                        value={integrationForm.metaAdsName}
+                        onChange={e => setIntegrationForm({ ...integrationForm, metaAdsName: e.target.value })}
+                        placeholder="Ex: Planilha Meta Ads"
+                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ID da Planilha Meta Ads</label>
+                      <input
+                        required
+                        value={integrationForm.metaAdsSpreadsheetId}
+                        onChange={e => setIntegrationForm({ ...integrationForm, metaAdsSpreadsheetId: e.target.value })}
+                        placeholder="Cole o ID da planilha do Meta Ads"
+                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Conexão</label>
+                    <input 
+                      required
+                      value={integrationForm.name}
+                      onChange={e => setIntegrationForm({ ...integrationForm, name: e.target.value })}
+                      placeholder="Ex: Planilha de Vendas Google Ads"
+                      style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ID da Planilha (Spreadsheet ID)</label>
+                    <input 
+                      required
+                      value={integrationForm.spreadsheetId}
+                      onChange={e => setIntegrationForm({ ...integrationForm, spreadsheetId: e.target.value })}
+                      placeholder="Cole o ID da planilha do Google Sheets"
+                      style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                    />
+                  </div>
+                </>
+              )}
+              <span style={{ fontSize: 11, color: "#94A3B8", marginTop: -8 }}>
+                O ID fica na URL da planilha: docs.google.com/spreadsheets/d/<strong>[ID-AQUI]</strong>/edit
+              </span>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8, border: "1px solid #DBEAFE", background: "#EFF6FF", borderRadius: 8, padding: 12 }}>
                 <label style={{ fontSize: 13, fontWeight: 700, color: "#1E40AF" }}>Google Service Account (obrigatório)</label>
@@ -1481,28 +1622,33 @@ export default function AdminDashboardsPage() {
 
               {/* Status da Planilha & Sincronização direta do Modal */}
               {(() => {
-                const source = sources.find((s: any) => s.dashboard_id === integrationModalDashboard.id);
-                if (source) {
+                const dashSources = getDashboardSheetSources(integrationModalDashboard.id);
+                if (dashSources.length > 0) {
                   return (
                     <div style={{ borderTop: "1px solid #F1F5F9", paddingTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 12, color: "#64748B" }}>
-                          Última sincronização: <strong>{source.google_sheet_sources?.last_import_at ? `${new Date(source.google_sheet_sources.last_import_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (UTC-3)` : "Nunca"}</strong>
-                        </span>
-                        {source.google_sheet_sources?.spreadsheet_id && (
-                          <a 
-                            href={`https://docs.google.com/spreadsheets/d/${source.google_sheet_sources.spreadsheet_id}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            style={{ fontSize: 12, color: "#2563EB", textDecoration: "none", fontWeight: 500 }}
-                          >
-                            Abrir Planilha ↗
-                          </a>
-                        )}
-                      </div>
+                      {dashSources.map((source: any) => (
+                        <div key={source.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 12, color: "#64748B" }}>
+                            {getSourceRole(source) === "google_ads" ? "Google Ads" : getSourceRole(source) === "meta_ads" ? "Meta Ads" : "Fonte"}:
+                            {" "}
+                            <strong>{source.google_sheet_sources?.last_import_at ? `${new Date(source.google_sheet_sources.last_import_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (UTC-3)` : "Nunca sincronizada"}</strong>
+                          </span>
+                          {source.google_sheet_sources?.spreadsheet_id && (
+                            <a 
+                              href={`https://docs.google.com/spreadsheets/d/${source.google_sheet_sources.spreadsheet_id}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              style={{ fontSize: 12, color: "#2563EB", textDecoration: "none", fontWeight: 500 }}
+                            >
+                              Abrir Planilha ↗
+                            </a>
+                          )}
+                        </div>
+                      ))}
 
                       {(() => {
-                        const validation = getValidationSummary(integrationModalDashboard, source);
+                        const sourceForValidation = dashSources.find((s: any) => getSourceRole(s) === "meta_ads") || dashSources[0];
+                        const validation = getValidationSummary(integrationModalDashboard, sourceForValidation);
                         const isMissing = validation.status === "missing_metrics";
                         const isOk = validation.status === "ok";
                         const notes = validation.notes || {};
