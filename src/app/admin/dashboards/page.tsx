@@ -14,7 +14,7 @@ const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCO
 type MetaObjective = (typeof META_ADS_OBJECTIVES)[number]["id"];
 const META_TEMPLATE_ID = "meta_ads_s4x";
 const DASHBOARD_TYPE_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  google_meta_ads_s4x: { label: "Google + Meta", bg: "#0F766E", color: "#FFFFFF", border: "#0F766E" },
+  google_meta_ads_s4x: { label: "Google + Meta", bg: "#DC2626", color: "#FFFFFF", border: "#DC2626" },
   google_ads_s4x: { label: "Google Ads", bg: "#16A34A", color: "#FFFFFF", border: "#16A34A" },
   meta_ads_s4x: { label: "Meta Ads", bg: "#4338CA", color: "#FFFFFF", border: "#4338CA" },
   google_ads: { label: "Google Ads (Legado)", bg: "#B45309", color: "#FFFFFF", border: "#B45309" },

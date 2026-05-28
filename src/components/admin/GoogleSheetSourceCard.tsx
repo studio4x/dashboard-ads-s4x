@@ -4,6 +4,15 @@ import { FileSpreadsheet, ExternalLink, RefreshCw, Pencil, Trash2 } from "lucide
 import { ImportStatusBadge } from "./ImportStatusBadge";
 import type { ImportStatus } from "@/types/data-sources";
 
+const DASHBOARD_TYPE_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  google_meta_ads_s4x: { label: "Google + Meta", bg: "#DC2626", color: "#FFFFFF", border: "#DC2626" },
+  google_ads_s4x: { label: "Google Ads", bg: "#16A34A", color: "#FFFFFF", border: "#16A34A" },
+  meta_ads_s4x: { label: "Meta Ads", bg: "#4338CA", color: "#FFFFFF", border: "#4338CA" },
+  google_ads: { label: "Google Ads (Legado)", bg: "#B45309", color: "#FFFFFF", border: "#B45309" },
+  meta_ads: { label: "Meta Ads (Legado)", bg: "#7C3AED", color: "#FFFFFF", border: "#7C3AED" },
+  custom: { label: "Custom", bg: "#475569", color: "#FFFFFF", border: "#475569" },
+};
+
 interface GoogleSheetSourceCardProps {
   spreadsheetName: string;
   spreadsheetUrl?: string;
@@ -33,6 +42,15 @@ export function GoogleSheetSourceCard({
   templateId,
   syncInterval,
 }: GoogleSheetSourceCardProps) {
+  const templateBadge = templateId
+    ? (DASHBOARD_TYPE_BADGE[templateId] || {
+        label: templateId,
+        bg: "#F1F5F9",
+        color: "#475569",
+        border: "#E2E8F0",
+      })
+    : null;
+
   return (
     <div
       className="card card-hover"
@@ -65,9 +83,19 @@ export function GoogleSheetSourceCard({
           {clientName} {dashboardName && `· ${dashboardName}`}
         </p>
         <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
-          {templateId && (
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#F1F5F9", color: "#475569", textTransform: "uppercase" }}>
-              {templateId.replace('_s4x', '').replace('_', ' ')}
+          {templateBadge && (
+            <span
+              style={{
+                fontSize: 11,
+                color: templateBadge.color,
+                background: templateBadge.bg,
+                padding: "4px 10px",
+                borderRadius: 99,
+                fontWeight: 600,
+                border: `1px solid ${templateBadge.border}`,
+              }}
+            >
+              {templateBadge.label}
             </span>
           )}
           {syncInterval && (
