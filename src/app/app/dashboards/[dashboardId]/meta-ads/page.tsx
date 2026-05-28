@@ -67,6 +67,11 @@ export default function MetaAdsPage() {
     if (!available) return true; // retrocompatibilidade para snapshots antigos
     return Boolean(available[key]);
   };
+  const hasReachData = () => {
+    const rows = (data.templateId === "google_meta_ads_s4x" ? data.meta_ads : data.dailyPerformance) || [];
+    return Array.isArray(rows) && rows.some((row: any) => Number(row?.reach || 0) > 0);
+  };
+  const canShowReachMetric = hasMetric("reach") || hasReachData();
   const resolvedObjectivePresentation = resolveMetaObjectivePresentation({
     primaryObjective: data.metaPrimaryObjective,
     objectives: Array.isArray(data.metaObjectives) ? data.metaObjectives : [],
@@ -125,8 +130,8 @@ export default function MetaAdsPage() {
         if (costMetric === "cpm") return hasMetric("cost") && hasMetric("impressions");
         return hasMetric("cost") && hasMetric("conversions");
       }
-      if (kpi.metricKey === "reach") return hasMetric("reach");
-      if (kpi.metricKey === "frequency") return hasMetric("frequency") || (hasMetric("reach") && hasMetric("impressions"));
+      if (kpi.metricKey === "reach") return canShowReachMetric;
+      if (kpi.metricKey === "frequency") return hasMetric("frequency") || (canShowReachMetric && hasMetric("impressions"));
       if (kpi.metricKey === "clicks") return hasMetric("clicks");
       return true;
     });
