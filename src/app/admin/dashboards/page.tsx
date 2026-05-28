@@ -1518,8 +1518,8 @@ export default function AdminDashboardsPage() {
 
       {/* Modal Integração Google Sheets */}
       {integrationModalDashboard && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
-          <div className="card" style={{ width: "100%", maxWidth: 500, padding: 0, overflow: "hidden" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 100, padding: 20, overflowY: "auto" }}>
+          <div className="card" style={{ width: "100%", maxWidth: 980, padding: 0, overflow: "hidden", maxHeight: "calc(100vh - 40px)", display: "flex", flexDirection: "column", margin: "auto 0" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F8FAFC" }}>
               <h2 style={{ fontSize: 16, fontWeight: 700, color: "#0F172A", display: "flex", alignItems: "center", gap: 8 }}>
                 <Database size={18} color="#EA580C" /> Integração Google Sheets
@@ -1529,7 +1529,7 @@ export default function AdminDashboardsPage() {
               </button>
             </div>
             
-            <form onSubmit={handleSaveIntegration} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+            <form onSubmit={handleSaveIntegration} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20, overflowY: "auto", flex: 1 }}>
               {(() => {
                 const allSheetSources = sources.filter((s: any) => s.type === "google_sheets");
                 const googleCandidates = allSheetSources.filter((s: any) => inferSourceRole(s) === "google_ads");
@@ -1547,103 +1547,105 @@ export default function AdminDashboardsPage() {
 
               {integrationModalDashboard.dashboard_type === "google_meta_ads_s4x" ? (
                 <>
-                  <div style={{ border: "1px solid #E2E8F0", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: "#166534" }}>Fonte 1: Google Ads</p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Selecionar planilha existente</label>
-                      <select
-                        value={integrationForm.googleAdsSourceId}
-                        onChange={(e) => {
-                          const selectedId = e.target.value;
-                          const selected = googleCandidates.find((s: any) => s.id === selectedId);
-                          if (!selected) {
-                            setIntegrationForm({ ...integrationForm, googleAdsSourceId: "" });
-                            return;
-                          }
-                          setIntegrationForm({
-                            ...integrationForm,
-                            googleAdsSourceId: selectedId,
-                            googleAdsName: selected.name || integrationForm.googleAdsName,
-                            googleAdsSpreadsheetId: selected.google_sheet_sources?.spreadsheet_id || integrationForm.googleAdsSpreadsheetId,
-                          });
-                        }}
-                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
-                      >
-                        <option value="">Selecionar (opcional)</option>
-                        {googleCandidates.map((s: any) => (
-                          <option key={s.id} value={s.id}>{formatSheetOptionLabel(s)}</option>
-                        ))}
-                      </select>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
+                    <div style={{ border: "1px solid #E2E8F0", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#166534" }}>Fonte 1: Google Ads</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Selecionar planilha existente</label>
+                        <select
+                          value={integrationForm.googleAdsSourceId}
+                          onChange={(e) => {
+                            const selectedId = e.target.value;
+                            const selected = googleCandidates.find((s: any) => s.id === selectedId);
+                            if (!selected) {
+                              setIntegrationForm({ ...integrationForm, googleAdsSourceId: "" });
+                              return;
+                            }
+                            setIntegrationForm({
+                              ...integrationForm,
+                              googleAdsSourceId: selectedId,
+                              googleAdsName: selected.name || integrationForm.googleAdsName,
+                              googleAdsSpreadsheetId: selected.google_sheet_sources?.spreadsheet_id || integrationForm.googleAdsSpreadsheetId,
+                            });
+                          }}
+                          style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
+                        >
+                          <option value="">Selecionar (opcional)</option>
+                          {googleCandidates.map((s: any) => (
+                            <option key={s.id} value={s.id}>{formatSheetOptionLabel(s)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Conexão</label>
+                        <input
+                          required
+                          value={integrationForm.googleAdsName}
+                          onChange={e => setIntegrationForm({ ...integrationForm, googleAdsName: e.target.value, googleAdsSourceId: "" })}
+                          placeholder="Ex: Planilha Google Ads"
+                          style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ID da Planilha Google Ads</label>
+                        <input
+                          required
+                          value={integrationForm.googleAdsSpreadsheetId}
+                          onChange={e => setIntegrationForm({ ...integrationForm, googleAdsSpreadsheetId: e.target.value, googleAdsSourceId: "" })}
+                          placeholder="Cole o ID da planilha do Google Ads"
+                          style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                        />
+                      </div>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Conexão</label>
-                      <input
-                        required
-                        value={integrationForm.googleAdsName}
-                        onChange={e => setIntegrationForm({ ...integrationForm, googleAdsName: e.target.value, googleAdsSourceId: "" })}
-                        placeholder="Ex: Planilha Google Ads"
-                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ID da Planilha Google Ads</label>
-                      <input
-                        required
-                        value={integrationForm.googleAdsSpreadsheetId}
-                        onChange={e => setIntegrationForm({ ...integrationForm, googleAdsSpreadsheetId: e.target.value, googleAdsSourceId: "" })}
-                        placeholder="Cole o ID da planilha do Google Ads"
-                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
-                      />
-                    </div>
-                  </div>
 
-                  <div style={{ border: "1px solid #E2E8F0", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>Fonte 2: Meta Ads</p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Selecionar planilha existente</label>
-                      <select
-                        value={integrationForm.metaAdsSourceId}
-                        onChange={(e) => {
-                          const selectedId = e.target.value;
-                          const selected = metaCandidates.find((s: any) => s.id === selectedId);
-                          if (!selected) {
-                            setIntegrationForm({ ...integrationForm, metaAdsSourceId: "" });
-                            return;
-                          }
-                          setIntegrationForm({
-                            ...integrationForm,
-                            metaAdsSourceId: selectedId,
-                            metaAdsName: selected.name || integrationForm.metaAdsName,
-                            metaAdsSpreadsheetId: selected.google_sheet_sources?.spreadsheet_id || integrationForm.metaAdsSpreadsheetId,
-                          });
-                        }}
-                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
-                      >
-                        <option value="">Selecionar (opcional)</option>
-                        {metaCandidates.map((s: any) => (
-                          <option key={s.id} value={s.id}>{formatSheetOptionLabel(s)}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Conexão</label>
-                      <input
-                        required
-                        value={integrationForm.metaAdsName}
-                        onChange={e => setIntegrationForm({ ...integrationForm, metaAdsName: e.target.value, metaAdsSourceId: "" })}
-                        placeholder="Ex: Planilha Meta Ads"
-                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ID da Planilha Meta Ads</label>
-                      <input
-                        required
-                        value={integrationForm.metaAdsSpreadsheetId}
-                        onChange={e => setIntegrationForm({ ...integrationForm, metaAdsSpreadsheetId: e.target.value, metaAdsSourceId: "" })}
-                        placeholder="Cole o ID da planilha do Meta Ads"
-                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
-                      />
+                    <div style={{ border: "1px solid #E2E8F0", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>Fonte 2: Meta Ads</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Selecionar planilha existente</label>
+                        <select
+                          value={integrationForm.metaAdsSourceId}
+                          onChange={(e) => {
+                            const selectedId = e.target.value;
+                            const selected = metaCandidates.find((s: any) => s.id === selectedId);
+                            if (!selected) {
+                              setIntegrationForm({ ...integrationForm, metaAdsSourceId: "" });
+                              return;
+                            }
+                            setIntegrationForm({
+                              ...integrationForm,
+                              metaAdsSourceId: selectedId,
+                              metaAdsName: selected.name || integrationForm.metaAdsName,
+                              metaAdsSpreadsheetId: selected.google_sheet_sources?.spreadsheet_id || integrationForm.metaAdsSpreadsheetId,
+                            });
+                          }}
+                          style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
+                        >
+                          <option value="">Selecionar (opcional)</option>
+                          {metaCandidates.map((s: any) => (
+                            <option key={s.id} value={s.id}>{formatSheetOptionLabel(s)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Conexão</label>
+                        <input
+                          required
+                          value={integrationForm.metaAdsName}
+                          onChange={e => setIntegrationForm({ ...integrationForm, metaAdsName: e.target.value, metaAdsSourceId: "" })}
+                          placeholder="Ex: Planilha Meta Ads"
+                          style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ID da Planilha Meta Ads</label>
+                        <input
+                          required
+                          value={integrationForm.metaAdsSpreadsheetId}
+                          onChange={e => setIntegrationForm({ ...integrationForm, metaAdsSpreadsheetId: e.target.value, metaAdsSourceId: "" })}
+                          placeholder="Cole o ID da planilha do Meta Ads"
+                          style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </>
