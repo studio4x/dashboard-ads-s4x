@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     if (authError) return authError;
 
     const body = await request.json();
-    const { clientId, dashboardId, name, spreadsheetId, syncInterval, dashboardType } = body;
+    const { clientId, dashboardId, name, spreadsheetId, syncInterval, dashboardType, sourceRole } = body;
 
     if (!clientId || !dashboardId || !name || !spreadsheetId) {
       return NextResponse.json({ error: "Todos os campos são obrigatórios." }, { status: 400 });
@@ -42,7 +42,8 @@ export async function POST(request: Request) {
       name,
       spreadsheetId,
       syncInterval,
-      dashboardType
+      dashboardType,
+      sourceRole
     });
 
     return NextResponse.json({ success: true, source });

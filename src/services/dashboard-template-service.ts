@@ -7,9 +7,15 @@ export type DashboardTemplateType =
   | "google_ads_meta_ads" 
   | "custom" 
   | "google_ads_s4x" 
-  | "meta_ads_s4x";
+  | "meta_ads_s4x"
+  | "google_meta_ads_s4x";
 
 const TEMPLATE_PAGES: Record<string, { key: string; title: string; sort: number }[]> = {
+  google_meta_ads_s4x: [
+    { key: "executive-summary", title: "Resumo Executivo", sort: 10 },
+    { key: "google-ads", title: "Google Ads", sort: 20 },
+    { key: "meta-ads", title: "Meta Ads", sort: 30 },
+  ],
   google_ads_s4x: [
     { key: "executive-summary", title: "Resumo Executivo", sort: 10 },
     { key: "google-ads", title: "Google Ads", sort: 20 },

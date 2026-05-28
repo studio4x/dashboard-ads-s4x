@@ -11,7 +11,7 @@ export async function PATCH(
     if (authError) return authError;
 
     const { id } = await params;
-    const { name, spreadsheetId, syncInterval } = await request.json();
+    const { name, spreadsheetId, syncInterval, sourceRole } = await request.json();
 
     if (!name || !spreadsheetId) {
       return NextResponse.json({ error: "Nome e ID da planilha são obrigatórios." }, { status: 400 });
@@ -20,7 +20,8 @@ export async function PATCH(
     await DataSourceService.updateGoogleSheetSource(id, { 
       name, 
       spreadsheetId, 
-      syncInterval 
+      syncInterval,
+      sourceRole,
     });
 
     return NextResponse.json({ success: true });

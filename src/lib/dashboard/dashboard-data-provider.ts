@@ -66,6 +66,7 @@ export async function getDashboardData(
       // Identifica se é o novo payload S4X
       const isS4X = data.diagnostics?.snapshotVersion?.startsWith("google_ads_s4x");
       const isMetaS4X = data.diagnostics?.snapshotVersion?.startsWith("meta_ads_s4x");
+      const isIntegratedS4X = data.diagnostics?.snapshotVersion?.startsWith("google_meta_ads_s4x");
       
       if (range) {
         if (isS4X) {
@@ -82,6 +83,20 @@ export async function getDashboardData(
             data.dailyPerformance = data.dailyPerformance.filter((row: any) => isDateInRange(row.date, range));
             data.overview = data.dailyPerformance;
             summary = meta_ads_summary;
+          }
+        } else if (isIntegratedS4X) {
+          if (data.dailyPerformance) {
+            summary = DashboardAggregator.compare(data.dailyPerformance, range);
+            data.dailyPerformance = data.dailyPerformance.filter((row: any) => isDateInRange(row.date, range));
+            data.overview = data.dailyPerformance;
+          }
+          if (data.google_ads) {
+            google_ads_summary = DashboardAggregator.compare(data.google_ads, range);
+            data.google_ads = data.google_ads.filter((row: any) => isDateInRange(row.date, range));
+          }
+          if (data.meta_ads) {
+            meta_ads_summary = DashboardAggregator.compare(data.meta_ads, range);
+            data.meta_ads = data.meta_ads.filter((row: any) => isDateInRange(row.date, range));
           }
         } else {
           // Legado
@@ -138,6 +153,27 @@ export async function getDashboardData(
         };
         meta_ads_summary = summary;
         data.overview = data.dailyPerformance || [];
+      } else if (isIntegratedS4X) {
+        summary = {
+          current: {
+            total_spend: data.summary.cost || 0,
+            total_revenue: data.summary.conversionValue || 0,
+            total_conversions: data.summary.conversions || 0,
+            total_clicks: data.summary.clicks || 0,
+            total_impressions: data.summary.impressions || 0,
+            reach: data.summary.reach || 0,
+            postEngagement: data.summary.postEngagement || 0,
+            ctr: data.summary.ctr || 0,
+            cpc: data.summary.avgCpc || 0,
+            cpa: data.summary.cpa || 0,
+            roas: data.summary.roas || 0,
+          },
+          previous: null,
+          change: {}
+        };
+        google_ads_summary = data.google_ads_summary || null;
+        meta_ads_summary = data.meta_ads_summary || null;
+        data.overview = data.dailyPerformance || [];
       }
 
       // 2. Busca informações do dashboard para o template
@@ -146,8 +182,12 @@ export async function getDashboardData(
       return {
         ...data,
         overview: data.overview && data.overview.length > 0 ? data.overview : data.dailyPerformance || [],
-        google_ads: data.google_ads && data.google_ads.length > 0 ? data.google_ads : data.dailyPerformance || [],
-        meta_ads: data.meta_ads || [],
+        google_ads: isIntegratedS4X
+          ? (data.google_ads || [])
+          : (data.google_ads && data.google_ads.length > 0 ? data.google_ads : data.dailyPerformance || []),
+        meta_ads: isIntegratedS4X
+          ? (data.meta_ads || [])
+          : (data.meta_ads || []),
         ga4_events: data.ga4_events || [],
         audience: data.audience || [],
         search_console: data.search_console || [],

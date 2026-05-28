@@ -6,7 +6,9 @@ export const metadata: Metadata = { title: "Templates" };
 
 export default function TemplatesPage() {
   // Filtra para exibir apenas os templates S4X ativos (Google Ads e Meta Ads)
-  const templates = DASHBOARD_TEMPLATES.filter(t => t.id === "google_ads_s4x" || t.id === "meta_ads_s4x");
+  const templates = DASHBOARD_TEMPLATES.filter(
+    t => t.id === "google_ads_s4x" || t.id === "meta_ads_s4x" || t.id === "google_meta_ads_s4x"
+  );
 
   return (
     <div style={{ padding: 32, maxWidth: 800 }}>

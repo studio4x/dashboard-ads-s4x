@@ -1,6 +1,18 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export const DataSourceService = {
+  async getDashboardSourcesByRole(dashboardId: string) {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('data_sources')
+      .select('id, dashboard_id, google_sheet_sources(source_role)')
+      .eq('dashboard_id', dashboardId)
+      .eq('type', 'google_sheets')
+
+    if (error) throw error
+    return data || []
+  },
+
   /**
    * Obtém a configuração de Google Sheets de um dashboard.
    */
@@ -40,7 +52,8 @@ export const DataSourceService = {
     name: string,
     spreadsheetId: string,
     syncInterval?: string,
-    dashboardType?: string
+    dashboardType?: string,
+    sourceRole?: "google_ads" | "meta_ads" | null
   }) {
     const supabase = await createClient()
 
@@ -51,6 +64,22 @@ export const DataSourceService = {
         .eq('id', config.dashboardId);
 
       if (dashboardError) throw dashboardError;
+    }
+
+    if (config.dashboardType === "google_meta_ads_s4x") {
+      if (!config.sourceRole) {
+        throw new Error("Para o template integrado, o papel da fonte é obrigatório (google_ads ou meta_ads).");
+      }
+      const sources = await this.getDashboardSourcesByRole(config.dashboardId);
+      const roleInUse = sources.some((source: any) => {
+        const role = Array.isArray(source.google_sheet_sources)
+          ? source.google_sheet_sources[0]?.source_role
+          : source.google_sheet_sources?.source_role;
+        return role === config.sourceRole;
+      });
+      if (roleInUse) {
+        throw new Error(`Já existe uma fonte com papel "${config.sourceRole}" para este dashboard integrado.`);
+      }
     }
 
     // 1. Cria a entrada na data_sources
@@ -74,7 +103,8 @@ export const DataSourceService = {
       .from('google_sheet_sources')
       .insert([{
         data_source_id: source.id,
-        spreadsheet_id: config.spreadsheetId
+        spreadsheet_id: config.spreadsheetId,
+        source_role: config.sourceRole || null,
       }])
 
     if (configError) throw configError
@@ -169,9 +199,40 @@ export const DataSourceService = {
   async updateGoogleSheetSource(id: string, config: {
     name: string,
     spreadsheetId: string,
-    syncInterval?: string
+    syncInterval?: string,
+    sourceRole?: "google_ads" | "meta_ads" | null
   }) {
     const supabase = await createClient()
+
+    const { data: sourceData, error: sourceFetchError } = await supabase
+      .from('data_sources')
+      .select('dashboard_id, dashboards(dashboard_type)')
+      .eq('id', id)
+      .single()
+
+    if (sourceFetchError) throw sourceFetchError
+
+    const dashboardType = Array.isArray((sourceData as any)?.dashboards)
+      ? (sourceData as any)?.dashboards?.[0]?.dashboard_type
+      : (sourceData as any)?.dashboards?.dashboard_type;
+    const dashboardId = (sourceData as any)?.dashboard_id;
+
+    if (dashboardType === "google_meta_ads_s4x") {
+      if (!config.sourceRole) {
+        throw new Error("Para o template integrado, o papel da fonte é obrigatório (google_ads ou meta_ads).");
+      }
+      const sources = await this.getDashboardSourcesByRole(dashboardId);
+      const roleInUse = sources.some((source: any) => {
+        if (source.id === id) return false;
+        const role = Array.isArray(source.google_sheet_sources)
+          ? source.google_sheet_sources[0]?.source_role
+          : source.google_sheet_sources?.source_role;
+        return role === config.sourceRole;
+      });
+      if (roleInUse) {
+        throw new Error(`Já existe uma fonte com papel "${config.sourceRole}" para este dashboard integrado.`);
+      }
+    }
 
     // 1. Atualiza a entrada na data_sources
     const { error: sourceError } = await supabase
@@ -187,7 +248,10 @@ export const DataSourceService = {
     // 2. Atualiza a configuração específica de Google Sheets
     const { error: configError } = await supabase
       .from('google_sheet_sources')
-      .update({ spreadsheet_id: config.spreadsheetId })
+      .update({
+        spreadsheet_id: config.spreadsheetId,
+        source_role: config.sourceRole || null,
+      })
       .eq('data_source_id', id)
 
     if (configError) throw configError

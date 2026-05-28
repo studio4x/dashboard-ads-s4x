@@ -51,6 +51,15 @@ export const DASHBOARD_TEMPLATES: DashboardTemplateDefinition[] = [
     ]
   },
   {
+    id: "google_meta_ads_s4x",
+    name: "Google + Meta Ads — S4X",
+    platform: "mixed",
+    version: "1.0",
+    status: "active",
+    sourceType: "google_sheets",
+    description: "Template integrado com duas fontes Google Sheets: Google Ads S4X e Meta Ads S4X.",
+  },
+  {
     id: "google_ads",
     name: "Google Ads (Legado)",
     platform: "google_ads",
@@ -75,6 +84,11 @@ export function getTemplateById(id: string) {
 }
 
 export const VISIBLE_PAGES_BY_TEMPLATE: Record<string, string[]> = {
+  google_meta_ads_s4x: [
+    "executive-summary",
+    "google-ads",
+    "meta-ads",
+  ],
   google_ads_s4x: [
     "executive-summary",
     "campaigns",

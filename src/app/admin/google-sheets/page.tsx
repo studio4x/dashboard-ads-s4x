@@ -20,6 +20,7 @@ interface SheetSource {
     spreadsheet_id: string;
     last_import_at?: string;
     last_import_status?: string;
+    source_role?: "google_ads" | "meta_ads" | null;
   };
   clients: { name: string };
   dashboards: { name: string; dashboard_type?: string };
@@ -57,7 +58,8 @@ export default function GoogleSheetsAdminPage() {
     dashboardType: "",
     name: "",
     spreadsheetId: "",
-    syncInterval: "daily"
+    syncInterval: "daily",
+    sourceRole: "" as "" | "google_ads" | "meta_ads",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -125,7 +127,8 @@ export default function GoogleSheetsAdminPage() {
       dashboardType: source.dashboards?.dashboard_type || "",
       name: source.name,
       spreadsheetId: source.google_sheet_sources.spreadsheet_id,
-      syncInterval: source.sync_interval || "daily"
+      syncInterval: source.sync_interval || "daily",
+      sourceRole: source.google_sheet_sources?.source_role || "",
     });
     setIsModalOpen(true);
   };
@@ -180,7 +183,7 @@ export default function GoogleSheetsAdminPage() {
       if (result.success) {
         setIsModalOpen(false);
         setEditingSourceId(null);
-        setFormData({ clientId: "", dashboardId: "", dashboardType: "", name: "", spreadsheetId: "", syncInterval: "daily" });
+        setFormData({ clientId: "", dashboardId: "", dashboardType: "", name: "", spreadsheetId: "", syncInterval: "daily", sourceRole: "" });
         fetchData();
         toast(editingSourceId ? "Fonte atualizada!" : "Fonte criada com sucesso!", "success");
       } else {
@@ -243,7 +246,7 @@ export default function GoogleSheetsAdminPage() {
         <button 
           onClick={() => {
             setEditingSourceId(null);
-            setFormData({ clientId: "", dashboardId: "", dashboardType: "", name: "", spreadsheetId: "", syncInterval: "daily" });
+            setFormData({ clientId: "", dashboardId: "", dashboardType: "", name: "", spreadsheetId: "", syncInterval: "daily", sourceRole: "" });
             setIsModalOpen(true);
           }}
           style={{ 
@@ -281,7 +284,7 @@ export default function GoogleSheetsAdminPage() {
               label: "Nova Planilha",
               onClick: () => {
                 setEditingSourceId(null);
-                setFormData({ clientId: "", dashboardId: "", dashboardType: "", name: "", spreadsheetId: "", syncInterval: "daily" });
+                setFormData({ clientId: "", dashboardId: "", dashboardType: "", name: "", spreadsheetId: "", syncInterval: "daily", sourceRole: "" });
                 setIsModalOpen(true);
               },
               icon: Plus
@@ -480,6 +483,7 @@ export default function GoogleSheetsAdminPage() {
                   <option value="">Selecione um modelo...</option>
                   <option value="google_ads_s4x">Google Ads S4X</option>
                   <option value="meta_ads_s4x">Meta Ads S4X</option>
+                  <option value="google_meta_ads_s4x">Google + Meta Ads S4X</option>
                   <option value="google_ads">Google Ads (Legado)</option>
                   <option value="meta_ads">Meta Ads (Legado)</option>
                   <option value="custom">Custom / Legado</option>
@@ -488,6 +492,25 @@ export default function GoogleSheetsAdminPage() {
                   <p style={{ fontSize: 11, color: "#94A3B8" }}>Para alterar o modelo, edite o dashboard vinculado.</p>
                 )}
               </div>
+
+              {formData.dashboardType === "google_meta_ads_s4x" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Papel da Fonte no Dashboard Integrado</label>
+                  <select
+                    required
+                    value={formData.sourceRole}
+                    onChange={e => setFormData({ ...formData, sourceRole: e.target.value as "" | "google_ads" | "meta_ads" })}
+                    style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
+                  >
+                    <option value="">Selecione o papel...</option>
+                    <option value="google_ads">Google Ads</option>
+                    <option value="meta_ads">Meta Ads</option>
+                  </select>
+                  <p style={{ fontSize: 11, color: "#94A3B8" }}>
+                    O dashboard integrado exige exatamente 1 fonte Google Ads e 1 fonte Meta Ads.
+                  </p>
+                </div>
+              )}
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ID da Planilha (Spreadsheet ID)</label>
@@ -521,8 +544,9 @@ export default function GoogleSheetsAdminPage() {
                 const dashboardType = formData.dashboardType;
                 const isGoogleS4X = dashboardType === 'google_ads_s4x';
                 const isMetaS4X = dashboardType === 'meta_ads_s4x';
+                const isIntegratedS4X = dashboardType === 'google_meta_ads_s4x';
 
-                if (!isGoogleS4X && !isMetaS4X) {
+                if (!isGoogleS4X && !isMetaS4X && !isIntegratedS4X) {
                   return (
                     <div style={{ padding: 16, borderRadius: 12, background: "#F0F9FF", border: "1px solid #BAE6FD" }}>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
@@ -541,9 +565,16 @@ export default function GoogleSheetsAdminPage() {
                     <div style={{ padding: "12px 16px", background: "#F0F9FF", display: "flex", gap: 8, alignItems: "center" }}>
                       <Info size={16} style={{ color: "#2563EB" }} />
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#0369A1" }}>
-                        Estrutura da Planilha — {isGoogleS4X ? 'Google Ads S4X' : 'Meta Ads S4X'}
+                        Estrutura da Planilha — {isGoogleS4X ? 'Google Ads S4X' : isMetaS4X ? 'Meta Ads S4X' : 'Google + Meta Ads S4X'}
                       </span>
                     </div>
+                    {isIntegratedS4X && (
+                      <div style={{ padding: "12px 16px", background: "white" }}>
+                        <p style={{ fontSize: 12, color: "#0369A1", fontWeight: 600 }}>
+                          Vincule duas fontes separadas para este dashboard: uma com papel Google Ads e outra com papel Meta Ads.
+                        </p>
+                      </div>
+                    )}
                     {isGoogleS4X ? (
                       <div style={{ padding: "12px 16px", background: "white" }}>
                         <p style={{ fontSize: 11, color: "#64748B", marginBottom: 8, fontWeight: 600 }}>ABAS OBRIGATÓRIAS</p>

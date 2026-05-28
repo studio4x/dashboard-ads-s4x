@@ -24,6 +24,139 @@ import {
 } from "@/lib/meta-ads/objectives";
 
 export const GoogleSheetsImportService = {
+  isIntegratedDashboardTemplate(templateId?: string) {
+    return templateId === "google_meta_ads_s4x";
+  },
+
+  getExpectedTemplateBySourceRole(sourceRole?: string | null): "google_ads_s4x" | "meta_ads_s4x" {
+    return sourceRole === "meta_ads" ? "meta_ads_s4x" : "google_ads_s4x";
+  },
+
+  mapIntegratedDailyRow(row: any, platform: "google_ads" | "meta_ads") {
+    return {
+      ...row,
+      platform,
+      date: row.date,
+      impressions: Number(row.impressions || 0),
+      clicks: Number(row.clicks || 0),
+      cost: Number(row.cost || 0),
+      conversions: Number(row.conversions || 0),
+      conversionValue: Number(row.conversionValue || 0),
+      reach: Number(row.reach || 0),
+      postEngagement: Number(row.postEngagement || 0),
+    };
+  },
+
+  calculateIntegratedSummary(rows: any[]) {
+    const totals = rows.reduce((acc: any, row: any) => {
+      acc.impressions += Number(row.impressions || 0);
+      acc.clicks += Number(row.clicks || 0);
+      acc.cost += Number(row.cost || 0);
+      acc.conversions += Number(row.conversions || 0);
+      acc.conversionValue += Number(row.conversionValue || 0);
+      acc.reach += Number(row.reach || 0);
+      acc.postEngagement += Number(row.postEngagement || 0);
+      return acc;
+    }, {
+      impressions: 0,
+      clicks: 0,
+      cost: 0,
+      conversions: 0,
+      conversionValue: 0,
+      reach: 0,
+      postEngagement: 0,
+    });
+
+    return {
+      ...totals,
+      ctr: totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0,
+      avgCpc: totals.clicks > 0 ? totals.cost / totals.clicks : 0,
+      cpa: totals.conversions > 0 ? totals.cost / totals.conversions : 0,
+      roas: totals.cost > 0 ? totals.conversionValue / totals.cost : 0,
+      frequency: totals.reach > 0 ? totals.impressions / totals.reach : 0,
+      avgCpm: totals.impressions > 0 ? (totals.cost / totals.impressions) * 1000 : 0,
+    };
+  },
+
+  buildIntegratedPayload(params: {
+    sourceRole: "google_ads" | "meta_ads";
+    importedPayload: any;
+    previousPayload: any | null;
+    spreadsheetId: string;
+    warnings: ImportError[];
+  }) {
+    const prev = params.previousPayload || {};
+
+    const googlePayload = params.sourceRole === "google_ads"
+      ? params.importedPayload
+      : (prev.googlePayload || (prev.diagnostics?.googleSnapshotVersion?.startsWith?.("google_ads_s4x") ? prev : null));
+    const metaPayload = params.sourceRole === "meta_ads"
+      ? params.importedPayload
+      : (prev.metaPayload || (prev.diagnostics?.metaSnapshotVersion?.startsWith?.("meta_ads_s4x") ? prev : null));
+
+    const googleRows = Array.isArray(googlePayload?.dailyPerformance)
+      ? googlePayload.dailyPerformance.map((row: any) => this.mapIntegratedDailyRow(row, "google_ads"))
+      : [];
+    const metaRows = Array.isArray(metaPayload?.dailyPerformance)
+      ? metaPayload.dailyPerformance.map((row: any) => this.mapIntegratedDailyRow(row, "meta_ads"))
+      : [];
+
+    if (!googlePayload) {
+      params.warnings.push({
+        severity: "warning",
+        stage: "snapshot_creation",
+        message: "Fonte Google Ads ainda não importada para este dashboard integrado."
+      });
+    }
+    if (!metaPayload) {
+      params.warnings.push({
+        severity: "warning",
+        stage: "snapshot_creation",
+        message: "Fonte Meta Ads ainda não importada para este dashboard integrado."
+      });
+    }
+
+    const dailyPerformance = [...googleRows, ...metaRows]
+      .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+    const summary = this.calculateIntegratedSummary(dailyPerformance);
+
+    return {
+      meta: {
+        accountName: "Integrado Google + Meta",
+        accountId: null,
+        timezone: googlePayload?.meta?.timezone || metaPayload?.meta?.timezone || "America/Sao_Paulo",
+      },
+      config: {
+        templateId: "google_meta_ads_s4x",
+        templateLabel: "Google + Meta Ads S4X",
+        templateVersion: "1.0",
+        source: "Google Sheets",
+      },
+      summary,
+      google_ads_summary: googlePayload?.summary || null,
+      meta_ads_summary: metaPayload?.summary || null,
+      overview: dailyPerformance,
+      dailyPerformance,
+      google_ads: googleRows,
+      meta_ads: metaRows,
+      campaigns: googlePayload?.campaigns || [],
+      adGroups: googlePayload?.adGroups || [],
+      keywords: googlePayload?.keywords || [],
+      searchTerms: googlePayload?.searchTerms || [],
+      negativeKeywords: googlePayload?.negativeKeywords || [],
+      adsAndAssets: googlePayload?.adsAndAssets || [],
+      diagnostics: {
+        snapshotVersion: "google_meta_ads_s4x_v1",
+        googleSnapshotVersion: googlePayload?.diagnostics?.snapshotVersion || null,
+        metaSnapshotVersion: metaPayload?.diagnostics?.snapshotVersion || null,
+        sourceSpreadsheetId: params.spreadsheetId,
+        importedAt: new Date().toISOString(),
+      },
+      googlePayload: googlePayload || null,
+      metaPayload: metaPayload || null,
+    };
+  },
+
   getMetaAdsAvailableMetrics(headers: string[]) {
     const normalizedHeaders = headers.map(h => String(h).trim());
     const has = (name: string) => normalizedHeaders.includes(name);
@@ -146,7 +279,40 @@ export const GoogleSheetsImportService = {
         .eq('id', dashboardId)
         .single();
         
-      const expectedTemplateId = dashboard?.dashboard_type || "google_ads_s4x";
+      const dashboardTemplateId = dashboard?.dashboard_type || "google_ads_s4x";
+      const isIntegratedDashboard = this.isIntegratedDashboardTemplate(dashboardTemplateId);
+      let sourceRole: "google_ads" | "meta_ads" | null = null;
+      if (dataSourceId) {
+        const { data: sourceConfig } = await supabase
+          .from("google_sheet_sources")
+          .select("source_role")
+          .eq("data_source_id", dataSourceId)
+          .maybeSingle();
+        sourceRole = (sourceConfig?.source_role as "google_ads" | "meta_ads" | null) || null;
+      }
+      if (isIntegratedDashboard && !sourceRole) {
+        return this.finishImport({
+          success: false,
+          stage: "template_validation",
+          errors: [{
+            severity: "blocking",
+            stage: "template_validation",
+            message: "Dashboard integrado exige source_role na fonte (google_ads ou meta_ads)."
+          }],
+          warnings,
+          clientId,
+          dashboardId,
+          spreadsheetId,
+          startedAt,
+          logId,
+          dataSourceId,
+          metaValidation: metaValidationForPersist,
+        });
+      }
+
+      const expectedTemplateId = isIntegratedDashboard
+        ? this.getExpectedTemplateBySourceRole(sourceRole)
+        : dashboardTemplateId;
       const metaObjectives = normalizeMetaAdsObjectives(dashboard?.meta_objectives);
       const metaPrimaryObjective = metaObjectives[0] || null;
 
@@ -505,6 +671,24 @@ export const GoogleSheetsImportService = {
         finalPayload = s4xMetaPayload;
       }
 
+      if (this.isIntegratedDashboardTemplate(dashboardTemplateId) && sourceRole && errors.length === 0) {
+        const { data: previousSnapshot } = await supabase
+          .from("dashboard_data_snapshots")
+          .select("payload_json")
+          .eq("dashboard_id", dashboardId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        finalPayload = this.buildIntegratedPayload({
+          sourceRole,
+          importedPayload: finalPayload,
+          previousPayload: previousSnapshot?.payload_json || null,
+          spreadsheetId,
+          warnings,
+        });
+      }
+
       const success = errors.length === 0;
       
       return this.finishImport({
@@ -600,6 +784,7 @@ export const GoogleSheetsImportService = {
       await DashboardService.saveSnapshot({
         client_id: params.clientId,
         dashboard_id: params.dashboardId,
+        data_source_id: params.dataSourceId || null,
         source_type: "google_sheets",
         payload_json: params.data,
         imported_at: finishedAt

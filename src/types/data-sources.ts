@@ -21,6 +21,7 @@ export interface GoogleSheetConfig {
   tabs: SheetTabConfig[];
   last_synced_at?: string; // ISO
   sync_frequency?: "manual" | "hourly" | "daily";
+  source_role?: "google_ads" | "meta_ads";
 }
 
 // Configuração de uma aba específica da planilha
