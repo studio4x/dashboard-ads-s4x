@@ -14,10 +14,10 @@ const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCO
 type MetaObjective = (typeof META_ADS_OBJECTIVES)[number]["id"];
 const META_TEMPLATE_ID = "meta_ads_s4x";
 const DASHBOARD_TYPE_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  google_ads_s4x: { label: "Google Ads — S4X", bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
-  meta_ads_s4x: { label: "Meta Ads — S4X", bg: "#EEF2FF", color: "#4338CA", border: "#C7D2FE" },
-  google_ads: { label: "Google Ads (Legado)", bg: "#FFFBEB", color: "#B45309", border: "#FDE68A" },
-  custom: { label: "Custom", bg: "#F1F5F9", color: "#475569", border: "#E2E8F0" },
+  google_ads_s4x: { label: "Google Ads", bg: "#16A34A", color: "#FFFFFF", border: "#16A34A" },
+  meta_ads_s4x: { label: "Meta Ads", bg: "#4338CA", color: "#FFFFFF", border: "#4338CA" },
+  google_ads: { label: "Google Ads (Legado)", bg: "#B45309", color: "#FFFFFF", border: "#B45309" },
+  custom: { label: "Custom", bg: "#475569", color: "#FFFFFF", border: "#475569" },
 };
 const WEEK_DAYS = [
   { value: 0, label: "Domingo" },
