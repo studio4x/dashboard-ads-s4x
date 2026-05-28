@@ -58,8 +58,10 @@ export default function MetaAdsPage() {
 
   if (!data) return null;
 
-  const isMetaS4X = data.templateId === "meta_ads_s4x";
-  const available = data?.diagnostics?.availableMetrics?.fields;
+  const isMetaS4X = data.templateId === "meta_ads_s4x" || data.templateId === "google_meta_ads_s4x";
+  const available =
+    data?.diagnostics?.availableMetrics?.fields
+    || data?.metaPayload?.diagnostics?.availableMetrics?.fields;
   const hasMetric = (key: string) => {
     if (!isMetaS4X) return true;
     if (!available) return true; // retrocompatibilidade para snapshots antigos
@@ -79,7 +81,7 @@ export default function MetaAdsPage() {
   const costPerResultKey = costMetric === "cpc" ? "cpc" : costMetric === "cpm" ? "cpm" : "cpa";
   const costPerResultColumnKey = costMetric === "cpa" && resultMetric !== "conversions" ? "costPerResult" : costPerResultKey;
   const hasData = isMetaS4X 
-    ? (data.dailyPerformance && data.dailyPerformance.length > 0)
+    ? ((data.meta_ads && data.meta_ads.length > 0) || (data.dailyPerformance && data.dailyPerformance.length > 0))
     : (data.meta_ads && data.meta_ads.length > 0);
   
   if (!hasData && data.source !== "mock") {
@@ -94,8 +96,12 @@ export default function MetaAdsPage() {
   }
 
   // 1. Geração de KPIs
+  const metaRowsForS4X = data.templateId === "google_meta_ads_s4x"
+    ? (data.meta_ads || [])
+    : (data.dailyPerformance || []);
+
   let kpis = isMetaS4X 
-    ? generateMetaAdsS4XKpisWithLabels(data.dailyPerformance || [], data.meta_ads_summary, {
+    ? generateMetaAdsS4XKpisWithLabels(metaRowsForS4X, data.meta_ads_summary, {
       conversionLabel,
       costLabel,
       costMetric,
@@ -129,7 +135,7 @@ export default function MetaAdsPage() {
   // 2. Gráfico Diário (Evolução Temporal)
   let dailySeries: any[] = [];
   if (isMetaS4X) {
-    const dailyGrouped = (data.dailyPerformance || []).reduce((acc: any, curr: any) => {
+    const dailyGrouped = metaRowsForS4X.reduce((acc: any, curr: any) => {
       const dateStr = formatDateShort(curr.date);
       if (!acc[dateStr]) {
         acc[dateStr] = { date: dateStr, cost: 0, conversions: 0, clicks: 0, impressions: 0 };
@@ -159,7 +165,7 @@ export default function MetaAdsPage() {
 
   if (isMetaS4X) {
     // Processamento estruturado Meta Ads S4X
-    const rawData = data.dailyPerformance || [];
+    const rawData = (data.templateId === "google_meta_ads_s4x" ? data.meta_ads : data.dailyPerformance) || [];
 
     // Campanhas
     const campaignsMap = rawData.reduce((acc: any, curr: any) => {

@@ -42,9 +42,14 @@ export default function GoogleAdsPage() {
     Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
     Array.isArray(data.campaigns) ? data.campaigns : [],
   );
-  const googleCampaigns = normalizedCampaigns.filter((c: any) => 
-    (c.platform?.toLowerCase().includes("google")) || (data.templateId === "google_ads_s4x")
-  );
+  const googleCampaigns = normalizedCampaigns.filter((c: any) => {
+    const platform = String(c.platform || "").toLowerCase();
+    return (
+      platform.includes("google")
+      || data.templateId === "google_ads_s4x"
+      || data.templateId === "google_meta_ads_s4x"
+    );
+  });
 
   const normalizedKeywords = normalizeGoogleAdsRowsToPeriod(
     Array.isArray(data.keywords) ? data.keywords : [],

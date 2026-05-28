@@ -25,6 +25,8 @@ interface DashboardData {
   meta?: any;
   config?: any;
   diagnostics?: any;
+  googlePayload?: any;
+  metaPayload?: any;
 
   // Sumários e Metadados
   summary?: any;
