@@ -62,8 +62,10 @@ export default function AdminDashboardsPage() {
     name: "",
     googleAdsSpreadsheetId: "",
     googleAdsName: "",
+    googleAdsSourceId: "",
     metaAdsSpreadsheetId: "",
     metaAdsName: "",
+    metaAdsSourceId: "",
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSavingIntegration, setIsSavingIntegration] = useState(false);
@@ -161,6 +163,15 @@ export default function AdminDashboardsPage() {
     return sources.filter((s: any) => s.dashboard_id === dashboardId && s.type === "google_sheets");
   };
 
+  const inferSourceRole = (source: any): "google_ads" | "meta_ads" | null => {
+    const explicitRole = getSourceRole(source);
+    if (explicitRole) return explicitRole;
+    const dashboardType = source?.dashboards?.dashboard_type;
+    if (dashboardType === "google_ads_s4x" || dashboardType === "google_ads") return "google_ads";
+    if (dashboardType === "meta_ads_s4x" || dashboardType === "meta_ads") return "meta_ads";
+    return null;
+  };
+
   const handleOpenIntegration = (dash: any) => {
     setIntegrationModalDashboard(dash);
     const dashSources = getDashboardSheetSources(dash.id);
@@ -172,8 +183,10 @@ export default function AdminDashboardsPage() {
         name: "",
         googleAdsSpreadsheetId: googleSource?.google_sheet_sources?.spreadsheet_id || "",
         googleAdsName: googleSource?.name || `Planilha Google Ads - ${dash.name}`,
+        googleAdsSourceId: "",
         metaAdsSpreadsheetId: metaSource?.google_sheet_sources?.spreadsheet_id || "",
         metaAdsName: metaSource?.name || `Planilha Meta Ads - ${dash.name}`,
+        metaAdsSourceId: "",
       });
       return;
     }
@@ -184,8 +197,10 @@ export default function AdminDashboardsPage() {
         name: source.name || `Planilha - ${dash.name}`,
         googleAdsSpreadsheetId: "",
         googleAdsName: "",
+        googleAdsSourceId: "",
         metaAdsSpreadsheetId: "",
         metaAdsName: "",
+        metaAdsSourceId: "",
       });
     } else {
       setIntegrationForm({
@@ -193,8 +208,10 @@ export default function AdminDashboardsPage() {
         name: `Planilha - ${dash.name}`,
         googleAdsSpreadsheetId: "",
         googleAdsName: "",
+        googleAdsSourceId: "",
         metaAdsSpreadsheetId: "",
         metaAdsName: "",
+        metaAdsSourceId: "",
       });
     }
   };
@@ -1513,6 +1530,16 @@ export default function AdminDashboardsPage() {
             </div>
             
             <form onSubmit={handleSaveIntegration} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+              {(() => {
+                const allSheetSources = sources.filter((s: any) => s.type === "google_sheets");
+                const googleCandidates = allSheetSources.filter((s: any) => inferSourceRole(s) === "google_ads");
+                const metaCandidates = allSheetSources.filter((s: any) => inferSourceRole(s) === "meta_ads");
+                const formatSheetOptionLabel = (s: any) => {
+                  const sheetId = s?.google_sheet_sources?.spreadsheet_id || "-";
+                  return `${s.name} · ${s.clients?.name || "Cliente"} · ${String(sheetId).slice(0, 12)}...`;
+                };
+                return (
+                  <>
               <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 12 }}>
                 <p style={{ fontSize: 12, color: "#1E3A8A", fontWeight: 600 }}>Dashboard: {integrationModalDashboard.name}</p>
                 <p style={{ fontSize: 11, color: "#1D4ED8", marginTop: 2 }}>Cliente: {clients.find(c => c.id === integrationModalDashboard.client_id)?.name || "Cliente"}</p>
@@ -1523,11 +1550,37 @@ export default function AdminDashboardsPage() {
                   <div style={{ border: "1px solid #E2E8F0", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: "#166534" }}>Fonte 1: Google Ads</p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Selecionar planilha existente</label>
+                      <select
+                        value={integrationForm.googleAdsSourceId}
+                        onChange={(e) => {
+                          const selectedId = e.target.value;
+                          const selected = googleCandidates.find((s: any) => s.id === selectedId);
+                          if (!selected) {
+                            setIntegrationForm({ ...integrationForm, googleAdsSourceId: "" });
+                            return;
+                          }
+                          setIntegrationForm({
+                            ...integrationForm,
+                            googleAdsSourceId: selectedId,
+                            googleAdsName: selected.name || integrationForm.googleAdsName,
+                            googleAdsSpreadsheetId: selected.google_sheet_sources?.spreadsheet_id || integrationForm.googleAdsSpreadsheetId,
+                          });
+                        }}
+                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
+                      >
+                        <option value="">Selecionar (opcional)</option>
+                        {googleCandidates.map((s: any) => (
+                          <option key={s.id} value={s.id}>{formatSheetOptionLabel(s)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Conexão</label>
                       <input
                         required
                         value={integrationForm.googleAdsName}
-                        onChange={e => setIntegrationForm({ ...integrationForm, googleAdsName: e.target.value })}
+                        onChange={e => setIntegrationForm({ ...integrationForm, googleAdsName: e.target.value, googleAdsSourceId: "" })}
                         placeholder="Ex: Planilha Google Ads"
                         style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
                       />
@@ -1537,7 +1590,7 @@ export default function AdminDashboardsPage() {
                       <input
                         required
                         value={integrationForm.googleAdsSpreadsheetId}
-                        onChange={e => setIntegrationForm({ ...integrationForm, googleAdsSpreadsheetId: e.target.value })}
+                        onChange={e => setIntegrationForm({ ...integrationForm, googleAdsSpreadsheetId: e.target.value, googleAdsSourceId: "" })}
                         placeholder="Cole o ID da planilha do Google Ads"
                         style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
                       />
@@ -1547,11 +1600,37 @@ export default function AdminDashboardsPage() {
                   <div style={{ border: "1px solid #E2E8F0", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>Fonte 2: Meta Ads</p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Selecionar planilha existente</label>
+                      <select
+                        value={integrationForm.metaAdsSourceId}
+                        onChange={(e) => {
+                          const selectedId = e.target.value;
+                          const selected = metaCandidates.find((s: any) => s.id === selectedId);
+                          if (!selected) {
+                            setIntegrationForm({ ...integrationForm, metaAdsSourceId: "" });
+                            return;
+                          }
+                          setIntegrationForm({
+                            ...integrationForm,
+                            metaAdsSourceId: selectedId,
+                            metaAdsName: selected.name || integrationForm.metaAdsName,
+                            metaAdsSpreadsheetId: selected.google_sheet_sources?.spreadsheet_id || integrationForm.metaAdsSpreadsheetId,
+                          });
+                        }}
+                        style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
+                      >
+                        <option value="">Selecionar (opcional)</option>
+                        {metaCandidates.map((s: any) => (
+                          <option key={s.id} value={s.id}>{formatSheetOptionLabel(s)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Nome da Conexão</label>
                       <input
                         required
                         value={integrationForm.metaAdsName}
-                        onChange={e => setIntegrationForm({ ...integrationForm, metaAdsName: e.target.value })}
+                        onChange={e => setIntegrationForm({ ...integrationForm, metaAdsName: e.target.value, metaAdsSourceId: "" })}
                         placeholder="Ex: Planilha Meta Ads"
                         style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
                       />
@@ -1561,7 +1640,7 @@ export default function AdminDashboardsPage() {
                       <input
                         required
                         value={integrationForm.metaAdsSpreadsheetId}
-                        onChange={e => setIntegrationForm({ ...integrationForm, metaAdsSpreadsheetId: e.target.value })}
+                        onChange={e => setIntegrationForm({ ...integrationForm, metaAdsSpreadsheetId: e.target.value, metaAdsSourceId: "" })}
                         placeholder="Cole o ID da planilha do Meta Ads"
                         style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
                       />
@@ -1619,6 +1698,9 @@ export default function AdminDashboardsPage() {
                   4. Salve e volte para clicar em <strong>Salvar Integração</strong>.
                 </div>
               </div>
+                  </>
+                );
+              })()}
 
               {/* Status da Planilha & Sincronização direta do Modal */}
               {(() => {
