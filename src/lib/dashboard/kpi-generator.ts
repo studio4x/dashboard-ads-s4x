@@ -152,9 +152,10 @@ export function generateMetaAdsS4XKpisWithLabels(
     total_reach: acc.total_reach + Number(curr.reach || 0),
   }), { total_spend: 0, total_conversions: 0, total_clicks: 0, total_impressions: 0, total_reach: 0 });
 
+  const reachValue = Number((current as any).total_reach ?? (current as any).reach ?? 0);
   const cpa = summary?.current?.cpa !== undefined ? summary.current.cpa : (current.total_conversions > 0 ? current.total_spend / current.total_conversions : 0);
   const ctr = summary?.current?.ctr !== undefined ? summary.current.ctr : (current.total_impressions > 0 ? (current.total_clicks / current.total_impressions) * 100 : 0);
-  const frequency = summary?.current?.frequency !== undefined ? summary.current.frequency : (current.total_reach > 0 ? current.total_impressions / current.total_reach : 0);
+  const frequency = summary?.current?.frequency !== undefined ? summary.current.frequency : (reachValue > 0 ? current.total_impressions / reachValue : 0);
   const cpm = summary?.current?.avgCpm !== undefined ? summary.current.avgCpm : (current.total_impressions > 0 ? (current.total_spend / current.total_impressions) * 1000 : 0);
   
   const changes = summary?.change || {};
@@ -223,8 +224,8 @@ export function generateMetaAdsS4XKpisWithLabels(
     { 
       metricKey: "reach",
       label: "Alcance", 
-      value: current.total_reach, 
-      formatted_value: formatNumber(current.total_reach), 
+      value: reachValue, 
+      formatted_value: formatNumber(reachValue), 
       change_percent: changes.reach || 0, 
       change_direction: getDirection(changes.reach || 0), 
       unit: "number", 
