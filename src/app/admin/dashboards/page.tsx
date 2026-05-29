@@ -1469,6 +1469,9 @@ export default function AdminDashboardsPage() {
               <p style={{ fontSize: 11, color: "#64748B" }}>
                 O primeiro objetivo selecionado será usado como objetivo principal para o rótulo de conversão.
               </p>
+              <p style={{ fontSize: 11, color: "#64748B", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 10px" }}>
+                Esta configuração é aplicada somente às métricas e visualizações de Meta Ads (inclusive no dashboard integrado Google + Meta). A aba Google Ads não é afetada.
+              </p>
 
               <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
                 <button
