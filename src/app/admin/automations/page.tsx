@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, CheckCircle2, Info, Loader2, Play, Save } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 const APP_BASE_URL = "https://dashboard-ads-s4x.vercel.app";
 const DISPATCH_ENDPOINT = `${APP_BASE_URL}/api/admin/automations/report-dispatch`;
@@ -32,6 +33,7 @@ function CopyBlock({
   value: string;
   rows?: number;
 }) {
+  const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -40,7 +42,7 @@ function CopyBlock({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      alert("Não foi possível copiar automaticamente.");
+      toast("Não foi possível copiar automaticamente.", "error");
     }
   };
 
@@ -90,6 +92,7 @@ function CopyBlock({
 }
 
 export default function AdminAutomationsPage() {
+  const { toast } = useToast();
   const today = new Date();
   const defaultToDate = new Date(today);
   defaultToDate.setDate(defaultToDate.getDate() - 1);
@@ -207,7 +210,7 @@ export default function AdminAutomationsPage() {
 
   const runDispatchTest = async (dryRun: boolean) => {
     if (!dashboardId) {
-      alert("Selecione ou informe um dashboardId para testar.");
+      toast("Selecione ou informe um dashboardId para testar.", "warning");
       return;
     }
     setIsTesting(true);

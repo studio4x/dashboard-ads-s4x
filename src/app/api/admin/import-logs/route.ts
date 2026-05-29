@@ -8,6 +8,10 @@ export async function GET() {
     const authError = await requireAdmin();
     if (authError) return authError;
 
+    const retentionDaysRaw = Number(process.env.IMPORT_LOG_RETENTION_DAYS || "90");
+    const retentionDays = Number.isFinite(retentionDaysRaw) ? Math.max(1, Math.floor(retentionDaysRaw)) : 90;
+    await ImportLogsService.clearOldLogs(retentionDays);
+
     const logs = await ImportLogsService.getLogs();
     return NextResponse.json(logs);
   } catch (error: any) {

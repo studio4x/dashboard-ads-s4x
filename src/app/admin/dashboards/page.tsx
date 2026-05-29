@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff } from "lucide-react";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
+import { useToast } from "@/components/ui/Toast";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 
@@ -42,6 +43,7 @@ type AutomationForm = {
 };
 
 export default function AdminDashboardsPage() {
+  const { toast } = useToast();
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [sources, setSources] = useState<any[]>([]);
@@ -220,9 +222,9 @@ export default function AdminDashboardsPage() {
   const handleCopyServiceEmail = async () => {
     try {
       await navigator.clipboard.writeText(GOOGLE_SERVICE_ACCOUNT_EMAIL);
-      alert("E-mail da service account copiado!");
+      toast("E-mail da service account copiado!");
     } catch {
-      alert("Não foi possível copiar automaticamente.");
+      toast("Não foi possível copiar automaticamente.");
     }
   };
 
@@ -240,7 +242,7 @@ export default function AdminDashboardsPage() {
     e.preventDefault();
     if (!editModalDashboard) return;
     if (!editName.trim() || editName.trim().length < 3) {
-      alert("Informe um nome válido com pelo menos 3 caracteres.");
+      toast("Informe um nome válido com pelo menos 3 caracteres.");
       return;
     }
 
@@ -257,7 +259,7 @@ export default function AdminDashboardsPage() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        alert("Erro ao atualizar nome: " + (result.error || "erro desconhecido"));
+        toast("Erro ao atualizar nome: " + (result.error || "erro desconhecido"));
         return;
       }
 
@@ -265,7 +267,7 @@ export default function AdminDashboardsPage() {
       setEditName("");
       await fetchData();
     } catch {
-      alert("Erro ao conectar com o servidor.");
+      toast("Erro ao conectar com o servidor.");
     } finally {
       setIsUpdatingName(false);
     }
@@ -334,7 +336,7 @@ export default function AdminDashboardsPage() {
           || !integrationForm.metaAdsSpreadsheetId.trim()
           || !integrationForm.metaAdsName.trim()
         ) {
-          alert("Preencha as duas planilhas (Google Ads e Meta Ads) para o dashboard integrado.");
+          toast("Preencha as duas planilhas (Google Ads e Meta Ads) para o dashboard integrado.");
           return;
         }
 
@@ -358,7 +360,7 @@ export default function AdminDashboardsPage() {
         await syncSavedSource(savedMetaSource, integrationForm.metaAdsSpreadsheetId.trim());
       } else {
         if (!integrationForm.name.trim() || !integrationForm.spreadsheetId.trim()) {
-          alert("Preencha nome e ID da planilha.");
+          toast("Preencha nome e ID da planilha.");
           return;
         }
         const existingSource = dashSources[0];
@@ -370,11 +372,11 @@ export default function AdminDashboardsPage() {
         await syncSavedSource(savedSource, integrationForm.spreadsheetId.trim());
       }
 
-      alert("Integração salva e sincronizada com sucesso!");
+      toast("Integração salva e sincronizada com sucesso!");
       setIntegrationModalDashboard(null);
       await fetchData();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Erro de conexão com o servidor ao salvar integração.");
+      toast(error instanceof Error ? error.message : "Erro de conexão com o servidor ao salvar integração.");
     } finally {
       setIsSavingIntegration(false);
     }
@@ -395,7 +397,7 @@ export default function AdminDashboardsPage() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        alert("Erro ao atualizar objetivos: " + (result.error || "erro desconhecido"));
+        toast("Erro ao atualizar objetivos: " + (result.error || "erro desconhecido"));
         return;
       }
 
@@ -403,7 +405,7 @@ export default function AdminDashboardsPage() {
       setEditObjectives([]);
       await fetchData();
     } catch {
-      alert("Erro ao conectar com o servidor.");
+      toast("Erro ao conectar com o servidor.");
     } finally {
       setIsUpdatingObjectives(false);
     }
@@ -428,7 +430,7 @@ export default function AdminDashboardsPage() {
     if (!integrationModalDashboard) return;
     const dashSources = getDashboardSheetSources(integrationModalDashboard.id);
     if (dashSources.length === 0) {
-      alert("Por favor, salve a integração com o ID da planilha antes de sincronizar!");
+      toast("Por favor, salve a integração com o ID da planilha antes de sincronizar!");
       return;
     }
     
@@ -452,10 +454,10 @@ export default function AdminDashboardsPage() {
           throw new Error(errorMsg);
         }
       }
-      alert("Sincronização concluída com sucesso! Todos os dados foram atualizados.");
+      toast("Sincronização concluída com sucesso! Todos os dados foram atualizados.");
       fetchData();
     } catch (error) {
-      alert(error instanceof Error ? `Erro na sincronização: ${error.message}` : "Erro ao conectar com o servidor para sincronização.");
+      toast(error instanceof Error ? `Erro na sincronização: ${error.message}` : "Erro ao conectar com o servidor para sincronização.");
     } finally {
       setIsSyncing(false);
     }
@@ -476,10 +478,10 @@ export default function AdminDashboardsPage() {
         setFormData({ name: "", slug: "", client_id: "", description: "", status: "active", dashboard_type: "google_ads_s4x", meta_objectives: [] });
         fetchData();
       } else {
-        alert("Erro: " + result.error);
+        toast("Erro: " + result.error);
       }
     } catch (error) {
-      alert("Erro ao conectar com o servidor.");
+      toast("Erro ao conectar com o servidor.");
     } finally {
       setIsSubmitting(false);
     }
@@ -504,13 +506,13 @@ export default function AdminDashboardsPage() {
       const result = await res.json();
       if (result.success) {
         fetchData();
-        alert("Dashboard duplicado com sucesso!");
+        toast("Dashboard duplicado com sucesso!");
       } else {
-        alert("Erro: " + result.error);
+        toast("Erro: " + result.error);
         setIsLoading(false);
       }
     } catch (error) {
-      alert("Erro ao duplicar dashboard");
+      toast("Erro ao duplicar dashboard");
       setIsLoading(false);
     }
   }
@@ -527,14 +529,14 @@ export default function AdminDashboardsPage() {
       });
       const result = await res.json();
       if (result.success) {
-        alert("Dashboard excluído com sucesso!");
+        toast("Dashboard excluído com sucesso!");
         fetchData();
       } else {
-        alert("Erro ao excluir: " + result.error);
+        toast("Erro ao excluir: " + result.error);
         setIsLoading(false);
       }
     } catch (error) {
-      alert("Erro ao conectar com o servidor.");
+      toast("Erro ao conectar com o servidor.");
       setIsLoading(false);
     }
   }
@@ -558,13 +560,13 @@ export default function AdminDashboardsPage() {
 
       const result = await response.json();
       if (!response.ok || !result.success) {
-        alert(`Falha no disparo: ${result.error || "erro desconhecido"}`);
+        toast(`Falha no disparo: ${result.error || "erro desconhecido"}`);
         return;
       }
 
-      alert("Automação disparada com sucesso para o n8n.");
+      toast("Automação disparada com sucesso para o n8n.");
     } catch {
-      alert("Erro ao conectar com o servidor para disparo da automação.");
+      toast("Erro ao conectar com o servidor para disparo da automação.");
     } finally {
       setRunningDispatchByDashboardId((prev) => ({ ...prev, [dashboard.id]: false }));
     }
@@ -612,13 +614,13 @@ export default function AdminDashboardsPage() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        alert(`Erro ao salvar programação: ${result.error || "erro desconhecido"}`);
+        toast(`Erro ao salvar programação: ${result.error || "erro desconhecido"}`);
         return;
       }
       await fetchData();
-      alert("Programação da automação salva.");
+      toast("Programação da automação salva.");
     } catch {
-      alert("Erro ao salvar programação da automação.");
+      toast("Erro ao salvar programação da automação.");
     } finally {
       setSavingAutomationByDashboardId((prev) => ({ ...prev, [dashboardId]: false }));
     }
@@ -1834,3 +1836,4 @@ export default function AdminDashboardsPage() {
     </div>
   );
 }
+

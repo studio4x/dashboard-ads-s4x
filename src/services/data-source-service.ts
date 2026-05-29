@@ -130,7 +130,7 @@ export const DataSourceService = {
   /**
    * Lista logs de importação.
    */
-  async getImportLogs(limit = 50) {
+  async getImportLogs(limit = 200) {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('import_logs')
@@ -285,5 +285,22 @@ export const DataSourceService = {
     
     if (error) throw error
     return true
+  },
+
+  /**
+   * Remove logs antigos com base em uma janela de retenção (em dias).
+   */
+  async clearLogsOlderThanDays(retentionDays = 90) {
+    const supabase = await createAdminClient()
+    const days = Number.isFinite(retentionDays) ? Math.max(1, Math.floor(retentionDays)) : 90
+    const cutoffDate = new Date(Date.now() - (days * 24 * 60 * 60 * 1000)).toISOString()
+
+    const { error, count } = await supabase
+      .from('import_logs')
+      .delete({ count: 'exact' })
+      .lt('started_at', cutoffDate)
+
+    if (error) throw error
+    return count || 0
   }
 }

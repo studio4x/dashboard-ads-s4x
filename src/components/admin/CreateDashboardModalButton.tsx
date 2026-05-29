@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Loader2, Plus, Save, X } from "lucide-react";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 import { META_ADS_OBJECTIVES, type MetaAdsObjectiveId } from "@/lib/meta-ads/objectives";
+import { useToast } from "@/components/ui/Toast";
 
 const ACTIVE_TEMPLATES = DASHBOARD_TEMPLATES.filter((t) => t.status === "active");
 const META_TEMPLATE_ID = "meta_ads_s4x";
@@ -18,6 +19,7 @@ function generateSlug(name: string) {
 }
 
 export function CreateDashboardModalButton({ clientId }: { clientId: string }) {
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -53,13 +55,14 @@ export function CreateDashboardModalButton({ clientId }: { clientId: string }) {
       });
       const result = await res.json();
       if (!result.success) {
-        alert("Erro: " + result.error);
+        toast("Erro: " + result.error, "error");
         return;
       }
+      toast("Dashboard criado com sucesso.", "success");
       setIsOpen(false);
       window.location.reload();
     } catch {
-      alert("Erro ao conectar com o servidor.");
+      toast("Erro ao conectar com o servidor.", "error");
     } finally {
       setIsSubmitting(false);
     }

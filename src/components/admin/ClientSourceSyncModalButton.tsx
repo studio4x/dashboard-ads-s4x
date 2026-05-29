@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, X } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 type SourceLike = {
   id: string;
@@ -36,6 +37,7 @@ export function ClientSourceSyncModalButton({
   source,
   triggerVariant = "inline",
 }: ClientSourceSyncModalButtonProps) {
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export function ClientSourceSyncModalButton({
         return;
       }
 
-      alert("Sincronização concluída com sucesso.");
+      toast("Sincronização concluída com sucesso.", "success");
       window.location.reload();
     } catch {
       setErrorMessage("Erro ao conectar com o servidor.");

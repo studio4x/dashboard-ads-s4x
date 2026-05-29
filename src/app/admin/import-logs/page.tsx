@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { ImportStatusBadge } from "@/components/admin/ImportStatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { History, ChevronDown, ChevronUp, ExternalLink, Search, Trash2 } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function ImportLogsPage() {
+  const { toast } = useToast();
   const [logs, setLogs] = useState<any[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,19 +62,29 @@ export default function ImportLogsPage() {
       const res = await fetch("/api/admin/import-logs", { method: "DELETE" });
       const result = await res.json();
       if (!res.ok || !result.success) {
-        alert(result?.error || "Erro ao deletar os logs.");
+        toast(result?.error || "Erro ao deletar os logs.", "error");
         return;
       }
       setExpandedId(null);
       await fetchLogs();
+      toast("Logs de importação removidos com sucesso.", "success");
     } catch {
-      alert("Erro ao deletar os logs.");
+      toast("Erro ao deletar os logs.", "error");
     }
   }
 
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedLogs = filteredLogs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const observability = useMemo(() => {
+    const total = logs.length;
+    const failed = logs.filter((log) => log.status === "failed").length;
+    const withWarnings = logs.filter((log) => Number(log.warnings || 0) > 0).length;
+    const durations = logs.map((log) => Number(log.duration_ms || 0)).filter((value) => Number.isFinite(value) && value > 0);
+    const avgDurationMs = durations.length > 0 ? Math.round(durations.reduce((acc, value) => acc + value, 0) / durations.length) : 0;
+    const rowsRead = logs.reduce((acc, log) => acc + Number(log.rows_read || 0), 0);
+    return { total, failed, withWarnings, avgDurationMs, rowsRead };
+  }, [logs]);
 
   return (
     <div style={{ padding: 32, maxWidth: 1200 }}>
@@ -123,6 +135,31 @@ export default function ImportLogsPage() {
           <option value="success_with_warnings">Avisos</option>
           <option value="failed">Erro</option>
         </select>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <div className="card" style={{ padding: 12 }}>
+          <p style={{ fontSize: 12, color: "#64748B" }}>Logs analisados</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>{observability.total}</p>
+        </div>
+        <div className="card" style={{ padding: 12 }}>
+          <p style={{ fontSize: 12, color: "#64748B" }}>Tempo médio</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>
+            {observability.avgDurationMs > 0 ? `${(observability.avgDurationMs / 1000).toFixed(1)}s` : "—"}
+          </p>
+        </div>
+        <div className="card" style={{ padding: 12 }}>
+          <p style={{ fontSize: 12, color: "#64748B" }}>Falhas</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "#B91C1C" }}>{observability.failed}</p>
+        </div>
+        <div className="card" style={{ padding: 12 }}>
+          <p style={{ fontSize: 12, color: "#64748B" }}>Com avisos</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "#B45309" }}>{observability.withWarnings}</p>
+        </div>
+        <div className="card" style={{ padding: 12 }}>
+          <p style={{ fontSize: 12, color: "#64748B" }}>Linhas lidas</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>{observability.rowsRead.toLocaleString("pt-BR")}</p>
+        </div>
       </div>
 
       <div className="card" style={{ overflow: "hidden" }}>

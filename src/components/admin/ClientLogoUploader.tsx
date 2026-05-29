@@ -3,6 +3,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { ImageIcon, Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/Toast";
 
 interface ClientLogoUploaderProps {
   clientId: string;
@@ -12,6 +13,7 @@ interface ClientLogoUploaderProps {
 
 export function ClientLogoUploader({ clientId, clientName, logoUrl }: ClientLogoUploaderProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(logoUrl || null);
@@ -38,15 +40,16 @@ export function ClientLogoUploader({ clientId, clientName, logoUrl }: ClientLogo
 
       const result = await response.json();
       if (!response.ok || !result.success) {
-        alert(result.error || "Não foi possível enviar o logotipo.");
+        toast(result.error || "Não foi possível enviar o logotipo.", "error");
         return;
       }
 
       setPreview(result.logo_url || preview);
       setFile(null);
       router.refresh();
+      toast("Logotipo enviado com sucesso.", "success");
     } catch {
-      alert("Erro ao conectar com o servidor.");
+      toast("Erro ao conectar com o servidor.", "error");
     } finally {
       setIsUploading(false);
     }

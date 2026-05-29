@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Globe, Plus, Building2, X, Loader2, Save, Trash2, AlertTriangle, Phone, Mail } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 export default function ClientsPage() {
+  const { toast } = useToast();
   const [clients, setClients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,7 +52,7 @@ export default function ClientsPage() {
         body: JSON.stringify(formData),
       });
       const result = await res.json();
-      if (!result.success) { alert("Erro: " + result.error); return; }
+      if (!result.success) { toast("Erro: " + result.error, "error"); return; }
 
       setIsModalOpen(false);
       setFormData({
@@ -65,7 +67,7 @@ export default function ClientsPage() {
       });
       fetchClients();
     } catch {
-      alert("Erro ao conectar com o servidor.");
+      toast("Erro ao conectar com o servidor.", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -80,11 +82,12 @@ export default function ClientsPage() {
       if (result.success) {
         setDeleteTarget(null);
         fetchClients();
+        toast("Cliente excluído com sucesso.", "success");
       } else {
-        alert("Erro ao excluir: " + result.error);
+        toast("Erro ao excluir: " + result.error, "error");
       }
     } catch {
-      alert("Erro ao conectar com o servidor.");
+      toast("Erro ao conectar com o servidor.", "error");
     } finally {
       setIsDeleting(false);
     }

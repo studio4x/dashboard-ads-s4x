@@ -12,9 +12,9 @@ Responsável operacional: Time S4X
 - [OK] BL-002 (P0): Validar regressão dos templates separados (`google_ads_s4x` e `meta_ads_s4x`).
 - [OK] BL-003 (P0): Revisar segurança de acesso backend (service role e rotas admin).
 - [OK] BL-004 (P0): Revisar políticas RLS multi-tenant.
-- [ ] BL-005 (P1): Padronizar feedbacks admin (reduzir `alert()` e uniformizar toasts).
-- [ ] BL-006 (P1): Implementar observabilidade da importação (tempo médio, falhas e warnings recorrentes).
-- [ ] BL-007 (P1): Definir e aplicar política de retenção de logs de importação.
+- [OK] BL-005 (P1): Padronizar feedbacks admin (reduzir `alert()` e uniformizar toasts).
+- [OK] BL-006 (P1): Implementar observabilidade da importação (tempo médio, falhas e warnings recorrentes).
+- [OK] BL-007 (P1): Definir e aplicar política de retenção de logs de importação.
 - [ ] BL-008 (P1): Ampliar cobertura de testes para importação e KPIs do consolidado.
 - [ ] BL-009 (P2): Reduzir uso de `any` em páginas/admin/dashboards.
 - [ ] BL-010 (P2): Avaliar e inserir botão explícito de refresh no Cockpit.
@@ -30,6 +30,7 @@ Responsável operacional: Time S4X
 |---|---|---|---|
 | 2026-05-29 | Criação do backlog de controle da plataforma | a preencher | a preencher |
 | 2026-05-29 | Fechamento dos itens P0 (BL-001 a BL-004) com evidências técnicas | a preencher | a preencher |
+| 2026-05-29 | Fechamento dos itens P1 BL-005, BL-006 e BL-007 | a preencher | a preencher |
 
 ## Evidências da Sprint Atual
 - 2026-05-29 (BL-003): corrigido acesso sem guard em `src/app/api/admin/scheduled-tasks/route.ts` (`GET` agora exige `requireAdmin` antes de `createAdminClient`).
@@ -38,3 +39,7 @@ Responsável operacional: Time S4X
 - 2026-05-29 (BL-001): validação do fluxo integrado por revisão de implementação em `src/app/admin/dashboards/page.tsx` (duas fontes Google/Meta, seleção de planilha existente para ambas, modal horizontal com scroll interno, botão de objetivos no card).
 - 2026-05-29 (BL-001): validação das métricas/objetivos Meta no integrado em `src/app/app/dashboards/[dashboardId]/meta-ads/page.tsx`, `src/app/app/dashboards/[dashboardId]/executive-summary/page.tsx`, `src/lib/meta-ads/objectives.ts`, `src/lib/dashboard/kpi-generator.ts` e `src/lib/dashboard/dashboard-data-provider.ts` (incluindo `reach/alcance`).
 - 2026-05-29 (BL-002): validação de regressão estrutural dos templates ativos (`google_ads_s4x`, `meta_ads_s4x`, `google_meta_ads_s4x`) com build de produção local concluído com sucesso (`npm run build`) e deploy `READY` em produção.
+- 2026-05-29 (BL-005): removido uso de `alert()` das páginas/componentes administrativos principais e padronizado feedback com `useToast` (`clients`, `dashboards`, `automations`, `import-logs`, upload/logo e ações de sincronização).
+- 2026-05-29 (BL-006): adicionados indicadores operacionais na página `/admin/import-logs` (total de logs, tempo médio, falhas, warnings e linhas lidas), mantendo paginação de 10 itens.
+- 2026-05-29 (BL-007): política de retenção aplicada no backend de logs (`IMPORT_LOG_RETENTION_DAYS`, padrão 90 dias) com limpeza automática no `GET /api/admin/import-logs` e documentação em `docs/IMPORT_LOG_RETENTION.md`.
+- 2026-05-29 (BL-008 parcial): criada suíte `npm run test:critical` com testes para normalização/objetivos Meta e validação de métricas obrigatórias (`tests/meta-objectives.test.ts`).

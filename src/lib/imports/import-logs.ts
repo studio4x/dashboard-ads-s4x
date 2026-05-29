@@ -40,6 +40,13 @@ export const ImportLogsService = {
   },
 
   /**
+   * Remove logs fora da janela de retenção.
+   */
+  async clearOldLogs(retentionDays = 90) {
+    return await DataSourceService.clearLogsOlderThanDays(retentionDays);
+  },
+
+  /**
    * Remove todos os logs.
    */
   async clearLogs() {
