@@ -13,6 +13,7 @@ const ACTIVE_TEMPLATES = DASHBOARD_TEMPLATES.filter(t => t.status === "active");
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
 type MetaObjective = (typeof META_ADS_OBJECTIVES)[number]["id"];
 const META_TEMPLATE_ID = "meta_ads_s4x";
+const INTEGRATED_TEMPLATE_ID = "google_meta_ads_s4x";
 const DASHBOARD_TYPE_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
   google_meta_ads_s4x: { label: "Google + Meta", bg: "#DC2626", color: "#FFFFFF", border: "#DC2626" },
   google_ads_s4x: { label: "Google Ads", bg: "#16A34A", color: "#FFFFFF", border: "#16A34A" },
@@ -767,7 +768,7 @@ export default function AdminDashboardsPage() {
 
               {isCardExpanded && (
               <>
-              {d.dashboard_type === META_TEMPLATE_ID && (
+              {(d.dashboard_type === META_TEMPLATE_ID || d.dashboard_type === INTEGRATED_TEMPLATE_ID) && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>Objetivos:</span>
                   {normalizeMetaAdsObjectives(d.meta_objectives).length > 0 ? (
@@ -858,7 +859,7 @@ export default function AdminDashboardsPage() {
                 })()}
               </div>
 
-              {d.dashboard_type === META_TEMPLATE_ID && (() => {
+              {(d.dashboard_type === META_TEMPLATE_ID || d.dashboard_type === INTEGRATED_TEMPLATE_ID) && (() => {
                 const source = sources.find((s: any) => s.dashboard_id === d.id);
                 const validation = getValidationSummary(d, source);
                 const isMissing = validation.status === "missing_metrics";
@@ -888,7 +889,7 @@ export default function AdminDashboardsPage() {
                           : "Validação de objetivos não configurada"}
                     </p>
                     <p style={{ fontSize: 12, color: "#475569" }}>
-                      {notes.message || "Objetivos de campanha não configurados para este dashboard Meta Ads."}
+                      {notes.message || "Objetivos de campanha não configurados para este dashboard."}
                     </p>
                     {hasMissingDetails && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -1181,7 +1182,7 @@ export default function AdminDashboardsPage() {
                     <Pencil size={14} /> Editar nome
                   </button>
 
-                  {d.dashboard_type === META_TEMPLATE_ID && (
+                  {(d.dashboard_type === META_TEMPLATE_ID || d.dashboard_type === INTEGRATED_TEMPLATE_ID) && (
                     <button
                       onClick={() => handleOpenEditObjectives(d)}
                       style={{
