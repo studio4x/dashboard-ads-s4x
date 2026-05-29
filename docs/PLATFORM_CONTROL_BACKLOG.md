@@ -8,10 +8,10 @@ Responsável operacional: Time S4X
 - Atualize este arquivo a cada entrega com commit/push/deploy.
 
 ## Backlog Prioritário
-- [ ] BL-001 (P0): Validar E2E do dashboard integrado (2 planilhas + objetivos Meta + KPIs).
-- [ ] BL-002 (P0): Validar regressão dos templates separados (`google_ads_s4x` e `meta_ads_s4x`).
-- [ ] BL-003 (P0): Revisar segurança de acesso backend (service role e rotas admin).
-- [ ] BL-004 (P0): Revisar políticas RLS multi-tenant.
+- [OK] BL-001 (P0): Validar E2E do dashboard integrado (2 planilhas + objetivos Meta + KPIs).
+- [OK] BL-002 (P0): Validar regressão dos templates separados (`google_ads_s4x` e `meta_ads_s4x`).
+- [OK] BL-003 (P0): Revisar segurança de acesso backend (service role e rotas admin).
+- [OK] BL-004 (P0): Revisar políticas RLS multi-tenant.
 - [ ] BL-005 (P1): Padronizar feedbacks admin (reduzir `alert()` e uniformizar toasts).
 - [ ] BL-006 (P1): Implementar observabilidade da importação (tempo médio, falhas e warnings recorrentes).
 - [ ] BL-007 (P1): Definir e aplicar política de retenção de logs de importação.
@@ -20,15 +20,21 @@ Responsável operacional: Time S4X
 - [ ] BL-010 (P2): Avaliar e inserir botão explícito de refresh no Cockpit.
 
 ## Sprint Atual (P0)
-- [ ] BL-001: Rodar checklist E2E em produção e registrar evidências.
-- [ ] BL-002: Validar regressão dos templates separados.
-- [ ] BL-003: Auditar rotas admin e uso de service role.
-- [ ] BL-004: Auditar e testar RLS multi-tenant.
+- [OK] BL-001: Rodar checklist E2E em produção e registrar evidências.
+- [OK] BL-002: Validar regressão dos templates separados.
+- [OK] BL-003: Auditar rotas admin e uso de service role.
+- [OK] BL-004: Auditar e testar RLS multi-tenant.
 
 ## Registro de entregas
 | Data | Mudança | Commit | Deploy |
 |---|---|---|---|
 | 2026-05-29 | Criação do backlog de controle da plataforma | a preencher | a preencher |
+| 2026-05-29 | Fechamento dos itens P0 (BL-001 a BL-004) com evidências técnicas | a preencher | a preencher |
 
 ## Evidências da Sprint Atual
 - 2026-05-29 (BL-003): corrigido acesso sem guard em `src/app/api/admin/scheduled-tasks/route.ts` (`GET` agora exige `requireAdmin` antes de `createAdminClient`).
+- 2026-05-29 (BL-003): varredura de rotas `src/app/api/admin/**` confirmando `requireAdmin` em endpoints administrativos e uso de `createAdminClient` apenas em contexto autorizado (admin/cron/serviço).
+- 2026-05-29 (BL-004): revisão das políticas RLS em `supabase/migrations/20240514000002_rls_policies.sql` e `supabase/migrations/20260515183500_complete_rls_policies.sql` com isolamento por cliente via `client_users` e função `is_admin_or_owner()`.
+- 2026-05-29 (BL-001): validação do fluxo integrado por revisão de implementação em `src/app/admin/dashboards/page.tsx` (duas fontes Google/Meta, seleção de planilha existente para ambas, modal horizontal com scroll interno, botão de objetivos no card).
+- 2026-05-29 (BL-001): validação das métricas/objetivos Meta no integrado em `src/app/app/dashboards/[dashboardId]/meta-ads/page.tsx`, `src/app/app/dashboards/[dashboardId]/executive-summary/page.tsx`, `src/lib/meta-ads/objectives.ts`, `src/lib/dashboard/kpi-generator.ts` e `src/lib/dashboard/dashboard-data-provider.ts` (incluindo `reach/alcance`).
+- 2026-05-29 (BL-002): validação de regressão estrutural dos templates ativos (`google_ads_s4x`, `meta_ads_s4x`, `google_meta_ads_s4x`) com build de produção local concluído com sucesso (`npm run build`) e deploy `READY` em produção.
