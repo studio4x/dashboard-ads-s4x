@@ -35,7 +35,7 @@ export default function SearchConsolePage() {
 
   return (
     <DashboardPageShell title="Search Console" subtitle="Desempenho orgânico e termos de pesquisa">
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="dashboard-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <ChartCard title="Cliques por Query" subtitle="Top 10 termos orgânicos" height={320}>
           <HorizontalBarChartWidget data={queryData} height={300} />
         </ChartCard>

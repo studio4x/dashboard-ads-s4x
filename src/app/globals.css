@@ -193,6 +193,14 @@ body {
   color: white;
 }
 
+.dashboard-tabs-strip {
+  scrollbar-width: none;
+}
+
+.dashboard-tabs-strip::-webkit-scrollbar {
+  display: none;
+}
+
 /* Page header */
 .page-header {
   background: white;
@@ -309,5 +317,128 @@ body {
 
   .admin-mobile-stack-card {
     flex-direction: column;
+  }
+}
+
+/* Dashboard responsive system */
+@media (max-width: 1023px) {
+  .dashboard-main-header {
+    padding: 10px 12px !important;
+  }
+
+  .dashboard-header-row {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .dashboard-header-left {
+    width: 100%;
+  }
+
+  .dashboard-header-actions {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px !important;
+  }
+
+  .dashboard-header-actions > * {
+    min-width: 0 !important;
+  }
+
+  .dashboard-date-trigger > button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .dashboard-tabs-container {
+    top: auto !important;
+    position: sticky !important;
+  }
+
+  .dashboard-tabs-inner {
+    padding: 0 12px !important;
+  }
+
+  .dashboard-page-shell {
+    padding: 16px 12px 32px !important;
+    gap: 16px !important;
+  }
+
+  .dashboard-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .dashboard-grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .dashboard-section-head {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .dashboard-tab-buttons-wrap {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .dashboard-filter-row {
+    justify-content: stretch !important;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  .dashboard-filter-row select {
+    width: 100%;
+  }
+
+  .dashboard-shared-subtitle {
+    white-space: normal;
+    word-break: break-word;
+  }
+}
+
+@media (max-width: 767px) {
+  .dashboard-header-breadcrumb {
+    gap: 6px !important;
+  }
+
+  .dashboard-model-badge {
+    font-size: 9px !important;
+  }
+
+  .dashboard-header-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-header-actions button,
+  .dashboard-header-actions a {
+    width: 100%;
+    justify-content: center !important;
+  }
+
+  .dashboard-tabs-strip .dashboard-tab {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .dashboard-page-shell-header {
+    gap: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+  .dashboard-objective-wrap {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .dashboard-objective-wrap select {
+    flex: 1;
+    min-width: 0 !important;
   }
 }

@@ -313,7 +313,6 @@ export default function MetaAdsPage() {
         border: "none",
         cursor: "pointer",
         transition: "all 0.2s ease",
-        marginRight: "8px"
       }}
     >
       {label}
@@ -416,7 +415,7 @@ export default function MetaAdsPage() {
     <DashboardPageShell title={pageTitle} subtitle={pageSubtitle}>
       {!isDedicatedMetaRoute && isMetaS4X && objectiveOptions.length > 0 && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="dashboard-objective-wrap" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>Objetivo:</span>
             <select
               value={activeObjective}
@@ -435,7 +434,7 @@ export default function MetaAdsPage() {
       {!isDedicatedMetaRoute && <KpiGrid metrics={kpis} columns={isMetaS4X ? 3 : 3} />}
 
       {!isDedicatedMetaRoute && (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+      <div className="dashboard-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
         <ChartCard title="Evolução Temporal" subtitle={`Gasto vs. ${conversionLabel}`} height={320}>
           {isMetaS4X ? (
             <LineChartWidget 
@@ -468,13 +467,13 @@ export default function MetaAdsPage() {
       {isMetaS4X ? (
         <div className="card" style={{ padding: 24, backgroundColor: "#FFFFFF", borderRadius: "12px", border: "1px solid #E2E8F0" }}>
           {!isDedicatedMetaRoute && (
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div className="dashboard-section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12 }}>
             <div>
               <h3 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A", margin: 0 }}>Detalhamento da Performance</h3>
               <p style={{ fontSize: 13, color: "#64748B", margin: "4px 0 0 0" }}>Analise o desempenho em múltiplos níveis de granularidade</p>
             </div>
             
-            <div style={{ 
+            <div className="dashboard-tab-buttons-wrap" style={{ 
               display: "flex", 
               backgroundColor: "#F1F5F9", 
               padding: "4px", 
@@ -507,7 +506,7 @@ export default function MetaAdsPage() {
 
           {activeTab === "adSets" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <div className="dashboard-filter-row" style={{ display: "flex", justifyContent: "flex-end" }}>
                 <select value={campaignFilter} onChange={(e) => setCampaignFilter(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12 }}>
                   <option value="all">Todas as campanhas</option>
                   {campaignsOptions.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -532,7 +531,7 @@ export default function MetaAdsPage() {
 
           {activeTab === "ads" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <div className="dashboard-filter-row" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <select value={campaignFilter} onChange={(e) => { setCampaignFilter(e.target.value); setAdSetFilter("all"); }} style={{ padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12 }}>
                   <option value="all">Todas as campanhas</option>
                   {campaignsOptions.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -561,7 +560,7 @@ export default function MetaAdsPage() {
 
           {activeTab === "performance" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <div className="dashboard-filter-row" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <select value={campaignFilter} onChange={(e) => { setCampaignFilter(e.target.value); setAdSetFilter("all"); }} style={{ padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12 }}>
                   <option value="all">Todas as campanhas</option>
                   {campaignsOptions.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -620,13 +619,13 @@ export default function MetaAdsPage() {
                     </div>
                   )}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 8 }}>
+                <div className="dashboard-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 8 }}>
                   <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CTR: <strong style={{ color: "#0F172A" }}>{funnelCtr.toFixed(2)}%</strong></div>
                   <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CPC: <strong style={{ color: "#0F172A" }}>{formatCurrency(funnelCpc)}</strong></div>
                   <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CPM: <strong style={{ color: "#0F172A" }}>{formatCurrency(funnelCpm)}</strong></div>
                 </div>
               </ChartCard>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+              <div className="dashboard-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
                 <ChartCard title="Campanhas" subtitle="Investimento por campanha" height={280}>
                   <HorizontalBarChartWidget data={campaignBarDataFiltered} formatValue={(v) => formatCurrency(v, true)} height={230} />
                 </ChartCard>

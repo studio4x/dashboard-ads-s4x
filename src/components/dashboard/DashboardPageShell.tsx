@@ -93,9 +93,9 @@ export function DashboardPageShell({
   }
 
   return (
-    <div 
+    <div
       data-export-root="true"
-      className={cn("animate-fade-in", className)}
+      className={cn("animate-fade-in dashboard-page-shell", className)}
       style={{
         padding: "24px 24px 40px",
         maxWidth: containerMaxWidth,
@@ -108,7 +108,7 @@ export function DashboardPageShell({
     >
       {!hideHeader && (
         <div 
-          className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-1"
+          className="dashboard-page-shell-header flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-1"
           style={{ width: "100%" }}
         >
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 md:gap-6 flex-1 min-w-0">

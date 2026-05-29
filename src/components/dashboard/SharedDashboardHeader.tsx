@@ -268,8 +268,8 @@ export function SharedDashboardHeader({
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
-      <div className="shared-dashboard-box px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4 sm:gap-8">
+      <div className="shared-dashboard-box dashboard-shared-header px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4 sm:gap-8 min-w-0">
           {/* Logo / Brand */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
              {clientLogoUrl ? (
@@ -282,11 +282,11 @@ export function SharedDashboardHeader({
                </div>
              )}
              <div className="hidden sm:block h-12 w-px bg-slate-200" />
-             <div className="flex flex-col">
+             <div className="flex flex-col min-w-0">
                <h1 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
                  {pageTitle}
                </h1>
-               <p className="text-xs sm:text-sm text-slate-500 font-medium">
+               <p className="text-xs sm:text-sm text-slate-500 font-medium dashboard-shared-subtitle">
                  {subtitleParts.join(" | ")}
                </p>
                
@@ -302,7 +302,7 @@ export function SharedDashboardHeader({
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="dashboard-shared-actions flex flex-col sm:flex-row items-start sm:items-center gap-3">
           {/* Status Indicator */}
           {data && (
             <div className="hidden lg:flex flex-col items-end mr-4">
@@ -339,7 +339,7 @@ export function SharedDashboardHeader({
           </button>
 
           {/* Period Selector */}
-          <div className="flex h-11 items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm w-full sm:w-auto min-w-[240px]">
+          <div className="flex h-11 items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm w-full sm:w-auto min-w-[220px]">
             <div className="flex items-center gap-2">
               <CalendarDays size={18} className="text-slate-400" />
               <DateRangeSelector 

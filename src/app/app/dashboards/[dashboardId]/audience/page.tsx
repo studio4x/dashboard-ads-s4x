@@ -35,7 +35,7 @@ export default function AudiencePage() {
 
   return (
     <DashboardPageShell title="Público e Origem" subtitle="Dados demográficos e canais de aquisição">
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="dashboard-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <ChartCard title="Sessões por Canal" subtitle="Origem do tráfego" height={320}>
           <HorizontalBarChartWidget data={channelData} height={300} />
         </ChartCard>

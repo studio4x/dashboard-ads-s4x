@@ -30,7 +30,7 @@ export function SharedDashboardTabs({ token }: SharedDashboardTabsProps) {
 
   return (
     <div className="py-2">
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "4px 0", scrollbarWidth: "none" }} className="no-scrollbar">
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "4px 0", scrollbarWidth: "none" }} className="no-scrollbar dashboard-tabs-strip">
         {filteredPages.map((page) => {
           const params = new URLSearchParams(searchParams.toString());
           params.set("page", page.key);

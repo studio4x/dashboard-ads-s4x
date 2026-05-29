@@ -43,7 +43,7 @@ export default function ConversionsPage() {
     <DashboardPageShell title="Conversões e Comportamento" subtitle="Eventos de conversão GA4 e funil de comportamento">
       <KpiGrid metrics={kpis as any} columns={3} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="dashboard-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <ChartCard title="Eventos por Nome" subtitle="Top 10 eventos disparados" height={300}>
           <BarChartWidget data={eventData.slice(0, 10)} dataKey="value" height={280} color="#10B981" />
         </ChartCard>

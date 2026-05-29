@@ -298,22 +298,23 @@ export function DashboardHeader({
 
   return (
     <header
+      className="dashboard-main-header"
       style={{
         background: "white",
         borderBottom: "1px solid #E2E8F0",
-        padding: "0 24px",
+        padding: "10px 16px",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        height: 60,
+        minHeight: 60,
         position: "sticky",
         top: 0,
         zIndex: 40,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "1440px", margin: "0 auto" }}>
+      <div className="dashboard-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "1440px", margin: "0 auto", gap: 12 }}>
         {/* Left: Logo + breadcrumb */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div className="dashboard-header-left" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <Link href="/app/dashboards" style={{ textDecoration: "none" }}>
             <div
               style={{
@@ -329,11 +330,12 @@ export function DashboardHeader({
               <BarChart3 size={17} color="white" />
             </div>
           </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, color: "#94A3B8" }}>{clientName}</span>
+          <div className="dashboard-header-breadcrumb" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+            <span style={{ fontSize: 13, color: "#94A3B8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "30vw" }}>{clientName}</span>
             <span style={{ color: "#CBD5E1" }}>/</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{dashboardTitle}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "34vw" }}>{dashboardTitle}</span>
             <span
+              className="dashboard-model-badge"
               style={{
                 fontSize: 10,
                 fontWeight: 700,
@@ -350,7 +352,7 @@ export function DashboardHeader({
             
             {/* Badges de Fonte e Conta */}
             {accountId && (
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider">
                 ID Conta Google: {accountId}
               </span>
             )}
@@ -358,7 +360,7 @@ export function DashboardHeader({
         </div>
 
         {/* Right: Period + actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="dashboard-header-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <button
             onClick={handleRefreshData}
             disabled={isRefreshingData}
@@ -409,7 +411,8 @@ export function DashboardHeader({
             {isExportingPdf ? "Gerando PDF..." : "Baixar PDF"}
           </button>
 
-          <DateRangeSelector 
+          <DateRangeSelector
+            className="dashboard-date-trigger"
             currentPreset={rangePreset} 
             onPresetChange={updateRange} 
             includeToday={includeToday}

@@ -32,9 +32,10 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
 
   return (
     <div
+      className="dashboard-tabs-strip"
       style={{
         display: "flex",
-        gap: 4,
+        gap: 6,
         overflowX: "auto",
         padding: "0 4px",
         scrollbarWidth: "none",
@@ -61,4 +62,3 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
     </div>
   );
 }
-

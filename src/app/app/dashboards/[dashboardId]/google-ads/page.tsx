@@ -67,7 +67,7 @@ export default function GoogleAdsPage() {
     <DashboardPageShell title="Google Ads" subtitle="Desempenho de campanhas, grupos e palavras-chave">
       <KpiGrid metrics={kpis} columns={3} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="dashboard-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <ChartCard title="Investimento Diário" subtitle="Evolução do gasto no período" height={280}>
           <LineChartWidget data={dailySeries} lines={[{ key: "Investimento", label: "Investimento", color: "#4285F4" }]} xKey="date" formatValue={(v) => formatCurrency(v, true)} height={260} />
         </ChartCard>

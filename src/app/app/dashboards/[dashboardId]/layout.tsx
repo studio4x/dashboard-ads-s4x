@@ -84,6 +84,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
 
         {/* Tabs */}
         <div
+          className="dashboard-tabs-container"
           style={{
             background: "white",
             borderBottom: "1px solid #E2E8F0",
@@ -93,7 +94,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
             zIndex: 30,
           }}
         >
-          <div style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 24px" }}>
+          <div className="dashboard-tabs-inner" style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 24px" }}>
             <DashboardTabs dashboardId={dashboardId} />
           </div>
         </div>
