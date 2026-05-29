@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BarChart3, Settings, LogOut, Download, Loader2, RefreshCcw } from "lucide-react";
+import { BarChart3, Settings, LogOut, Download, Loader2, RefreshCcw, Menu, X } from "lucide-react";
 import { logout } from "@/app/login/actions";
 import { DateRangeSelector } from "./DateRangeSelector";
 import { useDashboard } from "./DashboardDataContext";
@@ -31,6 +31,7 @@ export function DashboardHeader({
   const { rangePreset, includeToday, updateRange, from, to, data, refresh } = useDashboard();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isRefreshingData, setIsRefreshingData] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const metricsSource = data?.config?.Fonte || data?.config?.fonte || (data?.source === "mock" ? "Mocks" : "Google Sheets");
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
@@ -307,9 +308,7 @@ export function DashboardHeader({
         alignItems: "center",
         justifyContent: "space-between",
         minHeight: 60,
-        position: "sticky",
-        top: 0,
-        zIndex: 40,
+        position: "relative",
       }}
     >
       <div className="dashboard-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "1440px", margin: "0 auto", gap: 12 }}>
@@ -360,7 +359,7 @@ export function DashboardHeader({
         </div>
 
         {/* Right: Period + actions */}
-        <div className="dashboard-header-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <div className="dashboard-header-actions dashboard-header-actions-desktop" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <button
             onClick={handleRefreshData}
             disabled={isRefreshingData}
@@ -445,7 +444,60 @@ export function DashboardHeader({
             <LogOut size={16} />
           </button>
         </div>
+
+        <button
+          type="button"
+          className="dashboard-mobile-menu-btn"
+          onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 8,
+            border: "1px solid #E2E8F0",
+            background: "white",
+            color: "#334155",
+            display: "none",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          aria-label="Abrir menu do dashboard"
+        >
+          {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+        </button>
       </div>
+
+      {isMobileMenuOpen && (
+        <div className="dashboard-mobile-menu-panel" style={{ borderTop: "1px solid #E2E8F0", marginTop: 10, paddingTop: 10, display: "none", gap: 8 }}>
+          <button onClick={handleRefreshData} disabled={isRefreshingData} style={{ height: 36, borderRadius: 8, border: "1px solid #E2E8F0", background: "white", display: "flex", alignItems: "center", justifyContent: "center", color: "#334155", fontSize: 12, fontWeight: 700, padding: "0 10px", gap: 6 }}>
+            {isRefreshingData ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
+            {isRefreshingData ? "Atualizando..." : "Atualizar dados"}
+          </button>
+
+          <button onClick={handleExportPdf} disabled={isExportingPdf} style={{ height: 36, borderRadius: 8, border: "1px solid #DBEAFE", background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", color: "#1D4ED8", fontSize: 12, fontWeight: 700, padding: "0 10px", gap: 6 }}>
+            {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            {isExportingPdf ? "Gerando PDF..." : "Baixar PDF"}
+          </button>
+
+          <DateRangeSelector
+            className="dashboard-date-trigger"
+            currentPreset={rangePreset}
+            onPresetChange={updateRange}
+            includeToday={includeToday}
+            from={from}
+            to={to}
+            availableRange={data?.availableDateRange || null}
+          />
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <Link href="/admin" style={{ height: 36, borderRadius: 8, border: "1px solid #E2E8F0", background: "white", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B", textDecoration: "none", gap: 6, fontSize: 12, fontWeight: 700 }}>
+              <Settings size={14} /> Admin
+            </Link>
+            <button onClick={() => logout()} style={{ height: 36, borderRadius: 8, border: "1px solid #FECACA", background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", color: "#DC2626", gap: 6, fontSize: 12, fontWeight: 700 }}>
+              <LogOut size={14} /> Sair
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

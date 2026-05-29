@@ -89,9 +89,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
             background: "white",
             borderBottom: "1px solid #E2E8F0",
             padding: "12px 0",
-            position: "sticky",
-            top: 60,
-            zIndex: 30,
+            position: "relative",
           }}
         >
           <div className="dashboard-tabs-inner" style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 24px" }}>

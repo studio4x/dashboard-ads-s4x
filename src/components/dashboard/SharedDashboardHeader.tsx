@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, Info, Download, Loader2, RefreshCcw } from "lucide-react";
+import { CalendarDays, Info, Download, Loader2, RefreshCcw, Menu, X } from "lucide-react";
 import { DateRangeSelector } from "./DateRangeSelector";
 import { useDashboard } from "./DashboardDataContext";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ export function SharedDashboardHeader({
   const { rangePreset, includeToday, updateRange, from, to, data, refresh } = useDashboard();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isRefreshingData, setIsRefreshingData] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
   const subtitleParts = [dashboardName, clientName].filter(Boolean);
@@ -267,7 +268,7 @@ export function SharedDashboardHeader({
   }
 
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <header className="bg-white border-b border-slate-200">
       <div className="shared-dashboard-box dashboard-shared-header px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4 sm:gap-8 min-w-0">
           {/* Logo / Brand */}
@@ -302,7 +303,7 @@ export function SharedDashboardHeader({
           </div>
         </div>
 
-        <div className="dashboard-shared-actions flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="dashboard-shared-actions dashboard-shared-actions-desktop flex flex-col sm:flex-row items-start sm:items-center gap-3">
           {/* Status Indicator */}
           {data && (
             <div className="hidden lg:flex flex-col items-end mr-4">
@@ -359,7 +360,46 @@ export function SharedDashboardHeader({
              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Link Privado</span>
           </div>
         </div>
+
+        <button
+          type="button"
+          className="dashboard-mobile-menu-btn"
+          onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+          style={{ width: 34, height: 34, borderRadius: 8, border: "1px solid #E2E8F0", background: "white", color: "#334155", display: "none", alignItems: "center", justifyContent: "center" }}
+          aria-label="Abrir menu do dashboard"
+        >
+          {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+        </button>
       </div>
+
+      {isMobileMenuOpen && (
+        <div className="shared-dashboard-box dashboard-mobile-menu-panel" style={{ borderTop: "1px solid #E2E8F0", padding: "10px 16px 12px", display: "none", gap: 8 }}>
+          <button onClick={handleRefreshData} disabled={isRefreshingData} className="flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm gap-2 disabled:opacity-60 w-full">
+            {isRefreshingData ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
+            {isRefreshingData ? "Atualizando..." : "Atualizar dados"}
+          </button>
+
+          <button onClick={handleExportPdf} disabled={isExportingPdf} className="flex h-10 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 shadow-sm gap-2 disabled:opacity-60 w-full">
+            {isExportingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+            {isExportingPdf ? "Gerando PDF..." : "Baixar PDF"}
+          </button>
+
+          <div className="flex h-10 items-center justify-between rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm w-full">
+            <div className="flex items-center gap-2">
+              <CalendarDays size={16} className="text-slate-400" />
+              <DateRangeSelector
+                currentPreset={rangePreset}
+                onPresetChange={updateRange}
+                variant="minimal"
+                includeToday={includeToday}
+                from={from}
+                to={to}
+                availableRange={data?.availableDateRange || null}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Visual Subtitle / Breadcrumb for mobile */}
       {pageSubtitle && (
