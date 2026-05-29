@@ -286,4 +286,28 @@ body {
   .admin-page a {
     min-height: 40px;
   }
+
+  .admin-mobile-actions {
+    flex-direction: column;
+  }
+
+  .admin-mobile-actions > button,
+  .admin-mobile-actions > a {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .admin-copyblock-head {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .admin-copyblock-head > button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .admin-mobile-stack-card {
+    flex-direction: column;
+  }
 }

@@ -61,7 +61,7 @@ function CopyBlock({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+      <div className="admin-copyblock-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>{title}</p>
         <button
           type="button"
@@ -98,6 +98,7 @@ function CopyBlock({
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
           padding: 10,
           resize: "vertical",
+          lineHeight: 1.45,
         }}
       />
     </div>
@@ -361,7 +362,7 @@ export default function AdminAutomationsPage() {
       </div>
 
       <div
-        className="card"
+        className="card admin-mobile-stack-card"
         style={{
           padding: 16,
           border: "1px solid #BFDBFE",
@@ -490,11 +491,16 @@ export default function AdminAutomationsPage() {
                 ) : (
                   dashboards.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name} | {d.clients?.name || "Sem cliente"} ({d.id})
+                      {d.name} | {d.clients?.name || "Sem cliente"}
                     </option>
                   ))
                 )}
               </select>
+              {!!dashboardId && (
+                <p style={{ fontSize: 11, color: "#64748B", wordBreak: "break-all" }}>
+                  ID selecionado: {dashboardId}
+                </p>
+              )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Dashboard ID (manual)</label>
@@ -540,7 +546,7 @@ export default function AdminAutomationsPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+          <div className="admin-mobile-actions" style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
             <button
               type="button"
               disabled={isTesting}
