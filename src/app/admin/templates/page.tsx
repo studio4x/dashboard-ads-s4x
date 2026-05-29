@@ -11,7 +11,7 @@ export default function TemplatesPage() {
   );
 
   return (
-    <div style={{ padding: 32, maxWidth: 800 }}>
+    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 800 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A", marginBottom: 8 }}>Templates</h1>
       <p style={{ fontSize: 14, color: "#64748B", marginBottom: 28 }}>
         Modelos de dashboards pré-configurados disponíveis no sistema.

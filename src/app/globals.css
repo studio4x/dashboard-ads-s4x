@@ -216,3 +216,74 @@ body {
 .animate-pulse-soft {
   animation: pulse-soft 2s ease infinite;
 }
+
+/* Admin responsive system */
+.admin-page {
+  width: 100%;
+}
+
+.admin-table-wrap {
+  overflow-x: auto !important;
+}
+
+@media (max-width: 1023px) {
+  .admin-page {
+    padding: 14px !important;
+    max-width: 100% !important;
+  }
+
+  .admin-page-header {
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .admin-page-header h1 {
+    font-size: 20px !important;
+    line-height: 1.2 !important;
+  }
+
+  .admin-page-header p {
+    font-size: 13px !important;
+  }
+
+  .admin-filter-row {
+    flex-wrap: wrap !important;
+  }
+
+  .admin-filter-row > div,
+  .admin-filter-row > input,
+  .admin-filter-row > select {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .admin-two-col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-table-wrap table {
+    min-width: 760px;
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-page .card {
+    padding: 14px !important;
+    border-radius: 10px !important;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-page button,
+  .admin-page a {
+    min-height: 40px;
+  }
+}

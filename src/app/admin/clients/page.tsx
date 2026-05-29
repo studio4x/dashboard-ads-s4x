@@ -103,9 +103,9 @@ export default function ClientsPage() {
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: 1000 }}>
+    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1000 }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+      <div className="admin-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28, gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Clientes</h1>
           <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{clients.length} clientes cadastrados na plataforma</p>
@@ -218,7 +218,7 @@ export default function ClientsPage() {
                 <input value={formData.website_url} onChange={e => setFormData({ ...formData, website_url: e.target.value })} placeholder="https://exemplo.com.br" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>E-mail principal</label>
                   <input value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="contato@cliente.com" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />
@@ -229,7 +229,7 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>E-mails adicionais</label>
                   <input value={formData.emails} onChange={e => setFormData({ ...formData, emails: e.target.value })} placeholder="financeiro@...; marketing@..." style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }} />

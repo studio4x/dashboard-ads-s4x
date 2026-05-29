@@ -352,8 +352,8 @@ export default function AdminAutomationsPage() {
   );
 
   return (
-    <div style={{ padding: 32, maxWidth: 1080 }}>
-      <div style={{ marginBottom: 20 }}>
+    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1080 }}>
+      <div className="admin-page-header" style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Automações (n8n)</h1>
         <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>
           Central de informações para integrar o disparo de relatórios com o n8n.
@@ -477,7 +477,7 @@ export default function AdminAutomationsPage() {
           >
             <strong>Importante:</strong> o botão <strong>Teste Dry Run</strong> não envia requisição ao n8n. Ele apenas simula o payload para validação. Para enviar ao webhook, use <strong>Teste Real no n8n</strong>.
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Dashboard</label>
               <select

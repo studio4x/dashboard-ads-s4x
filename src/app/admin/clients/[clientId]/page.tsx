@@ -50,8 +50,8 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
   const checklistProgress = (checklist.filter(c => c.done).length / checklist.length) * 100;
 
   return (
-    <div style={{ padding: 32, maxWidth: 1200 }}>
-      <div style={{ marginBottom: 32, display: "flex", alignItems: "center", gap: 16 }}>
+    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1200 }}>
+      <div className="admin-page-header" style={{ marginBottom: 32, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <Link href="/admin/clients" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: 8, background: "#F1F5F9", color: "#475569", textDecoration: "none" }}>
           <ArrowLeft size={20} />
         </Link>
@@ -68,7 +68,7 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
+      <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
         
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {/* Dashboards */}

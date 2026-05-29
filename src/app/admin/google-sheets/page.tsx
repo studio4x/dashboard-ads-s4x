@@ -235,8 +235,8 @@ export default function GoogleSheetsAdminPage() {
   );
 
   return (
-    <div style={{ padding: 32, maxWidth: 1000 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
+    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1000 }}>
+      <div className="admin-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32, gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: "#0F172A" }}>Google Sheets</h1>
           <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>
@@ -333,7 +333,7 @@ export default function GoogleSheetsAdminPage() {
           </div>
         </div>
         
-        <div className="card" style={{ overflow: "hidden" }}>
+        <div className="card admin-table-wrap" style={{ overflow: "hidden" }}>
           {isLoading && logs.length === 0 ? (
             <TableSkeleton rows={5} />
           ) : (
@@ -578,7 +578,7 @@ export default function GoogleSheetsAdminPage() {
                     {isGoogleS4X ? (
                       <div style={{ padding: "12px 16px", background: "white" }}>
                         <p style={{ fontSize: 11, color: "#64748B", marginBottom: 8, fontWeight: 600 }}>ABAS OBRIGATÓRIAS</p>
-                        <ul style={{ fontSize: 11, color: "#0369A1", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
+                        <ul style={{ fontSize: 11, color: "#0369A1", listStyle: "disc", paddingLeft: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "2px 12px" }}>
                           <li>Meta</li>
                           <li>Dashboard_Config</li>
                           <li>Performance Diária</li>
@@ -640,7 +640,7 @@ export default function GoogleSheetsAdminPage() {
             </div>
             
             <div style={{ padding: 20, overflowY: "auto", flex: 1 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+              <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
                 <div style={{ padding: 12, borderRadius: 8, background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
                   <p style={{ fontSize: 11, color: "#64748B", marginBottom: 2 }}>Status Final</p>
                   <p style={{ fontSize: 14, fontWeight: 600, color: selectedLog.status === "failed" ? "#EF4444" : "#16A34A" }}>

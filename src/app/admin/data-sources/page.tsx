@@ -13,7 +13,7 @@ const sources = [
 
 export default function DataSourcesPage() {
   return (
-    <div style={{ padding: 32, maxWidth: 900 }}>
+    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 900 }}>
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Fontes de Dados</h1>
         <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>

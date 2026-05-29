@@ -101,8 +101,8 @@ export default function ImportLogsPage() {
   }, [logs]);
 
   return (
-    <div style={{ padding: 32, maxWidth: 1200 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1200 }}>
+      <div className="admin-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28, gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Logs de Importação</h1>
           <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>Histórico de sincronizações com Google Sheets</p>
@@ -128,7 +128,7 @@ export default function ImportLogsPage() {
         </button>
       </div>
 
-      <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+      <div className="admin-filter-row" style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         <div style={{ position: "relative", width: 300 }}>
           <Search size={16} color="#94A3B8" style={{ position: "absolute", left: 12, top: 10 }} />
           <input 
@@ -176,7 +176,7 @@ export default function ImportLogsPage() {
         </div>
       </div>
 
-      <div className="card" style={{ overflow: "hidden" }}>
+      <div className="card admin-table-wrap" style={{ overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ textAlign: "left", background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>

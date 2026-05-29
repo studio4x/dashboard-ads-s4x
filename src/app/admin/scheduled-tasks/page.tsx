@@ -81,8 +81,8 @@ export default function ScheduledTasksPage() {
   }, [tasks, statusFilter, search]);
 
   return (
-    <div style={{ padding: 32, maxWidth: 1300 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1300 }}>
+      <div className="admin-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Monitor de Agendamentos</h1>
           <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>
@@ -110,7 +110,7 @@ export default function ScheduledTasksPage() {
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
+      <div className="admin-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
         {[
           { label: "Total", value: summary?.total ?? 0 },
           { label: "Ativos", value: summary?.enabled ?? 0 },
@@ -143,7 +143,7 @@ export default function ScheduledTasksPage() {
         Ultima leitura: <strong>{generatedAtLabel}</strong> ({timezone})
       </div>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+      <div className="admin-filter-row" style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ position: "relative", width: 320 }}>
           <Search size={16} color="#94A3B8" style={{ position: "absolute", left: 12, top: 10 }} />
           <input
@@ -166,7 +166,7 @@ export default function ScheduledTasksPage() {
         </select>
       </div>
 
-      <div className="card" style={{ overflow: "hidden" }}>
+      <div className="card admin-table-wrap" style={{ overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ textAlign: "left", background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
@@ -220,4 +220,3 @@ export default function ScheduledTasksPage() {
     </div>
   );
 }
-

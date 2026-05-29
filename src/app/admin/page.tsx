@@ -35,7 +35,7 @@ export default async function AdminPage() {
   ];
 
   return (
-    <div style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1200 }}>
+    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1200 }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>

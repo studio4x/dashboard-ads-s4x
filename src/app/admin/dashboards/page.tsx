@@ -635,8 +635,8 @@ export default function AdminDashboardsPage() {
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: 1000 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1000 }}>
+      <div className="admin-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28, gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Dashboards</h1>
           <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{dashboards.length} dashboards cadastrados</p>
@@ -1313,7 +1313,7 @@ export default function AdminDashboardsPage() {
                 {formData.dashboard_type === META_TEMPLATE_ID && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Objetivos da Campanha (Meta Ads)</label>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                       {META_ADS_OBJECTIVES.map((objective) => {
                         const active = formData.meta_objectives.includes(objective.id);
                         return (
@@ -1442,7 +1442,7 @@ export default function AdminDashboardsPage() {
                 Dashboard: <strong style={{ color: "#334155" }}>{editObjectivesModalDashboard.name}</strong>
               </p>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {META_ADS_OBJECTIVES.map((objective) => {
                   const active = editObjectives.includes(objective.id);
                   return (
