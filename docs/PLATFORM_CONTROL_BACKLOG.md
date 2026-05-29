@@ -4,34 +4,26 @@
 Responsável operacional: Time S4X
 
 ## Como usar
-- Status: `todo`, `in_progress`, `blocked`, `done`
-- Prioridade:
-  - `P0`: bloqueia operação/qualidade essencial
-  - `P1`: melhora robustez/escala
-  - `P2`: melhoria incremental
+- Marque com `OK` dentro de `[ ]` quando o item for revisado/concluído.
 - Atualize este arquivo a cada entrega com commit/push/deploy.
 
 ## Backlog Prioritário
-| ID | Prioridade | Item | Status | Dono | Critério de aceite |
-|---|---|---|---|---|---|
-| BL-001 | P0 | Validação E2E do dashboard integrado (2 planilhas + objetivos Meta + KPIs) | todo | Time S4X | Checklist executado em produção sem erro crítico |
-| BL-002 | P0 | Regressão dos templates separados (`google_ads_s4x` e `meta_ads_s4x`) | todo | Time S4X | Abas e KPIs principais sem regressão funcional |
-| BL-003 | P0 | Revisão de segurança de acesso backend (service role e rotas admin) | in_progress | Time S4X | Rotas sensíveis exigem autenticação/autorização correta |
-| BL-004 | P0 | Revisão final de políticas RLS multi-tenant | todo | Time S4X | Usuário não acessa dados de outro cliente |
-| BL-005 | P1 | Padronizar feedbacks admin (reduzir `alert()` e uniformizar toasts) | todo | Time S4X | Ações principais com feedback visual consistente |
-| BL-006 | P1 | Observabilidade da importação (tempo médio, falhas, warnings recorrentes) | todo | Time S4X | Painel/log com indicadores operacionais mínimos |
-| BL-007 | P1 | Política de retenção de logs de importação | todo | Time S4X | Regra documentada e aplicada no backend |
-| BL-008 | P1 | Cobertura de testes para importação e KPIs do consolidado | todo | Time S4X | Suíte cobrindo casos críticos do integrado |
-| BL-009 | P2 | Redução progressiva de `any` em páginas/admin/dashboards | todo | Time S4X | Tipagem mais estrita sem quebrar build |
-| BL-010 | P2 | Botão explícito de refresh no Cockpit (se necessário após uso real) | todo | Time S4X | Usuário percebe atualização imediata dos indicadores |
+- [ ] BL-001 (P0): Validar E2E do dashboard integrado (2 planilhas + objetivos Meta + KPIs).
+- [ ] BL-002 (P0): Validar regressão dos templates separados (`google_ads_s4x` e `meta_ads_s4x`).
+- [ ] BL-003 (P0): Revisar segurança de acesso backend (service role e rotas admin).
+- [ ] BL-004 (P0): Revisar políticas RLS multi-tenant.
+- [ ] BL-005 (P1): Padronizar feedbacks admin (reduzir `alert()` e uniformizar toasts).
+- [ ] BL-006 (P1): Implementar observabilidade da importação (tempo médio, falhas e warnings recorrentes).
+- [ ] BL-007 (P1): Definir e aplicar política de retenção de logs de importação.
+- [ ] BL-008 (P1): Ampliar cobertura de testes para importação e KPIs do consolidado.
+- [ ] BL-009 (P2): Reduzir uso de `any` em páginas/admin/dashboards.
+- [ ] BL-010 (P2): Avaliar e inserir botão explícito de refresh no Cockpit.
 
 ## Sprint Atual (P0)
-| Ordem | ID | Ação | Status |
-|---|---|---|---|
-| 1 | BL-001 | Rodar checklist E2E em produção e registrar evidências | todo |
-| 2 | BL-002 | Validar regressão templates separados | todo |
-| 3 | BL-003 | Auditar rotas admin/service role | in_progress |
-| 4 | BL-004 | Auditar e testar RLS multi-tenant | todo |
+- [ ] BL-001: Rodar checklist E2E em produção e registrar evidências.
+- [ ] BL-002: Validar regressão dos templates separados.
+- [ ] BL-003: Auditar rotas admin e uso de service role.
+- [ ] BL-004: Auditar e testar RLS multi-tenant.
 
 ## Registro de entregas
 | Data | Mudança | Commit | Deploy |
