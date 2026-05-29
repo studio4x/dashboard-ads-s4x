@@ -35,9 +35,9 @@ export default async function AdminPage() {
   ];
 
   return (
-    <div style={{ padding: 32, maxWidth: 1200 }}>
+    <div style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1200 }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ fontSize: 24, fontWeight: 700, color: "#0F172A" }}>Cockpit Operacional</h1>
             <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>
@@ -66,12 +66,12 @@ export default async function AdminPage() {
       )}
 
       {/* Stat cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 32 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
         {statCards.map((card) => {
           const Icon = card.icon;
           return (
             <Link key={card.href} href={card.href} style={{ textDecoration: "none" }}>
-              <div className="card card-hover" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="card card-hover" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ width: 40, height: 40, borderRadius: 10, background: card.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Icon size={20} color={card.color} />
@@ -79,7 +79,7 @@ export default async function AdminPage() {
                   <ArrowUpRight size={16} color="#CBD5E1" />
                 </div>
                 <div>
-                  <p style={{ fontSize: 28, fontWeight: 700, color: "#0F172A" }}>{card.value}</p>
+                  <p style={{ fontSize: 24, fontWeight: 700, color: "#0F172A" }}>{card.value}</p>
                   <p style={{ fontSize: 13, color: "#64748B" }}>{card.label}</p>
                 </div>
               </div>
@@ -89,7 +89,7 @@ export default async function AdminPage() {
       </div>
 
       {/* Two columns */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14 }}>
         {/* Clientes */}
         <div className="card" style={{ padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
