@@ -12,7 +12,7 @@ import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters"
 import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateMetaAdsKpis, generateMetaAdsS4XKpisWithLabels } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
-import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
+import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaObjectiveLabel, getMetaResultMetric, normalizeMetaAdsObjectives, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
 
 export default function MetaAdsPage() {
   const { data } = useDashboard();
@@ -43,6 +43,7 @@ export default function MetaAdsPage() {
   );
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
   const [adSetFilter, setAdSetFilter] = useState<string>("all");
+  const [selectedObjective, setSelectedObjective] = useState<string>("");
   useEffect(() => {
     setActiveTab(resolveTabFromPath(pathname, sharedPage));
   }, [pathname, sharedPage]);
@@ -57,6 +58,10 @@ export default function MetaAdsPage() {
     isSharedDedicatedMetaRoute;
 
   if (!data) return null;
+
+  const objectiveOptions = normalizeMetaAdsObjectives(Array.isArray(data.metaObjectives) ? data.metaObjectives : []);
+  const defaultObjective = normalizeMetaAdsObjectives([data.metaPrimaryObjective])[0] || objectiveOptions[0] || "";
+  const activeObjective = selectedObjective || defaultObjective;
 
   const isMetaS4X = data.templateId === "meta_ads_s4x" || data.templateId === "google_meta_ads_s4x";
   const available =
@@ -73,8 +78,8 @@ export default function MetaAdsPage() {
   };
   const canShowReachMetric = hasMetric("reach") || hasReachData();
   const resolvedObjectivePresentation = resolveMetaObjectivePresentation({
-    primaryObjective: data.metaPrimaryObjective,
-    objectives: Array.isArray(data.metaObjectives) ? data.metaObjectives : [],
+    primaryObjective: activeObjective || data.metaPrimaryObjective,
+    objectives: objectiveOptions,
     availableFields: available || null,
     dailyRows: Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
   });
@@ -409,6 +414,24 @@ export default function MetaAdsPage() {
 
   return (
     <DashboardPageShell title={pageTitle} subtitle={pageSubtitle}>
+      {!isDedicatedMetaRoute && isMetaS4X && objectiveOptions.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>Objetivo:</span>
+            <select
+              value={activeObjective}
+              onChange={(e) => setSelectedObjective(e.target.value)}
+              style={{ padding: "8px 10px", border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, background: "white", color: "#0F172A", minWidth: 170 }}
+            >
+              {objectiveOptions.map((objective) => (
+                <option key={objective} value={objective}>
+                  {getMetaObjectiveLabel(objective)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
       {!isDedicatedMetaRoute && <KpiGrid metrics={kpis} columns={isMetaS4X ? 3 : 3} />}
 
       {!isDedicatedMetaRoute && (
