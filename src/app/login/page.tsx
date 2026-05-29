@@ -24,34 +24,31 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] p-6 relative overflow-hidden">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-100/50 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-100/50 blur-[120px] pointer-events-none" />
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFC", padding: 24, position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: "-10%", left: "-10%", width: "40%", height: "40%", borderRadius: "999px", background: "rgba(191,219,254,0.5)", filter: "blur(120px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "-10%", right: "-10%", width: "40%", height: "40%", borderRadius: "999px", background: "rgba(199,210,254,0.5)", filter: "blur(120px)", pointerEvents: "none" }} />
 
-      <div className="w-full max-w-[440px] relative z-10">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl shadow-blue-200 mb-6">
+      <div style={{ width: "100%", maxWidth: 440, position: "relative", zIndex: 1 }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 64, height: 64, borderRadius: 16, background: "linear-gradient(135deg, #2563EB, #4338CA)", color: "#FFFFFF", boxShadow: "0 18px 40px rgba(37,99,235,0.2)", marginBottom: 24 }}>
             <BarChart3 size={32} />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Dashboard ADS</h1>
-          <p className="text-slate-500 mt-2 font-medium">S4X Platform — Acesso Restrito</p>
+          <h1 style={{ fontSize: 32, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>Dashboard ADS</h1>
+          <p style={{ color: "#64748B", marginTop: 8, fontWeight: 600, fontSize: 14 }}>S4X Platform — Acesso Restrito</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-100 p-8 md:p-10">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div style={{ background: "#FFFFFF", borderRadius: 24, boxShadow: "0 20px 50px rgba(0,0,0,0.05)", border: "1px solid #E2E8F0", padding: 32 }}>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {error && (
-              <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl font-medium animate-shake">
+              <div style={{ padding: 14, background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", fontSize: 13, borderRadius: 12, fontWeight: 600 }}>
                 {error}
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700 ml-1">E-mail</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: "#334155", marginLeft: 2 }}>E-mail</label>
+              <div style={{ position: "relative" }}>
+                <div style={{ position: "absolute", inset: "0 auto 0 0", paddingLeft: 14, display: "flex", alignItems: "center", pointerEvents: "none", color: "#94A3B8" }}>
                   <Mail size={18} />
                 </div>
                 <input
@@ -59,18 +56,18 @@ export default function LoginPage() {
                   type="email"
                   required
                   placeholder="seu@email.com"
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                  style={{ width: "100%", padding: "14px 14px 14px 42px", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12, color: "#0F172A", fontSize: 14 }}
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-sm font-semibold text-slate-700">Senha</label>
-                <Link href="/forgot-password" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Esqueceu a senha?</Link>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px" }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>Senha</label>
+                <Link href="/forgot-password" style={{ fontSize: 12, fontWeight: 700, color: "#2563EB", textDecoration: "none" }}>Esqueceu a senha?</Link>
               </div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+              <div style={{ position: "relative" }}>
+                <div style={{ position: "absolute", inset: "0 auto 0 0", paddingLeft: 14, display: "flex", alignItems: "center", pointerEvents: "none", color: "#94A3B8" }}>
                   <Lock size={18} />
                 </div>
                 <input
@@ -78,7 +75,7 @@ export default function LoginPage() {
                   type="password"
                   required
                   placeholder="••••••••"
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                  style={{ width: "100%", padding: "14px 14px 14px 42px", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12, color: "#0F172A", fontSize: 14 }}
                 />
               </div>
             </div>
@@ -86,29 +83,27 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-100 hover:shadow-blue-200 hover:translate-y-[-1px] active:translate-y-[1px] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed group"
+              style={{ width: "100%", background: "linear-gradient(90deg, #2563EB, #4338CA)", color: "#FFFFFF", fontWeight: 800, padding: "14px 16px", borderRadius: 12, border: "none", boxShadow: "0 12px 30px rgba(37,99,235,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.75 : 1 }}
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
               ) : (
                 <>
                   Entrar na Plataforma
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight size={18} />
                 </>
               )}
             </button>
           </form>
 
-          {/* Footer Card */}
-          <div className="mt-8 pt-8 border-t border-slate-50 text-center">
-            <p className="text-slate-500 text-sm">
-              Não tem acesso? <Link href="#" className="text-blue-600 font-bold hover:underline">Falar com suporte</Link>
+          <div style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid #F1F5F9", textAlign: "center" }}>
+            <p style={{ color: "#64748B", fontSize: 13 }}>
+              Não tem acesso? <Link href="#" style={{ color: "#2563EB", fontWeight: 800, textDecoration: "none" }}>Falar com suporte</Link>
             </p>
           </div>
         </div>
 
-        {/* Bottom Footer */}
-        <p className="text-center text-slate-400 text-xs mt-10 font-medium">
+        <p style={{ textAlign: "center", color: "#94A3B8", fontSize: 12, marginTop: 28, fontWeight: 600 }}>
           &copy; {new Date().getFullYear()} Studio 4X Tecnologia. Todos os direitos reservados.
         </p>
       </div>
