@@ -7,7 +7,20 @@ import { useToast } from "@/components/ui/Toast";
 const APP_BASE_URL = "https://dashboard-ads-s4x.vercel.app";
 const DISPATCH_ENDPOINT = `${APP_BASE_URL}/api/admin/automations/report-dispatch`;
 
-function extractPdfUrl(payload: any): string {
+type DispatchPayloadCandidate = {
+  response?: { pdf?: { url?: string }; pdfUrl?: string };
+  pdf?: { url?: string };
+  pdfUrl?: string;
+};
+
+type DashboardOption = {
+  id: string;
+  name?: string | null;
+  title?: string | null;
+  clients?: { name?: string | null } | null;
+};
+
+function extractPdfUrl(payload: DispatchPayloadCandidate): string {
   const candidates = [
     payload?.response?.pdf?.url,
     payload?.response?.pdfUrl,
@@ -110,7 +123,7 @@ export default function AdminAutomationsPage() {
   const [webhookDirty, setWebhookDirty] = useState(false);
   const lastSavedWebhookRef = useRef("");
 
-  const [dashboards, setDashboards] = useState<any[]>([]);
+  const [dashboards, setDashboards] = useState<DashboardOption[]>([]);
   const [dashboardId, setDashboardId] = useState("");
   const [testFrom, setTestFrom] = useState(defaultFrom);
   const [testTo, setTestTo] = useState(defaultTo);
@@ -187,9 +200,9 @@ export default function AdminAutomationsPage() {
       lastSavedWebhookRef.current = value;
       setWebhookDirty(false);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       setWebhookStatus("error");
-      setWebhookMessage(error?.message || "Erro ao salvar webhook.");
+      setWebhookMessage(error instanceof Error ? error.message : "Erro ao salvar webhook.");
       return false;
     } finally {
       setIsSavingWebhook(false);
@@ -244,13 +257,13 @@ export default function AdminAutomationsPage() {
           2
         )
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       setTestPdfUrl("");
       setTestResponse(
         JSON.stringify(
           {
             ok: false,
-            error: error?.message || "Erro ao executar teste",
+            error: error instanceof Error ? error.message : "Erro ao executar teste",
           },
           null,
           2

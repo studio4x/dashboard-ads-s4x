@@ -2,10 +2,27 @@ import type { Metadata } from "next";
 import { Building2, PieChart, FileSpreadsheet, Activity, ArrowUpRight, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { AdminService } from "@/services/admin-service";
+import { AdminRefreshButton } from "@/components/admin/AdminRefreshButton";
 
 export const metadata: Metadata = { title: "Cockpit Operacional" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+type RecentClient = {
+  id: string;
+  name: string;
+  company_name?: string | null;
+  status?: string | null;
+  primary_color?: string | null;
+};
+
+type RecentDashboard = {
+  id: string;
+  title?: string | null;
+  name?: string | null;
+  status?: string | null;
+  clients?: { name?: string | null } | null;
+};
 
 export default async function AdminPage() {
   const stats = await AdminService.getDashboardStats();
@@ -20,10 +37,15 @@ export default async function AdminPage() {
   return (
     <div style={{ padding: 32, maxWidth: 1200 }}>
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#0F172A" }}>Cockpit Operacional</h1>
-        <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>
-          Visão geral da operação da plataforma com clientes reais.
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: "#0F172A" }}>Cockpit Operacional</h1>
+            <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>
+              Visão geral da operação da plataforma com clientes reais.
+            </p>
+          </div>
+          <AdminRefreshButton />
+        </div>
       </div>
 
       {/* Alertas Operacionais */}
@@ -75,7 +97,7 @@ export default async function AdminPage() {
             <Link href="/admin/clients" style={{ fontSize: 13, color: "#2563EB", textDecoration: "none" }}>Ver todos →</Link>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {stats.recentClients.map((c: any) => (
+            {stats.recentClients.map((c: RecentClient) => (
               <Link key={c.id} href={`/admin/clients/${c.id}`} style={{ textDecoration: "none" }}>
                 <div className="card-hover" style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, border: "1px solid #F1F5F9", background: "#FAFBFC", transition: "background 0.15s" }}>
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: c.primary_color || "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
@@ -104,7 +126,7 @@ export default async function AdminPage() {
             <Link href="/admin/dashboards" style={{ fontSize: 13, color: "#2563EB", textDecoration: "none" }}>Ver todos →</Link>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {stats.recentDashboards.map((d: any) => {
+            {stats.recentDashboards.map((d: RecentDashboard) => {
               return (
                 <Link key={d.id} href={`/app/dashboards/${d.id}/executive-summary`} style={{ textDecoration: "none" }}>
                   <div className="card-hover" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #F1F5F9", background: "#FAFBFC", transition: "background 0.15s" }}>

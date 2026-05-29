@@ -16,8 +16,8 @@ Responsável operacional: Time S4X
 - [OK] BL-006 (P1): Implementar observabilidade da importação (tempo médio, falhas e warnings recorrentes).
 - [OK] BL-007 (P1): Definir e aplicar política de retenção de logs de importação.
 - [OK] BL-008 (P1): Ampliar cobertura de testes para importação e KPIs do consolidado.
-- [ ] BL-009 (P2): Reduzir uso de `any` em páginas/admin/dashboards.
-- [ ] BL-010 (P2): Avaliar e inserir botão explícito de refresh no Cockpit.
+- [OK] BL-009 (P2): Reduzir uso de `any` em páginas/admin/dashboards.
+- [OK] BL-010 (P2): Avaliar e inserir botão explícito de refresh no Cockpit.
 
 ## Sprint Atual (P0)
 - [OK] BL-001: Rodar checklist E2E em produção e registrar evidências.
@@ -32,6 +32,7 @@ Responsável operacional: Time S4X
 | 2026-05-29 | Fechamento dos itens P0 (BL-001 a BL-004) com evidências técnicas | a preencher | a preencher |
 | 2026-05-29 | Fechamento dos itens P1 BL-005, BL-006 e BL-007 | a preencher | a preencher |
 | 2026-05-29 | Fechamento do item P1 BL-008 com suíte de testes críticos | a preencher | a preencher |
+| 2026-05-29 | Fechamento dos itens P2 BL-009 e BL-010 | a preencher | a preencher |
 
 ## Evidências da Sprint Atual
 - 2026-05-29 (BL-003): corrigido acesso sem guard em `src/app/api/admin/scheduled-tasks/route.ts` (`GET` agora exige `requireAdmin` antes de `createAdminClient`).
@@ -44,3 +45,5 @@ Responsável operacional: Time S4X
 - 2026-05-29 (BL-006): adicionados indicadores operacionais na página `/admin/import-logs` (total de logs, tempo médio, falhas, warnings e linhas lidas), mantendo paginação de 10 itens.
 - 2026-05-29 (BL-007): política de retenção aplicada no backend de logs (`IMPORT_LOG_RETENTION_DAYS`, padrão 90 dias) com limpeza automática no `GET /api/admin/import-logs` e documentação em `docs/IMPORT_LOG_RETENTION.md`.
 - 2026-05-29 (BL-008): suíte `npm run test:critical` ampliada para cobertura de importação/normalização e KPIs críticos com 9 testes passando: `tests/meta-objectives.test.ts`, `tests/metrics-helper.test.ts`, `tests/sheet-normalizer.test.ts`.
+- 2026-05-29 (BL-009): redução de `any` em pontos críticos de admin/dashboards com tipagem explícita em `src/app/admin/page.tsx`, `src/app/admin/import-logs/page.tsx`, `src/app/admin/automations/page.tsx` e `src/components/admin/ImportStatusBadge.tsx`.
+- 2026-05-29 (BL-010): botão explícito de atualização inserido no Cockpit Operacional usando `router.refresh()` (`src/components/admin/AdminRefreshButton.tsx` + integração em `src/app/admin/page.tsx`).

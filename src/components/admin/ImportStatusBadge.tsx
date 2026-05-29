@@ -3,8 +3,10 @@
 import { CheckCircle, Clock, AlertCircle, Loader, MinusCircle } from "lucide-react";
 import type { ImportStatus } from "@/types/data-sources";
 
+type ImportStatusExtended = ImportStatus | "pending" | "failed" | "success_with_warnings" | "never_imported";
+
 interface ImportStatusBadgeProps {
-  status: ImportStatus;
+  status: ImportStatusExtended;
   label?: boolean;
 }
 

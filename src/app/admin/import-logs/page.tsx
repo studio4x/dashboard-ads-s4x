@@ -5,13 +5,27 @@ import { ImportStatusBadge } from "@/components/admin/ImportStatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { History, ChevronDown, ChevronUp, ExternalLink, Search, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import type { ImportStatus } from "@/types/data-sources";
 
 const ITEMS_PER_PAGE = 10;
+type ImportStatusExtended = ImportStatus | "pending" | "failed" | "success_with_warnings" | "never_imported";
+type ImportLogItem = {
+  id: string;
+  status: ImportStatusExtended;
+  started_at: string;
+  duration_ms?: number | null;
+  rows_read?: number | null;
+  warnings?: number | null;
+  errors?: number | null;
+  error_details?: unknown;
+  clients?: { id?: string; name?: string | null } | null;
+  dashboards?: { id?: string; name?: string | null } | null;
+};
 
 export default function ImportLogsPage() {
   const { toast } = useToast();
-  const [logs, setLogs] = useState<any[]>([]);
-  const [filteredLogs, setFilteredLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<ImportLogItem[]>([]);
+  const [filteredLogs, setFilteredLogs] = useState<ImportLogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -189,7 +203,7 @@ export default function ImportLogsPage() {
                 </td>
               </tr>
             ) : (
-              paginatedLogs.map((log: any) => (
+              paginatedLogs.map((log) => (
                 <React.Fragment key={log.id}>
                   <tr style={{ borderBottom: expandedId === log.id ? "none" : "1px solid #F1F5F9", cursor: "pointer", background: expandedId === log.id ? "#F8FAFC" : "transparent" }} onClick={() => toggleExpand(log.id)}>
                     <td style={{ padding: "12px 16px", color: "#0F172A" }}>
@@ -200,16 +214,16 @@ export default function ImportLogsPage() {
                       <span style={{ color: "#64748B", fontSize: 12 }}>{log.dashboards?.name}</span>
                     </td>
                     <td style={{ padding: "12px 16px" }}>
-                      <ImportStatusBadge status={log.status as any} />
+                      <ImportStatusBadge status={log.status} />
                     </td>
                     <td style={{ padding: "12px 16px", color: "#64748B" }}>
                       {log.duration_ms ? `${(log.duration_ms / 1000).toFixed(1)}s` : "—"}
                     </td>
                     <td style={{ padding: "12px 16px", color: "#64748B" }}>
                       <div style={{ display: "flex", gap: 8 }}>
-                        <span title="Linhas lidas">📊 {log.rows_read}</span>
-                        {log.warnings > 0 && <span title="Avisos" style={{ color: "#D97706" }}>⚠️ {log.warnings}</span>}
-                        {log.errors > 0 && <span title="Erros" style={{ color: "#DC2626" }}>❌ {log.errors}</span>}
+                        <span title="Linhas lidas">📊 {Number(log.rows_read || 0)}</span>
+                        {Number(log.warnings || 0) > 0 && <span title="Avisos" style={{ color: "#D97706" }}>⚠️ {Number(log.warnings || 0)}</span>}
+                        {Number(log.errors || 0) > 0 && <span title="Erros" style={{ color: "#DC2626" }}>❌ {Number(log.errors || 0)}</span>}
                       </div>
                     </td>
                     <td style={{ padding: "12px 16px", textAlign: "right" }}>
@@ -221,7 +235,7 @@ export default function ImportLogsPage() {
                       <td colSpan={6} style={{ padding: "16px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                           {/* JSON error details */}
-                          {log.error_details && (
+                          {Boolean(log.error_details) && (
                             <div>
                               <p style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", marginBottom: 6 }}>Detalhes do Processamento:</p>
                               <pre style={{ margin: 0, padding: 12, background: "#1E293B", color: "#F8FAFC", borderRadius: 8, fontSize: 12, overflowX: "auto" }}>
