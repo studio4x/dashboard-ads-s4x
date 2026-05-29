@@ -16,7 +16,7 @@ Responsável operacional: Time S4X
 |---|---|---|---|---|---|
 | BL-001 | P0 | Validação E2E do dashboard integrado (2 planilhas + objetivos Meta + KPIs) | todo | Time S4X | Checklist executado em produção sem erro crítico |
 | BL-002 | P0 | Regressão dos templates separados (`google_ads_s4x` e `meta_ads_s4x`) | todo | Time S4X | Abas e KPIs principais sem regressão funcional |
-| BL-003 | P0 | Revisão de segurança de acesso backend (service role e rotas admin) | todo | Time S4X | Rotas sensíveis exigem autenticação/autorização correta |
+| BL-003 | P0 | Revisão de segurança de acesso backend (service role e rotas admin) | in_progress | Time S4X | Rotas sensíveis exigem autenticação/autorização correta |
 | BL-004 | P0 | Revisão final de políticas RLS multi-tenant | todo | Time S4X | Usuário não acessa dados de outro cliente |
 | BL-005 | P1 | Padronizar feedbacks admin (reduzir `alert()` e uniformizar toasts) | todo | Time S4X | Ações principais com feedback visual consistente |
 | BL-006 | P1 | Observabilidade da importação (tempo médio, falhas, warnings recorrentes) | todo | Time S4X | Painel/log com indicadores operacionais mínimos |
@@ -30,10 +30,13 @@ Responsável operacional: Time S4X
 |---|---|---|---|
 | 1 | BL-001 | Rodar checklist E2E em produção e registrar evidências | todo |
 | 2 | BL-002 | Validar regressão templates separados | todo |
-| 3 | BL-003 | Auditar rotas admin/service role | todo |
+| 3 | BL-003 | Auditar rotas admin/service role | in_progress |
 | 4 | BL-004 | Auditar e testar RLS multi-tenant | todo |
 
 ## Registro de entregas
 | Data | Mudança | Commit | Deploy |
 |---|---|---|---|
 | 2026-05-29 | Criação do backlog de controle da plataforma | a preencher | a preencher |
+
+## Evidências da Sprint Atual
+- 2026-05-29 (BL-003): corrigido acesso sem guard em `src/app/api/admin/scheduled-tasks/route.ts` (`GET` agora exige `requireAdmin` antes de `createAdminClient`).

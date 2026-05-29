@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +75,9 @@ function resolveTaskStatus(task: any, now: Date): TaskStatus {
 
 export async function GET() {
   try {
+    const authError = await requireAdmin();
+    if (authError) return authError;
+
     const supabase = await createAdminClient();
     const { data, error } = await supabase
       .from("dashboards")
@@ -125,4 +129,3 @@ export async function GET() {
     );
   }
 }
-
