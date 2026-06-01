@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ClientService } from "@/services/client-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { apiErrorResponse } from "@/lib/security/api-safety";
 
 // POST /api/admin/clients/[clientId]/logo
 export async function POST(
@@ -47,6 +48,6 @@ export async function POST(
 
     return NextResponse.json({ success: true, logo_url: logoUrl });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }

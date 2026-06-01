@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { enforceRateLimit } from "@/lib/security/request-guards";
+import { apiErrorResponse } from "@/lib/security/api-safety";
 import {
   buildPdfPeriodPart,
   buildSharePdfFilename,
@@ -23,6 +25,9 @@ function getErrorMessage(error: unknown) {
 
 export async function GET(request: Request, context: RouteParams) {
   try {
+    const rateLimitError = enforceRateLimit(request, { key: "share:pdf:download", limit: 60, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
+
     const { token, filename: routeFilename } = await context.params;
     const shareToken = String(token || "").trim();
 
@@ -34,7 +39,7 @@ export async function GET(request: Request, context: RouteParams) {
       return NextResponse.json({ success: false, error: "Arquivo inválido." }, { status: 400 });
     }
 
-    const supabase = await createAdminClient();
+    const supabase = await createAdminClient({ actor: "api_public", action: "read_shared_pdf" });
     const { data: link, error: linkError } = await supabase
       .from("dashboard_share_links")
       .select("id, dashboard_id, status, expires_at")
@@ -105,9 +110,6 @@ export async function GET(request: Request, context: RouteParams) {
       },
     });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: getErrorMessage(error) },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, getErrorMessage(error));
   }
 }

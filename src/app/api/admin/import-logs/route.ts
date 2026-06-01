@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ImportLogsService } from "@/lib/imports/import-logs";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { apiErrorResponse } from "@/lib/security/api-safety";
 
 export async function GET() {
   try {
@@ -16,7 +17,7 @@ export async function GET() {
     const logs = await ImportLogsService.getLogs();
     return NextResponse.json(logs);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }
 
@@ -32,6 +33,6 @@ export async function DELETE(request: Request) {
     await ImportLogsService.clearLogs();
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DataSourceService } from "@/services/data-source-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { apiErrorResponse, parseJsonObject, requireString } from "@/lib/security/api-safety";
 
 export async function PATCH(
   request: Request,
@@ -16,22 +17,28 @@ export async function PATCH(
     if (rateLimitError) return rateLimitError;
 
     const { id } = await params;
-    const { name, spreadsheetId, syncInterval, sourceRole } = await request.json();
+    const parsed = await parseJsonObject(request);
+    if (!parsed.ok) return parsed.response;
+    const safeName = requireString(parsed.body, "name", { min: 3, max: 180 });
+    const safeSpreadsheetId = requireString(parsed.body, "spreadsheetId", { min: 10, max: 220 });
+    const syncInterval = typeof parsed.body.syncInterval === "string" ? parsed.body.syncInterval : undefined;
+    const sourceRoleRaw = typeof parsed.body.sourceRole === "string" ? parsed.body.sourceRole : undefined;
+    const sourceRole = sourceRoleRaw === "google_ads" || sourceRoleRaw === "meta_ads" ? sourceRoleRaw : undefined;
 
-    if (!name || !spreadsheetId) {
+    if (!safeName || !safeSpreadsheetId) {
       return NextResponse.json({ error: "Nome e ID da planilha são obrigatórios." }, { status: 400 });
     }
 
     await DataSourceService.updateGoogleSheetSource(id, { 
-      name, 
-      spreadsheetId, 
+      name: safeName, 
+      spreadsheetId: safeSpreadsheetId, 
       syncInterval,
       sourceRole,
     });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }
 
@@ -52,6 +59,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }

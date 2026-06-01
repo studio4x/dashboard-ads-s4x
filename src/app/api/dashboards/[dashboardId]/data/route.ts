@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
 import { getSessionProfile, requireDashboardAccess } from "@/lib/auth/guards";
+import { enforceRateLimit } from "@/lib/security/request-guards";
+import { apiErrorResponse } from "@/lib/security/api-safety";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ dashboardId: string }> }
 ) {
   try {
+    const rateLimitError = enforceRateLimit(request, { key: "dashboard:data:read", limit: 120, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
+
     const { dashboardId } = await params;
     let viewerRole: string = "viewer";
     
@@ -50,6 +55,6 @@ export async function GET(
     return NextResponse.json({ ...data, viewerRole });
   } catch (error: any) {
     console.error("Dashboard Data API Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error, "Erro ao carregar dados do dashboard.");
   }
 }

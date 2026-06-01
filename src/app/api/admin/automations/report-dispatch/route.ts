@@ -3,6 +3,7 @@ import { createHmac } from "crypto";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { apiErrorResponse, parseJsonObject, requireString } from "@/lib/security/api-safety";
 import { DashboardService } from "@/services/dashboard-service";
 import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
 import { PROMPT_ANALISE_IA_TEMPLATE } from "@/lib/ai/prompt-analise-ia";
@@ -827,7 +828,7 @@ async function ensureShareUrl(params: {
   origin: string;
   shareLinkId?: string;
 }) {
-  const supabase = await createAdminClient();
+  const supabase = await createAdminClient({ actor: "api_admin", action: "ensure_share_url" });
 
   let query = supabase
     .from("dashboard_share_links")
@@ -903,8 +904,10 @@ export async function POST(request: Request) {
       if (rateLimitError) return rateLimitError;
     }
 
-    const body = (await request.json()) as DispatchBody;
-    const dashboardId = String(body.dashboardId || "").trim();
+    const parsedBody = await parseJsonObject(request);
+    if (!parsedBody.ok) return parsedBody.response;
+    const body = parsedBody.body as DispatchBody;
+    const dashboardId = requireString(parsedBody.body, "dashboardId") || "";
 
     if (!dashboardId) {
       return NextResponse.json({ success: false, error: "dashboardId é obrigatório." }, { status: 400 });
@@ -1191,10 +1194,6 @@ export async function POST(request: Request) {
       pdf: payload.pdf,
     });
   } catch (error: any) {
-    console.error("Report Dispatch Error:", error);
-    return NextResponse.json(
-      { success: false, error: error?.message || "Erro interno no disparo de automação." },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Erro interno no disparo de automação.");
   }
 }

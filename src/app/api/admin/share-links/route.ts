@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ShareService } from "@/services/share-service";
 import { requireAdmin } from "@/lib/auth/guards";
+import { apiErrorResponse } from "@/lib/security/api-safety";
 
 export async function GET(request: Request) {
   try {
@@ -29,6 +30,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ links: safeLinks });
   } catch (error: any) {
     console.error("Error listing share links:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }

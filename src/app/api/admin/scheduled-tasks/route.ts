@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
+import { apiErrorResponse } from "@/lib/security/api-safety";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +79,7 @@ export async function GET() {
     const authError = await requireAdmin();
     if (authError) return authError;
 
-    const supabase = await createAdminClient();
+    const supabase = await createAdminClient({ actor: "api_admin", action: "list_scheduled_tasks" });
     const { data, error } = await supabase
       .from("dashboards")
       .select("id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_report_mode, automation_last_dispatched_at, clients(name)")
@@ -123,9 +124,6 @@ export async function GET() {
       tasks,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Erro ao carregar monitoramento de agendamentos." },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Erro ao carregar monitoramento de agendamentos.");
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { apiErrorResponse, parseJsonObject, requireString } from "@/lib/security/api-safety";
 
 export const dynamic = "force-dynamic";
 
@@ -126,10 +127,7 @@ export async function GET() {
         "A leitura reflete o ambiente em runtime. Após atualizar variável na Vercel, pode ser necessário novo deploy para refletir imediatamente em todas as instâncias.",
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Erro ao obter configuração do webhook." },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Erro ao obter configuração do webhook.");
   }
 }
 
@@ -142,8 +140,9 @@ export async function POST(request: Request) {
     const rateLimitError = enforceRateLimit(request, { key: "admin:automations:webhook", limit: 15, windowMs: 60_000 });
     if (rateLimitError) return rateLimitError;
 
-    const body = await request.json();
-    const webhookUrl = String(body?.webhookUrl || "").trim();
+    const parsedBody = await parseJsonObject(request);
+    if (!parsedBody.ok) return parsedBody.response;
+    const webhookUrl = requireString(parsedBody.body, "webhookUrl") || "";
 
     if (!webhookUrl) {
       return NextResponse.json(
@@ -186,9 +185,6 @@ export async function POST(request: Request) {
         "Variável atualizada na Vercel. Em alguns casos, o novo valor só passa a valer após novo deploy.",
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Erro ao salvar webhook do n8n." },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Erro ao salvar webhook do n8n.");
   }
 }

@@ -3,6 +3,7 @@ import { GoogleSheetsImportService } from "@/lib/google-sheets/google-sheets-imp
 import { DashboardStore } from "@/data/dashboard-store";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { apiErrorResponse, parseJsonObject, requireString } from "@/lib/security/api-safety";
 
 export async function POST(request: Request) {
   try {
@@ -14,13 +15,18 @@ export async function POST(request: Request) {
     const rateLimitError = enforceRateLimit(request, { key: "admin:gsheets:import", limit: 20, windowMs: 60_000 });
     if (rateLimitError) return rateLimitError;
 
-    const { clientId, dashboardId, spreadsheetId, dataSourceId } = await request.json();
+    const parsed = await parseJsonObject(request);
+    if (!parsed.ok) return parsed.response;
+    const clientId = requireString(parsed.body, "clientId");
+    const dashboardId = requireString(parsed.body, "dashboardId");
+    const spreadsheetId = requireString(parsed.body, "spreadsheetId");
+    const dataSourceId = requireString(parsed.body, "dataSourceId");
 
     if (!clientId || !dashboardId || !spreadsheetId) {
       return NextResponse.json({ error: "Campos obrigatórios: clientId, dashboardId, spreadsheetId." }, { status: 400 });
     }
 
-    const result = await GoogleSheetsImportService.importDashboardData(clientId, dashboardId, spreadsheetId, dataSourceId);
+    const result = await GoogleSheetsImportService.importDashboardData(clientId, dashboardId, spreadsheetId, dataSourceId || undefined);
     
     // Salva o dado normalizado no store (em memória no MVP)
     if (result.success && result.data) {
@@ -29,10 +35,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error("Import Error:", error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message || "Erro desconhecido durante a importação." 
-    }, { status: 500 });
+    return apiErrorResponse(error, "Erro desconhecido durante a importação.");
   }
 }

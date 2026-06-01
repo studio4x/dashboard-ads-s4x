@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ShareService } from "@/services/share-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { apiErrorResponse, parseJsonObject, requireString } from "@/lib/security/api-safety";
 
 export async function POST(request: Request) {
   try {
@@ -12,8 +13,12 @@ export async function POST(request: Request) {
     const rateLimitError = enforceRateLimit(request, { key: "admin:sharelinks:create", limit: 20, windowMs: 60_000 });
     if (rateLimitError) return rateLimitError;
 
-    const body = await request.json();
-    const { dashboardId, name, expiresAt } = body;
+    const parsed = await parseJsonObject(request);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.body;
+    const dashboardId = requireString(body, "dashboardId");
+    const name = typeof body.name === "string" ? body.name : undefined;
+    const expiresAt = typeof body.expiresAt === "string" ? body.expiresAt : undefined;
 
     if (!dashboardId) {
       return NextResponse.json({ error: "dashboardId is required" }, { status: 400 });
@@ -31,6 +36,6 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error("Error creating share link:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }

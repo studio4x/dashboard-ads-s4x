@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ShareService } from "@/services/share-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { apiErrorResponse, parseJsonObject, requireString } from "@/lib/security/api-safety";
 
 export async function POST(request: Request) {
   try {
@@ -12,8 +13,10 @@ export async function POST(request: Request) {
     const rateLimitError = enforceRateLimit(request, { key: "admin:sharelinks:revoke", limit: 20, windowMs: 60_000 });
     if (rateLimitError) return rateLimitError;
 
-    const body = await request.json();
-    const { linkId } = body;
+    const parsed = await parseJsonObject(request);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.body;
+    const linkId = requireString(body, "linkId");
 
     if (!linkId) {
       return NextResponse.json({ error: "linkId is required" }, { status: 400 });
@@ -24,6 +27,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, status: updatedLink.status });
   } catch (error: any) {
     console.error("Error revoking share link:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }

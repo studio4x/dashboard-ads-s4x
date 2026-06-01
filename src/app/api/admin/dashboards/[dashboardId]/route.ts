@@ -3,6 +3,7 @@ import { DashboardService } from "@/services/dashboard-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { apiErrorResponse, parseJsonObject } from "@/lib/security/api-safety";
 
 interface RouteParams {
   params: Promise<{ dashboardId: string }>;
@@ -27,7 +28,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     return NextResponse.json({ success: true, deleted });
   } catch (error: any) {
     console.error("Erro ao excluir dashboard:", error);
-    return NextResponse.json({ error: error.message || "Erro interno do servidor" }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }
 
@@ -41,7 +42,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (rateLimitError) return rateLimitError;
 
     const { dashboardId } = await params;
-    const body = await request.json();
+    const parsed = await parseJsonObject(request);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.body;
     const {
       name,
       slug,
@@ -162,6 +165,6 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json({ success: true, dashboard });
   } catch (error: any) {
     console.error("Erro ao atualizar dashboard:", error);
-    return NextResponse.json({ error: error.message || "Erro interno do servidor" }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }

@@ -31,7 +31,16 @@ export async function createClient() {
  * Cliente com Service Role para operações administrativas (bypass RLS).
  * NUNCA use este cliente no lado do navegador.
  */
-export async function createAdminClient() {
+export async function createAdminClient(context?: { actor?: string; action?: string }) {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY não configurada.");
+  }
+  const scopedContext = `${context?.actor || "system"}:${context?.action || process.env.S4X_ADMIN_CONTEXT || "unspecified"}`;
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[SECURITY] createAdminClient invoked", { context: scopedContext });
+  } else {
+    console.info("[SECURITY] createAdminClient invoked", { context: scopedContext });
+  }
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { apiErrorResponse } from "@/lib/security/api-safety";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,7 @@ async function handleCron(request: Request) {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    const supabase = await createAdminClient();
+    const supabase = await createAdminClient({ actor: "cron", action: "dispatch_reports" });
     const { data: dashboards, error } = await supabase
       .from("dashboards")
       .select("id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_report_mode, automation_last_dispatched_at")
@@ -152,6 +153,6 @@ async function handleCron(request: Request) {
 
     return NextResponse.json({ success: true, summary });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error?.message || "Erro no cron de automação." }, { status: 500 });
+    return apiErrorResponse(error, "Erro no cron de automação.");
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ClientService } from "@/services/client-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { apiErrorResponse, parseJsonObject } from "@/lib/security/api-safety";
 
 // DELETE /api/admin/clients/[clientId]
 export async function DELETE(
@@ -20,7 +21,7 @@ export async function DELETE(
     await ClientService.deleteClient(clientId);
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }
 
@@ -38,7 +39,9 @@ export async function PATCH(
     if (rateLimitError) return rateLimitError;
 
     const { clientId } = await params;
-    const body = await request.json();
+    const parsed = await parseJsonObject(request);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.body;
     const updates = {
       name: body?.name,
       company_name: body?.company_name,
@@ -59,7 +62,7 @@ export async function PATCH(
     const client = await ClientService.updateClient(clientId, cleaned);
     return NextResponse.json({ success: true, client });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }
 
