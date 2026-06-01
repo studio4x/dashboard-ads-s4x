@@ -22,7 +22,9 @@ export async function forgotPassword(formData: FormData) {
   const supabase = await createClient()
   const host = headersList.get('host') ?? 'localhost:3000'
   const protocol = host.includes('localhost') ? 'http' : 'https'
-  const origin = `${protocol}://${host}`
+  const derivedOrigin = `${protocol}://${host}`
+  const configuredOrigin = String(process.env.NEXT_PUBLIC_SITE_URL || "").trim()
+  const origin = configuredOrigin || derivedOrigin
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/auth/callback?next=/reset-password`,

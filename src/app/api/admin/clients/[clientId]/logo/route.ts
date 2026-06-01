@@ -26,9 +26,9 @@ export async function POST(
     }
 
     // Valida tipo
-    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"];
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: "Formato inválido. Use PNG, JPG, WEBP ou SVG." }, { status: 400 });
+      return NextResponse.json({ error: "Formato inválido. Use PNG, JPG ou WEBP." }, { status: 400 });
     }
 
     // Valida tamanho (máx 2 MB)

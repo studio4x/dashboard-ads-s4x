@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHmac } from "crypto";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
@@ -40,6 +41,7 @@ const WEBHOOK_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_URL";
 const TOKEN_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_TOKEN";
 const OPENAI_ENV_KEY = "OPENAI_API_KEY";
 const GEMINI_ENV_KEY = "GEMINI_API_KEY";
+const WEBHOOK_HMAC_ENV_KEY = "N8N_REPORT_DISPATCH_HMAC_SECRET";
 const MAX_SERIES_POINTS = 90;
 const MAX_TOP_ITEMS = 7;
 const MAX_INSIGHTS = 10;
@@ -449,6 +451,16 @@ async function resolveGeminiApiKey() {
   if (fromVercel && !isPlaceholderCredential(fromVercel)) return fromVercel;
 
   const fromRuntime = String(process.env.GEMINI_API_KEY || "").trim();
+  if (fromRuntime && !isPlaceholderCredential(fromRuntime)) return fromRuntime;
+
+  return "";
+}
+
+async function resolveWebhookHmacSecret() {
+  const fromVercel = String((await getProjectEnvVarFromVercel(WEBHOOK_HMAC_ENV_KEY)) || "").trim();
+  if (fromVercel && !isPlaceholderCredential(fromVercel)) return fromVercel;
+
+  const fromRuntime = String(process.env.N8N_REPORT_DISPATCH_HMAC_SECRET || "").trim();
   if (fromRuntime && !isPlaceholderCredential(fromRuntime)) return fromRuntime;
 
   return "";
@@ -1111,6 +1123,11 @@ export async function POST(request: Request) {
     }
 
     const payloadJson = JSON.stringify(payload);
+    const hmacSecret = await resolveWebhookHmacSecret();
+    if (hmacSecret) {
+      const signature = createHmac("sha256", hmacSecret).update(payloadJson).digest("hex");
+      headers["X-S4X-Signature"] = `sha256=${signature}`;
+    }
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
@@ -1166,7 +1183,7 @@ export async function POST(request: Request) {
       n8nResponse: parsed,
       security: {
         bearerTokenSent: Boolean(webhookToken),
-        hmacSignatureSent: false,
+        hmacSignatureSent: Boolean(hmacSecret),
       },
       dispatchedAt: payload.dispatchedAt,
       dashboardId,

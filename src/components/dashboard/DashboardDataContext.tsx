@@ -116,11 +116,10 @@ export function DashboardDataProvider({ children, overrideDashboardId, shareToke
     setNeedsImport(false);
     
     try {
-      let url = `/api/dashboards/${dashboardId}/data?from=${from}&to=${to}`;
-      if (shareToken) {
-        url += `&share_token=${shareToken}`;
-      }
-      const response = await fetch(url);
+      const url = `/api/dashboards/${dashboardId}/data?from=${from}&to=${to}`;
+      const response = await fetch(url, {
+        headers: shareToken ? { "x-share-token": shareToken } : undefined,
+      });
       const result = await response.json();
 
       if (!response.ok) {

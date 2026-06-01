@@ -11,7 +11,9 @@ export async function GET(
     let viewerRole: string = "viewer";
     
     const { searchParams } = new URL(request.url);
-    const shareToken = searchParams.get("share_token");
+    const shareTokenHeader = request.headers.get("x-share-token");
+    const shareTokenQuery = searchParams.get("share_token");
+    const shareToken = (shareTokenHeader || shareTokenQuery || "").trim() || null;
 
     // 1. Verifica Autenticação e Acesso
     if (shareToken) {

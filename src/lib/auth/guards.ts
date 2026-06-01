@@ -24,16 +24,14 @@ export async function requireAdmin() {
   const profile = await getSessionProfile();
 
   if (!profile) {
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: "Perfil não encontrado no banco de dados.",
-      debug: { userId: user.id }
     }, { status: 401 });
   }
 
   if (profile.role !== "admin" && profile.role !== "owner") {
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: "Acesso negado: Requer privilégios administrativos",
-      role: profile.role
     }, { status: 403 });
   }
 
