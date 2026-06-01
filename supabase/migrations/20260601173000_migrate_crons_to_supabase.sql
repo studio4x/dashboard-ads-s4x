@@ -3,7 +3,6 @@
 
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
-CREATE EXTENSION IF NOT EXISTS vault;
 
 DO $$
 BEGIN
@@ -57,4 +56,3 @@ SELECT cron.schedule(
   );
   $$
 );
-
