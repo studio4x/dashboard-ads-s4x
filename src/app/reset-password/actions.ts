@@ -1,8 +1,19 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { headers } from 'next/headers'
+import { enforceRateLimitByIdentity } from '@/lib/security/request-guards'
 
 export async function resetPassword(formData: FormData) {
+  const h = await headers()
+  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  const limiter = enforceRateLimitByIdentity(ip, {
+    key: 'auth:reset-password',
+    limit: 8,
+    windowMs: 60_000,
+  })
+  if (limiter) return limiter
+
   const password = formData.get('password') as string
   const confirmPassword = formData.get('confirmPassword') as string
 

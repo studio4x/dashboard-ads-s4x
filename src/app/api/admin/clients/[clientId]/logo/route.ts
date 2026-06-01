@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ClientService } from "@/services/client-service";
 import { requireAdmin } from "@/lib/auth/guards";
+import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 
 // POST /api/admin/clients/[clientId]/logo
 export async function POST(
@@ -10,6 +11,10 @@ export async function POST(
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
+    const csrfError = enforceSameOrigin(request);
+    if (csrfError) return csrfError;
+    const rateLimitError = enforceRateLimit(request, { key: "admin:clients:logo-upload", limit: 15, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
 
     const { clientId } = await params;
 

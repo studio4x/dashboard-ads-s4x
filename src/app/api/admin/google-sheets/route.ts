@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DataSourceService } from "@/services/data-source-service";
 import { requireAdmin } from "@/lib/auth/guards";
+import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 
 /**
  * Lista todas as fontes de dados Google Sheets.
@@ -28,6 +29,10 @@ export async function POST(request: Request) {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
+    const csrfError = enforceSameOrigin(request);
+    if (csrfError) return csrfError;
+    const rateLimitError = enforceRateLimit(request, { key: "admin:gsheets:create", limit: 30, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
 
     const body = await request.json();
     const { clientId, dashboardId, name, spreadsheetId, syncInterval, dashboardType, sourceRole } = body;

@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import { ClientService } from "@/services/client-service";
 import { requireAdmin } from "@/lib/auth/guards";
+import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 
 // DELETE /api/admin/clients/[clientId]
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ clientId: string }> }
 ) {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
+    const csrfError = enforceSameOrigin(request);
+    if (csrfError) return csrfError;
+    const rateLimitError = enforceRateLimit(request, { key: "admin:clients:delete", limit: 20, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
 
     const { clientId } = await params;
     await ClientService.deleteClient(clientId);
@@ -27,6 +32,10 @@ export async function PATCH(
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
+    const csrfError = enforceSameOrigin(request);
+    if (csrfError) return csrfError;
+    const rateLimitError = enforceRateLimit(request, { key: "admin:clients:update", limit: 40, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
 
     const { clientId } = await params;
     const body = await request.json();

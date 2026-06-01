@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DashboardTemplateService } from "@/services/dashboard-template-service";
 import { requireAdmin } from "@/lib/auth/guards";
+import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 
 export async function POST(
   request: Request,
@@ -9,6 +10,10 @@ export async function POST(
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
+    const csrfError = enforceSameOrigin(request);
+    if (csrfError) return csrfError;
+    const rateLimitError = enforceRateLimit(request, { key: "admin:dashboards:duplicate", limit: 20, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
 
     const body = await request.json();
     const { client_id, name, slug } = body;

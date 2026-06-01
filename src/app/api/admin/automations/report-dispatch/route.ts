@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
+import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 import { DashboardService } from "@/services/dashboard-service";
 import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
 import { PROMPT_ANALISE_IA_TEMPLATE } from "@/lib/ai/prompt-analise-ia";
@@ -884,6 +885,10 @@ export async function POST(request: Request) {
     if (!isCronAuthorized) {
       const authError = await requireAdmin();
       if (authError) return authError;
+      const csrfError = enforceSameOrigin(request);
+      if (csrfError) return csrfError;
+      const rateLimitError = enforceRateLimit(request, { key: "admin:automations:dispatch", limit: 15, windowMs: 60_000 });
+      if (rateLimitError) return rateLimitError;
     }
 
     const body = (await request.json()) as DispatchBody;

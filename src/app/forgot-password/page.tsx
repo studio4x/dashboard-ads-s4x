@@ -20,9 +20,9 @@ export default function ForgotPasswordPage() {
     const result = await forgotPassword(formData);
 
     setLoading(false);
-    if (result?.error) {
+    if (result && "error" in result && result.error) {
       setError(result.error);
-    } else if (result?.success) {
+    } else if (result && "success" in result && result.success) {
       setSuccess(result.success);
     }
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DashboardService } from "@/services/dashboard-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
+import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 
 interface RouteParams {
   params: Promise<{ dashboardId: string }>;
@@ -11,6 +12,10 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
+    const csrfError = enforceSameOrigin(request);
+    if (csrfError) return csrfError;
+    const rateLimitError = enforceRateLimit(request, { key: "admin:dashboards:delete", limit: 20, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
 
     const { dashboardId } = await params;
 
@@ -30,6 +35,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
+    const csrfError = enforceSameOrigin(request);
+    if (csrfError) return csrfError;
+    const rateLimitError = enforceRateLimit(request, { key: "admin:dashboards:update", limit: 40, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
 
     const { dashboardId } = await params;
     const body = await request.json();

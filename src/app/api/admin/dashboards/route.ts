@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DashboardService } from "@/services/dashboard-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
+import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 
 export async function GET(request: Request) {
   try {
@@ -28,6 +29,10 @@ export async function POST(request: Request) {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
+    const csrfError = enforceSameOrigin(request);
+    if (csrfError) return csrfError;
+    const rateLimitError = enforceRateLimit(request, { key: "admin:dashboards:create", limit: 20, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
 
     const body = await request.json();
     const { client_id, name, slug, description, dashboard_type, meta_objectives } = body;

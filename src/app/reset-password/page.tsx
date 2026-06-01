@@ -20,9 +20,9 @@ export default function ResetPasswordPage() {
     const result = await resetPassword(formData);
 
     setLoading(false);
-    if (result?.error) {
+    if (result && "error" in result && result.error) {
       setError(result.error);
-    } else if (result?.success) {
+    } else if (result && "success" in result && result.success) {
       setSuccess(result.success);
     }
   }

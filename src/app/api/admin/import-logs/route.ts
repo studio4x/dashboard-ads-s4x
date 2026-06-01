@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ImportLogsService } from "@/lib/imports/import-logs";
 import { requireAdmin } from "@/lib/auth/guards";
+import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 
 export async function GET() {
   try {
@@ -19,10 +20,14 @@ export async function GET() {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
+    const csrfError = enforceSameOrigin(request);
+    if (csrfError) return csrfError;
+    const rateLimitError = enforceRateLimit(request, { key: "admin:importlogs:delete", limit: 10, windowMs: 60_000 });
+    if (rateLimitError) return rateLimitError;
 
     await ImportLogsService.clearLogs();
     return NextResponse.json({ success: true });
