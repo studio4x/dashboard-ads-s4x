@@ -23,7 +23,7 @@ SELECT cron.schedule(
   $$
   SELECT net.http_post(
     url := 'https://dashboard-ads-s4x.vercel.app/api/cron/import-google-sheets',
-    headers := '{"Authorization": "Bearer d6tjM_P^=pSLe1JKXO]g\\yriDxH>Yzuk2o:9s7qnABf@vha;[RTI5FG8<EmQ0ZwC"}'::jsonb
+    headers := '{"Authorization": "Bearer REPLACE_WITH_CRON_SECRET"}'::jsonb
   );
   $$
 );

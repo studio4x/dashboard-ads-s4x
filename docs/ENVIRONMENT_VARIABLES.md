@@ -19,7 +19,9 @@ Este documento lista as variáveis de ambiente necessárias para o funcionamento
 - **VERCEL_TOKEN**: Token de autenticação para o CLI (apenas local/CI).
 
 ## Automação (Cron)
-- **CRON_SECRET**: Segredo para autenticação do endpoint de cron. Na Vercel, este valor é gerado automaticamente pelo Vercel Cron ou configurado manualmente.
+- **CRON_SECRET**: Segredo para autenticação dos endpoints `/api/cron/*`.
+  - Deve existir no ambiente da aplicação (Vercel).
+  - Deve existir também no Supabase Vault com `name = 'CRON_SECRET'` para os jobs do `pg_cron` enviarem o header `Authorization`.
 
 ## Notas de Segurança
 - O arquivo `.env.local` deve ser ignorado pelo Git.
