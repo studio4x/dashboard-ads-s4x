@@ -18,11 +18,12 @@ const TEMPLATE_PAGES: Record<string, { key: string; title: string; sort: number 
   ],
   google_ads_s4x: [
     { key: "executive-summary", title: "Resumo Executivo", sort: 10 },
-    { key: "google-ads", title: "Google Ads", sort: 20 },
-    { key: "campaigns", title: "Campanhas", sort: 30 },
+    { key: "campaigns", title: "Campanhas", sort: 20 },
+    { key: "ad-groups", title: "Grupos de Anúncio", sort: 30 },
     { key: "keywords", title: "Palavras-chave", sort: 40 },
     { key: "search-terms", title: "Termos de Pesquisa", sort: 50 },
-    { key: "ads-assets", title: "Anúncios e Recursos", sort: 60 }
+    { key: "ads-assets", title: "Anúncios e Recursos", sort: 60 },
+    { key: "negative-keywords", title: "Palavras-chave Negativas", sort: 70 }
   ],
   google_ads: [
     { key: "executive-summary", title: "Resumo Executivo", sort: 10 },
