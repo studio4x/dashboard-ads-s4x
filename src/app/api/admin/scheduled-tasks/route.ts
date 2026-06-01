@@ -64,7 +64,19 @@ function formatNextWindow(task: any, now: Date) {
 
 function resolveTaskStatus(task: any, now: Date): TaskStatus {
   if (!task?.automation_enabled) return "disabled";
-  if (!task?.automation_last_dispatched_at) return "never_ran";
+  if (!task?.automation_last_dispatched_at) {
+    const local = getLocalNow(now);
+    const frequency = String(task?.automation_frequency || "weekly");
+    const dayOfWeek = Number(task?.automation_day_of_week ?? 1);
+    const hour = Number(task?.automation_hour ?? 8);
+    const minute = Number(task?.automation_minute ?? 0);
+    const nowMinutes = local.hour * 60 + local.minute;
+    const scheduleMinutes = hour * 60 + minute;
+
+    if (frequency === "daily" && nowMinutes >= scheduleMinutes) return "overdue";
+    if (frequency === "weekly" && local.weekday === dayOfWeek && nowMinutes >= scheduleMinutes) return "overdue";
+    return "never_ran";
+  }
 
   const last = new Date(task.automation_last_dispatched_at);
   const diffMs = Math.max(0, now.getTime() - last.getTime());

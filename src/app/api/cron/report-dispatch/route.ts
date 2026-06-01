@@ -20,17 +20,14 @@ function getLocalNow(date: Date): LocalNow {
   return { weekday: weekdayMap[weekdayStr] ?? 0, hour, minute };
 }
 
-function isSameLocalMinute(a: Date, b: Date) {
+function getLocalDateKey(date: Date) {
   const fmt = new Intl.DateTimeFormat("sv-SE", {
     timeZone: TZ,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
   });
-  return fmt.format(a) === fmt.format(b);
+  return fmt.format(date);
 }
 
 function shouldRunNow(dashboard: any, now: Date): boolean {
@@ -40,10 +37,18 @@ function shouldRunNow(dashboard: any, now: Date): boolean {
   const hour = Number(dashboard?.automation_hour ?? 8);
   const minute = Number(dashboard?.automation_minute ?? 0);
   const local = getLocalNow(now);
+  const scheduledMinutes = hour * 60 + minute;
+  const nowMinutes = local.hour * 60 + local.minute;
 
-  if (local.hour !== hour || local.minute !== minute) return false;
+  // Só executa quando a janela agendada do dia já começou.
+  if (nowMinutes < scheduledMinutes) return false;
   if (frequency === "weekly" && local.weekday !== dayOfWeek) return false;
-  return frequency === "daily" || frequency === "weekly";
+  const lastDispatchedAt = dashboard?.automation_last_dispatched_at;
+  if (!lastDispatchedAt) return true;
+  const todayKey = getLocalDateKey(now);
+  const lastKey = getLocalDateKey(new Date(lastDispatchedAt));
+  // Evita duplicidade no mesmo dia de execução.
+  return lastKey !== todayKey;
 }
 
 export async function GET(request: Request) {
@@ -86,17 +91,8 @@ async function handleCron(request: Request) {
     for (const dashboard of dashboards) {
       if (!shouldRunNow(dashboard, now)) {
         summary.skipped++;
-        summary.details.push({ dashboardId: dashboard.id, status: "skipped", reason: "outside_schedule_window" });
+        summary.details.push({ dashboardId: dashboard.id, status: "skipped", reason: "outside_schedule_window_or_already_dispatched" });
         continue;
-      }
-
-      if (dashboard.automation_last_dispatched_at) {
-        const last = new Date(dashboard.automation_last_dispatched_at);
-        if (isSameLocalMinute(last, now)) {
-          summary.skipped++;
-          summary.details.push({ dashboardId: dashboard.id, status: "skipped", reason: "already_dispatched_this_minute" });
-          continue;
-        }
       }
 
       const periodDays = Math.max(1, Math.min(90, Number(dashboard.automation_period_days || 7)));
