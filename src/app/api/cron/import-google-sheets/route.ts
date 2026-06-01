@@ -120,8 +120,7 @@ async function handleCron(request: Request) {
   } catch (error: any) {
     console.error("[CRON FATAL ERROR]:", error);
     return NextResponse.json({ 
-      error: "Erro interno durante o processamento do cron.",
-      details: error.message 
+      error: "Erro interno durante o processamento do cron."
     }, { status: 500 });
   }
 }
