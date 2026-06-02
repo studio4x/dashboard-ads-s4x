@@ -20,6 +20,7 @@ interface ClientSourceLinkerProps {
   presetDashboardId?: string;
   triggerLabel: string;
   triggerVariant?: "primary" | "secondary";
+  serviceAccountEmail?: string;
 }
 
 export function ClientSourceLinker({
@@ -29,6 +30,7 @@ export function ClientSourceLinker({
   presetDashboardId,
   triggerLabel,
   triggerVariant = "secondary",
+  serviceAccountEmail,
 }: ClientSourceLinkerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -180,6 +182,22 @@ export function ClientSourceLinker({
                   placeholder="Cole o ID da planilha"
                   style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13 }}
                 />
+              </div>
+
+              <div style={{ borderRadius: 8, border: "1px solid #DBEAFE", background: "#EFF6FF", padding: 12, display: "grid", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#1E3A8A" }}>E-mail da service account</p>
+                  {serviceAccountEmail ? (
+                    <code style={{ fontSize: 12, color: "#1E3A8A", background: "#fff", border: "1px solid #BFDBFE", borderRadius: 6, padding: "5px 8px", wordBreak: "break-all" }}>
+                      {serviceAccountEmail}
+                    </code>
+                  ) : (
+                    <span style={{ fontSize: 12, color: "#64748B" }}>Configure a variável `NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL` para exibir o e-mail aqui.</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: "#1E3A8A", lineHeight: 1.5 }}>
+                  <strong>Observação:</strong> adicione este e-mail como <strong>Editor</strong> na planilha para permitir leitura e sincronização dos dados.
+                </div>
               </div>
 
               {message && (

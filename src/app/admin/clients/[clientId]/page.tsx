@@ -10,6 +10,8 @@ import { CreateDashboardModalButton } from "@/components/admin/CreateDashboardMo
 import { ClientSourceLinker } from "@/components/admin/ClientSourceLinker";
 import { ClientSourceSyncModalButton } from "@/components/admin/ClientSourceSyncModalButton";
 
+const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
+
 export default async function ClientHubPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   await requireAdmin();
@@ -137,6 +139,7 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
                               presetDashboardId={d.id}
                               triggerLabel="Vincular fonte de dados"
                               triggerVariant="secondary"
+                              serviceAccountEmail={GOOGLE_SERVICE_ACCOUNT_EMAIL}
                             />
                           </div>
                         )}
@@ -172,6 +175,7 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
                   dataSources={dataSources}
                   triggerLabel="Criar e vincular"
                   triggerVariant="primary"
+                  serviceAccountEmail={GOOGLE_SERVICE_ACCOUNT_EMAIL}
                 />
                 <Link href="/admin/google-sheets" style={{ fontSize: 13, padding: "6px 12px", background: "#EFF6FF", color: "#2563EB", borderRadius: 6, textDecoration: "none", fontWeight: 500 }}>
                   Gerenciar Fontes
