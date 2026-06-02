@@ -49,6 +49,7 @@ export interface Dashboard {
   status: DashboardStatus;
   pages: DashboardPage[];
   date_range_default?: "last_7d" | "last_30d" | "last_90d" | "custom";
+  template_config?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -130,4 +131,7 @@ export interface KpiSummary {
   unit?: "currency" | "percent" | "number" | "ratio";
   icon?: string;
   description?: string;
+  metricKey?: string;
+  displayMode?: "card" | "text" | "chart" | "table";
+  sparklineData?: Array<{ label: string; value: number }>;
 }

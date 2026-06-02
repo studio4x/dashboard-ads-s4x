@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
-import { DASHBOARD_TEMPLATES, getTemplateById } from "@/lib/dashboard/templates";
+import { getTemplateById } from "@/lib/dashboard/templates";
+import { getDefaultTemplateMetricConfig, normalizeTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
 
 export type DashboardTemplateType = 
   | "google_ads" 
@@ -68,6 +68,11 @@ export class DashboardTemplateService {
     const { createAdminClient } = await import("@/lib/supabase/server");
     const supabase = await createAdminClient();
     const template = getTemplateById(templateType);
+    const templateConfig = getDefaultTemplateMetricConfig(
+      templateType,
+      (options?.metaObjectives || []) as any,
+      (options?.metaPrimaryObjective || null) as any
+    );
 
     // 1. Criar Dashboard
     const { data: dashboard, error: dashError } = await supabase
@@ -82,7 +87,8 @@ export class DashboardTemplateService {
         platform: template?.platform || "custom",
         status: "active",
         meta_objectives: options?.metaObjectives || [],
-        meta_primary_objective: options?.metaPrimaryObjective || null
+        meta_primary_objective: options?.metaPrimaryObjective || null,
+        template_config: templateConfig
       })
       .select()
       .single();
@@ -141,6 +147,12 @@ export class DashboardTemplateService {
       .eq("dashboard_id", sourceDashboardId);
 
     if (fetchPagesError) throw new Error("Erro ao carregar páginas originais");
+    const templateConfig = normalizeTemplateMetricConfig(
+      (sourceDash as any)?.template_config,
+      sourceDash.dashboard_type,
+      (sourceDash.meta_objectives || []) as any,
+      sourceDash.meta_primary_objective || null
+    );
 
     // 3. Criar novo dashboard
     const { data: newDash, error: dashError } = await supabase
@@ -154,7 +166,10 @@ export class DashboardTemplateService {
         template_version: sourceDash.template_version,
         platform: sourceDash.platform,
         default_period: sourceDash.default_period,
-        status: "active"
+        status: "active",
+        meta_objectives: sourceDash.meta_objectives || [],
+        meta_primary_objective: sourceDash.meta_primary_objective || null,
+        template_config: templateConfig
       })
       .select()
       .single();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DashboardService } from "@/services/dashboard-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
+import { normalizeTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 import { apiErrorResponse, parseJsonObject } from "@/lib/security/api-safety";
 
@@ -57,6 +58,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       automation_period_days,
       automation_report_mode,
       automation_channels,
+      template_config,
     } = body || {};
 
     if (!dashboardId) {
@@ -76,6 +78,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       automation_period_days?: number;
       automation_report_mode?: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
       automation_channels?: string[];
+      template_config?: Record<string, unknown>;
     } = {};
 
     if (name !== undefined) {
@@ -155,6 +158,16 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         .map((item: unknown) => String(item || "").trim().toLowerCase())
         .filter((item: string) => Boolean(item) && allowed.has(item));
       updates.automation_channels = Array.from(new Set(channels));
+    }
+
+    if (template_config !== undefined) {
+      const dashboard = await DashboardService.getDashboardById(dashboardId, { bypassRls: true });
+      updates.template_config = normalizeTemplateMetricConfig(
+        template_config,
+        dashboard?.dashboard_type || "google_ads_s4x",
+        dashboard?.meta_objectives || [],
+        dashboard?.meta_primary_objective || null
+      ) as unknown as Record<string, unknown>;
     }
 
     if (Object.keys(updates).length === 0) {

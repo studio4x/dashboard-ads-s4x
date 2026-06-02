@@ -8,6 +8,7 @@ import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives 
 import { useToast } from "@/components/ui/Toast";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
+import { DashboardMetricsConfigModal } from "@/components/admin/DashboardMetricsConfigModal";
 
 // Somente os templates ativos aparecem no dropdown
 const ACTIVE_TEMPLATES = DASHBOARD_TEMPLATES.filter(t => t.status === "active");
@@ -57,6 +58,7 @@ export default function AdminDashboardsPage() {
   const [editObjectivesModalDashboard, setEditObjectivesModalDashboard] = useState<any | null>(null);
   const [editObjectives, setEditObjectives] = useState<MetaObjective[]>([]);
   const [isUpdatingObjectives, setIsUpdatingObjectives] = useState(false);
+  const [metricsConfigModalDashboard, setMetricsConfigModalDashboard] = useState<any | null>(null);
   
   // Integração Google Sheets
   const [integrationModalDashboard, setIntegrationModalDashboard] = useState<any | null>(null);
@@ -236,6 +238,10 @@ export default function AdminDashboardsPage() {
   const handleOpenEditObjectives = (dash: any) => {
     setEditObjectivesModalDashboard(dash);
     setEditObjectives(normalizeMetaAdsObjectives(dash.meta_objectives) as MetaObjective[]);
+  };
+
+  const handleOpenMetricsConfig = (dash: any) => {
+    setMetricsConfigModalDashboard(dash);
   };
 
   const handleUpdateName = async (e: React.FormEvent) => {
@@ -1133,6 +1139,18 @@ export default function AdminDashboardsPage() {
                     <Link2 size={14} /> Configurar Planilha
                   </button>
 
+                  <button
+                    onClick={() => handleOpenMetricsConfig(d)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+                      borderRadius: 8, background: "#F8FAFC", fontSize: 13, color: "#0F172A",
+                      border: "1px solid #E2E8F0", cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <PieChart size={14} /> Configurar Métricas
+                  </button>
+
                   <button 
                     onClick={() => setShareModalDashboard(d)}
                     style={{ 
@@ -1498,6 +1516,18 @@ export default function AdminDashboardsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {metricsConfigModalDashboard && (
+        <DashboardMetricsConfigModal
+          open={Boolean(metricsConfigModalDashboard)}
+          dashboard={metricsConfigModalDashboard}
+          onClose={() => setMetricsConfigModalDashboard(null)}
+          onSaved={async () => {
+            setMetricsConfigModalDashboard(null);
+            await fetchData();
+          }}
+        />
       )}
 
       {/* Modal Compartilhamento Seguro */}

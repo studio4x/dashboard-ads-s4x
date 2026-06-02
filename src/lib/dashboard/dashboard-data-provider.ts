@@ -9,6 +9,7 @@ import * as mockSC from "@/data/mock-sheet-search-console";
 import * as mockInsights from "@/data/mock-sheet-insights";
 import { mockGoogleAdsS4XPayload } from "@/data/mock-sheet-google-ads-s4x";
 import { MOCK_META_ADS_S4X_PAYLOAD } from "@/data/mock-sheet-meta-ads-s4x";
+import { getDefaultTemplateMetricConfig, normalizeTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
 
 import { DashboardAggregator } from "./dashboard-aggregator";
 import { parseISO } from "date-fns";
@@ -204,6 +205,12 @@ export async function getDashboardData(
         platform: dashboard?.platform || "google_ads",
         metaObjectives: dashboard?.meta_objectives || data?.metaObjectives || [],
         metaPrimaryObjective: dashboard?.meta_primary_objective || data?.metaPrimaryObjective || null,
+        templateConfig: normalizeTemplateMetricConfig(
+          dashboard?.template_config || data?.templateConfig,
+          dashboard?.dashboard_type || "google_ads_s4x",
+          dashboard?.meta_objectives || data?.metaObjectives || [],
+          dashboard?.meta_primary_objective || data?.metaPrimaryObjective || null
+        ),
         metaValidationStatus: dashboard?.meta_validation_status || data?.metaValidationStatus || "not_configured",
         metaValidationNotes: dashboard?.meta_validation_notes || data?.metaValidationNotes || {},
         availableDateRange,
@@ -234,6 +241,7 @@ export async function getDashboardData(
         templateId: "google_ads_s4x",
         templateVersion: "1.0",
         platform: "google_ads",
+        templateConfig: getDefaultTemplateMetricConfig("google_ads_s4x"),
         availableDateRange,
       };
     }
@@ -283,6 +291,11 @@ export async function getDashboardData(
         platform: "meta_ads",
         metaObjectives: mockPayload.metaObjectives || [],
         metaPrimaryObjective: mockPayload.metaPrimaryObjective || null,
+        templateConfig: getDefaultTemplateMetricConfig(
+          "meta_ads_s4x",
+          mockPayload.metaObjectives || [],
+          mockPayload.metaPrimaryObjective || null
+        ),
         metaValidationStatus: mockPayload.metaValidationStatus || "not_configured",
         metaValidationNotes: mockPayload.metaValidationNotes || {},
         availableDateRange: extractAvailableDateRange(mockPayload),
@@ -304,9 +317,10 @@ export async function getDashboardData(
       keywords: mockGoogleAds.mockKeywords,
       insights: mockInsights.mockInsights,
       source: "mock",
-      templateId: "google_ads_s4x",
+      templateId,
       templateVersion: "1.0",
-      platform: "google_ads"
+      platform: dashboard?.platform || (templateId.includes("google_meta") ? "mixed" : templateId.includes("meta") ? "meta_ads" : "google_ads"),
+      templateConfig: getDefaultTemplateMetricConfig(templateId as any)
     } as any;
 
     return {

@@ -27,6 +27,7 @@ export function generateExecutiveKpis(overviewRows: any[], summary?: any): KpiSu
 
   return [
     { 
+      metricKey: "cost",
       label: "Investimento Total", 
       value: current.total_spend, 
       formatted_value: formatCurrency(current.total_spend, true), 
@@ -34,8 +35,9 @@ export function generateExecutiveKpis(overviewRows: any[], summary?: any): KpiSu
       change_direction: getDirection(changes.total_spend || 0), 
       unit: "currency", 
       description: summary ? "vs. período anterior" : "Todas as fontes" 
-    },
+    }, 
     { 
+      metricKey: "revenue",
       label: "Receita Gerada", 
       value: current.total_revenue, 
       formatted_value: formatCurrency(current.total_revenue, true), 
@@ -43,8 +45,9 @@ export function generateExecutiveKpis(overviewRows: any[], summary?: any): KpiSu
       change_direction: getDirection(changes.total_revenue || 0), 
       unit: "currency", 
       description: summary ? "vs. período anterior" : "Conversões rastreadas" 
-    },
+    }, 
     { 
+      metricKey: "roas",
       label: "ROAS Médio", 
       value: roas, 
       formatted_value: `${roas.toFixed(2)}x`, 
@@ -52,8 +55,9 @@ export function generateExecutiveKpis(overviewRows: any[], summary?: any): KpiSu
       change_direction: getDirection(changes.roas || 0), 
       unit: "ratio", 
       description: summary ? "vs. período anterior" : "Retorno sobre investimento" 
-    },
+    }, 
     { 
+      metricKey: "conversions",
       label: "Conversões", 
       value: current.total_conversions, 
       formatted_value: formatNumber(current.total_conversions), 
@@ -61,8 +65,9 @@ export function generateExecutiveKpis(overviewRows: any[], summary?: any): KpiSu
       change_direction: getDirection(changes.total_conversions || 0), 
       unit: "number", 
       description: summary ? "vs. período anterior" : "Total do período" 
-    },
+    }, 
     { 
+      metricKey: "cpa",
       label: "CPA Médio", 
       value: cpa, 
       formatted_value: formatCurrency(cpa), 
@@ -70,8 +75,9 @@ export function generateExecutiveKpis(overviewRows: any[], summary?: any): KpiSu
       change_direction: getDirection(changes.cpa || 0, true), // CPA menor é melhor
       unit: "currency", 
       description: summary ? "vs. período anterior" : "Custo por aquisição" 
-    },
+    }, 
     { 
+      metricKey: "clicks",
       label: "Cliques Totais", 
       value: current.total_clicks, 
       formatted_value: formatNumber(current.total_clicks), 
@@ -109,12 +115,12 @@ export function generateGoogleAdsKpis(adsRows: any[], summary?: any): KpiSummary
   };
 
   return [
-    { label: "Investimento", value: current.total_spend, formatted_value: formatCurrency(current.total_spend, true), change_percent: changes.total_spend || 0, change_direction: getDirection(changes.total_spend || 0), unit: "currency", description: "vs. período anterior" },
-    { label: "Receita", value: current.total_revenue, formatted_value: formatCurrency(current.total_revenue, true), change_percent: changes.total_revenue || 0, change_direction: getDirection(changes.total_revenue || 0), unit: "currency", description: "vs. período anterior" },
-    { label: "ROAS", value: roas, formatted_value: `${roas.toFixed(2)}x`, change_percent: changes.roas || 0, change_direction: getDirection(changes.roas || 0), unit: "ratio", description: "vs. período anterior" },
-    { label: "Conversões", value: current.total_conversions, formatted_value: formatNumber(current.total_conversions), change_percent: changes.total_conversions || 0, change_direction: getDirection(changes.total_conversions || 0), unit: "number", description: "vs. período anterior" },
-    { label: "CPA Médio", value: cpa, formatted_value: formatCurrency(cpa), change_percent: changes.cpa || 0, change_direction: getDirection(changes.cpa || 0, true), unit: "currency", description: "vs. período anterior" },
-    { label: "CTR Médio", value: ctr, formatted_value: `${ctr.toFixed(2)}%`, change_percent: changes.ctr || 0, change_direction: getDirection(changes.ctr || 0), unit: "percent", description: "vs. período anterior" },
+    { metricKey: "cost", label: "Investimento", value: current.total_spend, formatted_value: formatCurrency(current.total_spend, true), change_percent: changes.total_spend || 0, change_direction: getDirection(changes.total_spend || 0), unit: "currency", description: "vs. período anterior" },
+    { metricKey: "revenue", label: "Receita", value: current.total_revenue, formatted_value: formatCurrency(current.total_revenue, true), change_percent: changes.total_revenue || 0, change_direction: getDirection(changes.total_revenue || 0), unit: "currency", description: "vs. período anterior" },
+    { metricKey: "roas", label: "ROAS", value: roas, formatted_value: `${roas.toFixed(2)}x`, change_percent: changes.roas || 0, change_direction: getDirection(changes.roas || 0), unit: "ratio", description: "vs. período anterior" },
+    { metricKey: "conversions", label: "Conversões", value: current.total_conversions, formatted_value: formatNumber(current.total_conversions), change_percent: changes.total_conversions || 0, change_direction: getDirection(changes.total_conversions || 0), unit: "number", description: "vs. período anterior" },
+    { metricKey: "cpa", label: "CPA Médio", value: cpa, formatted_value: formatCurrency(cpa), change_percent: changes.cpa || 0, change_direction: getDirection(changes.cpa || 0, true), unit: "currency", description: "vs. período anterior" },
+    { metricKey: "ctr", label: "CTR Médio", value: ctr, formatted_value: `${ctr.toFixed(2)}%`, change_percent: changes.ctr || 0, change_direction: getDirection(changes.ctr || 0), unit: "percent", description: "vs. período anterior" },
   ];
 }
 
@@ -212,7 +218,7 @@ export function generateMetaAdsS4XKpisWithLabels(
       description: "Resultado principal" 
     },
     { 
-      metricKey: "costPerConversion",
+      metricKey: "cpa",
       label: costLabel, 
       value: costMetricValue, 
       formatted_value: costMetricValue ? formatCurrency(costMetricValue) : "R$ 0,00", 

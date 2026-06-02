@@ -88,6 +88,7 @@ export const DashboardService = {
       meta_validation_status?: "not_configured" | "ok" | "missing_metrics";
       meta_validation_notes?: Record<string, unknown>;
       meta_validation_updated_at?: string | null;
+      template_config?: Record<string, unknown>;
       automation_enabled?: boolean;
       automation_frequency?: "daily" | "weekly";
       automation_day_of_week?: number;

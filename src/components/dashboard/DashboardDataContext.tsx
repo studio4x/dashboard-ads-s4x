@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getDateRangePreset, formatDateISO, DateRangePreset } from "@/lib/dashboard/date-utils";
+import type { DashboardTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
 
 interface DashboardData {
   // Legado / Geral (Mantidos como não-opcionais para evitar quebra de componentes existentes)
@@ -39,6 +40,7 @@ interface DashboardData {
   metaPrimaryObjective?: string | null;
   metaValidationStatus?: "not_configured" | "ok" | "missing_metrics";
   metaValidationNotes?: Record<string, unknown>;
+  templateConfig?: DashboardTemplateMetricConfig;
   viewerRole?: string;
   source: "mock" | "google_sheets" | "google_sheets_cache";
   lastUpdated?: string;

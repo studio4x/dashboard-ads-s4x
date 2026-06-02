@@ -36,6 +36,8 @@ import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters"
 import { cn } from "@/lib/utils";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
+import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
+import type { KpiSummary } from "@/types/entities";
 
 // Cores da referência
 const BLUE = "#2563EB";
@@ -114,6 +116,7 @@ export default function ExecutiveSummaryPage() {
   const current = summary?.current || {};
   const changes = summary?.change || {};
   const objectives = Array.isArray(data.metaObjectives) ? data.metaObjectives : [];
+  const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x", objectives as any, data.metaPrimaryObjective as any);
   const availableMetrics = data?.diagnostics?.availableMetrics?.fields || null;
   const resolvedObjectivePresentation = resolveMetaObjectivePresentation({
     primaryObjective: data.metaPrimaryObjective,
@@ -240,7 +243,15 @@ export default function ExecutiveSummaryPage() {
     return true;
   });
 
-  const deduplicatedKpis = filteredKpis.filter((kpi, index, arr) => {
+  const configuredKpis = applyTemplateMetricConfigToKpis(
+    filteredKpis,
+    templateConfig,
+    "executive-summary",
+    data.templateId || "google_ads_s4x",
+    data.metaPrimaryObjective as any
+  ) as KpiSummary[];
+
+  const deduplicatedKpis = configuredKpis.filter((kpi, index, arr) => {
     const label = String(kpi.label || "").trim().toLowerCase();
     return arr.findIndex((item) => String(item.label || "").trim().toLowerCase() === label) === index;
   });

@@ -11,12 +11,15 @@ import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateGoogleAdsKpis } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 import { normalizeGoogleAdsRowsToPeriod } from "@/lib/dashboard/google-ads-period-model";
+import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
+import type { KpiSummary } from "@/types/entities";
 
 export default function GoogleAdsPage() {
   const { data } = useDashboard();
 
   if (!data) return null;
 
+  const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x");
   const hasData = data.google_ads && data.google_ads.length > 0;
   
   if (!hasData && data.source !== "mock") {
@@ -30,7 +33,12 @@ export default function GoogleAdsPage() {
     );
   }
 
-  const kpis = generateGoogleAdsKpis(data.google_ads, data.google_ads_summary);
+  const kpis = applyTemplateMetricConfigToKpis(
+    generateGoogleAdsKpis(data.google_ads, data.google_ads_summary),
+    templateConfig,
+    "google-ads",
+    data.templateId || "google_ads_s4x"
+  ) as KpiSummary[];
 
   const dailySeries = data.google_ads.map((r: any) => ({
     date: formatDateShort(r.date),

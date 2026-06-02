@@ -13,6 +13,8 @@ import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateMetaAdsKpis, generateMetaAdsS4XKpisWithLabels } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaObjectiveLabel, getMetaResultMetric, normalizeMetaAdsObjectives, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
+import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
+import type { KpiSummary } from "@/types/entities";
 
 export default function MetaAdsPage() {
   const { data } = useDashboard();
@@ -62,6 +64,7 @@ export default function MetaAdsPage() {
   const objectiveOptions = normalizeMetaAdsObjectives(Array.isArray(data.metaObjectives) ? data.metaObjectives : []);
   const defaultObjective = normalizeMetaAdsObjectives([data.metaPrimaryObjective])[0] || objectiveOptions[0] || "";
   const activeObjective = selectedObjective || defaultObjective;
+  const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "meta_ads_s4x", objectiveOptions as any, data.metaPrimaryObjective as any);
 
   const isMetaS4X = data.templateId === "meta_ads_s4x" || data.templateId === "google_meta_ads_s4x";
   const available =
@@ -130,7 +133,7 @@ export default function MetaAdsPage() {
     kpis = kpis.filter((kpi: any) => {
       if (kpi.metricKey === "cost") return hasMetric("cost");
       if (kpi.metricKey === "conversions") return hasResultMetric;
-      if (kpi.metricKey === "costPerConversion") {
+      if (kpi.metricKey === "cpa") {
         if (costMetric === "cpc") return hasMetric("cost") && hasMetric("clicks");
         if (costMetric === "cpm") return hasMetric("cost") && hasMetric("impressions");
         return hasMetric("cost") && hasMetric("conversions");
@@ -141,6 +144,14 @@ export default function MetaAdsPage() {
       return true;
     });
   }
+
+  kpis = applyTemplateMetricConfigToKpis(
+    kpis,
+    templateConfig,
+    "executive-summary",
+    data.templateId || "meta_ads_s4x",
+    activeObjective as any
+  ) as KpiSummary[];
 
   // 2. Gráfico Diário (Evolução Temporal)
   let dailySeries: any[] = [];

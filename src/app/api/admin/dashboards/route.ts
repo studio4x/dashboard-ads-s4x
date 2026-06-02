@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DashboardService } from "@/services/dashboard-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
+import { getDefaultTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 import { apiErrorResponse, parseJsonObject, requireString } from "@/lib/security/api-safety";
 
@@ -56,6 +57,11 @@ export async function POST(request: Request) {
     const normalizedObjectives = type === "meta_ads_s4x"
       ? normalizeMetaAdsObjectives(metaObjectives)
       : [];
+    const templateConfig = getDefaultTemplateMetricConfig(
+      type,
+      normalizedObjectives,
+      normalizedObjectives[0] || null
+    );
 
     const dashboard = await DashboardTemplateService.createFromTemplate(
       clientId,
@@ -68,6 +74,10 @@ export async function POST(request: Request) {
         metaPrimaryObjective: normalizedObjectives[0] || null,
       }
     );
+
+    await DashboardService.updateDashboard(dashboard.id, {
+      template_config: templateConfig as unknown as Record<string, unknown>,
+    });
 
     return NextResponse.json({ success: true, dashboard });
   } catch (error: any) {

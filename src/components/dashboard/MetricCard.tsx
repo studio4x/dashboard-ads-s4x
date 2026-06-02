@@ -15,6 +15,7 @@ interface MetricCardProps {
 export function MetricCard({ metric, className }: MetricCardProps) {
   const { data } = useDashboard();
   const summaryChange = data?.google_ads_summary?.change || data?.meta_ads_summary?.change || data?.summary?.change || {};
+  const displayMode = metric.displayMode || "card";
 
   const labelKey = String(metric.label || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const autoChangeMap: Record<string, number | undefined> = {
@@ -72,6 +73,24 @@ export function MetricCard({ metric, className }: MetricCardProps) {
     engajamentos: BarChart3,
   };
   const Icon = (metric as any).icon || iconByLabel[labelKey] || BarChart3;
+  const sparkline = Array.isArray(metric.sparklineData) && metric.sparklineData.length > 1
+    ? metric.sparklineData
+    : [
+        { label: "inicial", value: Math.max(0, 100 - Math.abs(effectiveChange) * 3) },
+        { label: "atual", value: 100 },
+      ];
+  const maxSpark = Math.max(...sparkline.map((item) => Number(item.value || 0)), 1);
+  const minSpark = Math.min(...sparkline.map((item) => Number(item.value || 0)));
+  const sparkHeight = 38;
+  const sparkWidth = 84;
+  const sparkPoints = sparkline
+    .map((item, index) => {
+      const x = sparkline.length === 1 ? sparkWidth / 2 : (index / (sparkline.length - 1)) * sparkWidth;
+      const normalized = (Number(item.value || 0) - minSpark) / Math.max(maxSpark - minSpark, 1);
+      const y = sparkHeight - normalized * sparkHeight;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
     <div
@@ -84,37 +103,128 @@ export function MetricCard({ metric, className }: MetricCardProps) {
         <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase leading-tight">
           {metric.label}
         </p>
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 flex-shrink-0">
-            <Icon size={15} strokeWidth={2.4} />
+        {displayMode !== "text" && displayMode !== "table" ? (
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 flex-shrink-0">
+              <Icon size={15} strokeWidth={2.4} />
+            </div>
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap",
+                trendBadgeBg
+              )}
+            >
+              <TrendIcon size={11} />
+              {changePrefix}
+              {effectiveChange.toFixed(1)}%
+            </span>
           </div>
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap",
-              trendBadgeBg
-            )}
-          >
-            <TrendIcon size={11} />
-            {changePrefix}
-            {effectiveChange.toFixed(1)}%
-          </span>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap",
+                trendBadgeBg
+              )}
+            >
+              <TrendIcon size={11} />
+              {changePrefix}
+              {effectiveChange.toFixed(1)}%
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="mt-2">
-        <p className="text-2xl font-extrabold text-slate-900 leading-tight tracking-tight">
-          {metric.formatted_value}
-        </p>
-        <div className={cn("mt-1 flex items-center gap-1 text-[11px] font-semibold", trendColor)}>
-          {!isNeutral && <TrendIcon size={13} />}
-          <span>
-            {changePrefix}
-            {effectiveChange.toFixed(1)}%
-          </span>
-          <span className="text-[10px] text-slate-400 font-medium">
-            vs. anterior
-          </span>
-        </div>
+        {displayMode === "text" ? (
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-lg font-extrabold text-slate-900 leading-tight tracking-tight">
+                {metric.formatted_value}
+              </p>
+              <div className={cn("mt-1 flex items-center gap-1 text-[11px] font-semibold", trendColor)}>
+                {!isNeutral && <TrendIcon size={13} />}
+                <span>
+                  {changePrefix}
+                  {effectiveChange.toFixed(1)}%
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  vs. anterior
+                </span>
+              </div>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-500">
+              <Icon size={16} strokeWidth={2.2} />
+            </div>
+          </div>
+        ) : displayMode === "chart" ? (
+          <div className="mt-1 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-2xl font-extrabold text-slate-900 leading-tight tracking-tight">
+                {metric.formatted_value}
+              </p>
+              <div className={cn("mt-1 flex items-center gap-1 text-[11px] font-semibold", trendColor)}>
+                {!isNeutral && <TrendIcon size={13} />}
+                <span>
+                  {changePrefix}
+                  {effectiveChange.toFixed(1)}%
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium">vs. anterior</span>
+              </div>
+            </div>
+            <svg width={sparkWidth} height={sparkHeight} viewBox={`0 0 ${sparkWidth} ${sparkHeight}`} className="shrink-0">
+              <polyline
+                fill="none"
+                stroke="#2563EB"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                points={sparkPoints}
+              />
+            </svg>
+          </div>
+        ) : displayMode === "table" ? (
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Valor</p>
+                <p className="text-lg font-extrabold text-slate-900 leading-tight">
+                  {metric.formatted_value}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 flex-shrink-0">
+                  <Icon size={15} strokeWidth={2.4} />
+                </div>
+                <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap", trendBadgeBg)}>
+                  <TrendIcon size={11} />
+                  {changePrefix}
+                  {effectiveChange.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+            <div className={cn("mt-2 flex items-center gap-1 text-[11px] font-semibold", trendColor)}>
+              {!isNeutral && <TrendIcon size={13} />}
+              <span>vs. anterior</span>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-2xl font-extrabold text-slate-900 leading-tight tracking-tight">
+              {metric.formatted_value}
+            </p>
+            <div className={cn("mt-1 flex items-center gap-1 text-[11px] font-semibold", trendColor)}>
+              {!isNeutral && <TrendIcon size={13} />}
+              <span>
+                {changePrefix}
+                {effectiveChange.toFixed(1)}%
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">
+                vs. anterior
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
