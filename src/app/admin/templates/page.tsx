@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
-import { FileSpreadsheet, Layers, CheckCircle2, Circle } from "lucide-react";
+import { FileSpreadsheet, Layers, CheckCircle2, Circle, ArrowRight, Settings2 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Templates" };
 
@@ -16,6 +17,40 @@ export default function TemplatesPage() {
       <p style={{ fontSize: 14, color: "#64748B", marginBottom: 28 }}>
         Modelos de dashboards pré-configurados disponíveis no sistema.
       </p>
+
+      <div style={{ marginBottom: 24, padding: 18, borderRadius: 14, border: "1px solid #DBEAFE", background: "#EFF6FF", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: "#2563EB", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Settings2 size={18} />
+          </div>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "#1E3A8A" }}>Onde configurar os modelos e métricas</p>
+            <p style={{ fontSize: 13, color: "#1D4ED8", marginTop: 2, lineHeight: 1.5 }}>
+              Os templates abaixo são a base estrutural. A configuração de métricas, formatos e ordenação é feita em cada dashboard, em <strong>/admin/dashboards</strong>.
+            </p>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Link
+            href="/admin/dashboards"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: "#2563EB",
+              color: "white",
+              fontSize: 13,
+              fontWeight: 700,
+              textDecoration: "none",
+              boxShadow: "0 1px 2px rgba(37, 99, 235, 0.25)",
+            }}
+          >
+            Ir para Dashboards <ArrowRight size={14} />
+          </Link>
+        </div>
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         {templates.map((t) => (
