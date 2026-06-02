@@ -8,7 +8,7 @@ import {
   ChevronRight, BarChart3, X, Send, Clock3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, APP_BUILD_HASH, APP_VERSION } from "@/lib/constants";
 import { logout } from "@/app/login/actions";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -164,10 +164,10 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
           </p>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 10, color: "#475569", fontWeight: 600, background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, border: "1px solid #E2E8F0" }}>
-              v{process.env.NEXT_PUBLIC_APP_VERSION}
+              v{APP_VERSION}
             </span>
             <span style={{ fontSize: 10, color: "#94A3B8", fontFamily: "monospace" }}>
-              #{process.env.NEXT_PUBLIC_GIT_HASH}
+              #{APP_BUILD_HASH}
             </span>
           </div>
         </div>

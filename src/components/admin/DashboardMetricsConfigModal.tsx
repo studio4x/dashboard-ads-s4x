@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, Loader2, Save, RotateCcw, CheckCircle2 } from "lucide-react";
+import { X, Loader2, Save, RotateCcw, CheckCircle2, GripVertical } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import {
   getDefaultTemplateMetricConfig,
@@ -31,6 +31,7 @@ export function DashboardMetricsConfigModal({ dashboard, open, onClose, onSaved 
   const { toast } = useToast();
   const [config, setConfig] = useState<DashboardTemplateMetricConfig | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [dragState, setDragState] = useState<{ sectionKey: string; metricKey: string } | null>(null);
 
   const normalizedObjectives = useMemo(
     () => normalizeMetaAdsObjectives(dashboard?.meta_objectives || []),
@@ -78,6 +79,36 @@ export function DashboardMetricsConfigModal({ dashboard, open, onClose, onSaved 
 
   const toggleMetric = (sectionKey: string, metricKey: string) => {
     updateMetric(sectionKey, metricKey, (metric) => ({ ...metric, enabled: !metric.enabled }));
+  };
+
+  const reorderMetrics = (sectionKey: string, sourceMetricKey: string, targetMetricKey: string) => {
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const section = prev.sections[sectionKey];
+      if (!section) return prev;
+
+      const sourceIndex = section.metrics.findIndex((metric) => metric.key === sourceMetricKey);
+      const targetIndex = section.metrics.findIndex((metric) => metric.key === targetMetricKey);
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return prev;
+
+      const nextMetrics = [...section.metrics];
+      const [moved] = nextMetrics.splice(sourceIndex, 1);
+      nextMetrics.splice(targetIndex, 0, moved);
+
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionKey]: {
+            ...section,
+            metrics: nextMetrics.map((metric, index) => ({
+              ...metric,
+              order: (index + 1) * 10,
+            })),
+          },
+        },
+      };
+    });
   };
 
   const saveConfig = async () => {
@@ -174,11 +205,39 @@ export function DashboardMetricsConfigModal({ dashboard, open, onClose, onSaved 
                 </button>
               </div>
               <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
-                {section.metrics.map((metric) => (
-                  <div key={metric.key} style={{ border: "1px solid #E2E8F0", borderRadius: 12, padding: 12, background: metric.enabled ? "#FFFFFF" : "#F8FAFC", display: "flex", flexDirection: "column", gap: 10 }}>
+                {section.metrics.map((metric, index) => (
+                  <div
+                    key={metric.key}
+                    draggable
+                    onDragStart={() => setDragState({ sectionKey: section.key, metricKey: metric.key })}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                    }}
+                    onDrop={() => {
+                      if (dragState && dragState.sectionKey === section.key) {
+                        reorderMetrics(section.key, dragState.metricKey, metric.key);
+                      }
+                      setDragState(null);
+                    }}
+                    onDragEnd={() => setDragState(null)}
+                    style={{
+                      border: "1px solid #E2E8F0",
+                      borderRadius: 12,
+                      padding: 12,
+                      background: metric.enabled ? "#FFFFFF" : "#F8FAFC",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                      cursor: "grab",
+                      opacity: dragState?.metricKey === metric.key ? 0.6 : 1,
+                    }}
+                  >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 6, background: "#F8FAFC", border: "1px solid #E2E8F0", color: "#64748B" }}>
+                            <GripVertical size={13} />
+                          </span>
                           <p style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>
                             {getMetricLabel(templateId, metric.key, primaryObjective)}
                           </p>
@@ -188,7 +247,7 @@ export function DashboardMetricsConfigModal({ dashboard, open, onClose, onSaved 
                             </span>
                           )}
                         </div>
-                        <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Chave: {metric.key}</p>
+                        <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Chave: {metric.key} · Ordem {index + 1}</p>
                       </div>
                       <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: "#334155" }}>
                         <input

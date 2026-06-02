@@ -5,6 +5,7 @@ import { Info, Clock } from "lucide-react";
 import { useDashboard } from "./DashboardDataContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { APP_BUILD_LABEL } from "@/lib/constants";
 
 interface SharedDashboardFooterProps {
   clientLogoUrl?: string | null;
@@ -65,7 +66,7 @@ export function SharedDashboardFooter({ clientLogoUrl, clientName }: SharedDashb
               <span>Suporte: studio4x.com.br</span>
               <span>© 2026</span>
               <span className="bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
-                v{process.env.NEXT_PUBLIC_APP_VERSION}-{process.env.NEXT_PUBLIC_GIT_HASH}
+                {APP_BUILD_LABEL}
               </span>
             </div>
         </div>
