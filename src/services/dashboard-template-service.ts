@@ -1,5 +1,6 @@
 import { getTemplateById } from "@/lib/dashboard/templates";
 import { getDefaultTemplateMetricConfig, normalizeTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
+import { DashboardTemplateConfigService } from "@/services/dashboard-template-config-service";
 
 export type DashboardTemplateType = 
   | "google_ads" 
@@ -68,7 +69,14 @@ export class DashboardTemplateService {
     const { createAdminClient } = await import("@/lib/supabase/server");
     const supabase = await createAdminClient();
     const template = getTemplateById(templateType);
+    const storedTemplateConfig = await DashboardTemplateConfigService.getTemplateConfig(templateType).catch(() => null);
     const templateConfig = getDefaultTemplateMetricConfig(
+      templateType,
+      (options?.metaObjectives || []) as any,
+      (options?.metaPrimaryObjective || null) as any
+    );
+    const resolvedTemplateConfig = normalizeTemplateMetricConfig(
+      storedTemplateConfig?.metric_config || templateConfig,
       templateType,
       (options?.metaObjectives || []) as any,
       (options?.metaPrimaryObjective || null) as any
@@ -88,7 +96,7 @@ export class DashboardTemplateService {
         status: "active",
         meta_objectives: options?.metaObjectives || [],
         meta_primary_objective: options?.metaPrimaryObjective || null,
-        template_config: templateConfig
+        template_config: resolvedTemplateConfig
       })
       .select()
       .single();
