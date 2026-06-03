@@ -174,8 +174,9 @@ Para toda solicitação concluída que gere alteração no projeto:
 
 1. fazer commit;
 2. fazer push;
-3. executar o deploy necessário;
-4. confirmar que produção está correta.
+3. atualizar a versão do build exibida na plataforma para refletir a nova entrega;
+4. executar o deploy necessário;
+5. confirmar que produção está correta.
 
 Não encerrar resposta com alterações apenas locais.
 

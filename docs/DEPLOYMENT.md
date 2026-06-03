@@ -31,9 +31,10 @@ Sempre que uma nova solicitação for concluída com alteração de código/docu
 
 1. realizar commit;
 2. realizar push;
-3. publicar deploy necessário;
-4. validar que o deploy de produção está `READY`;
-5. validar que o domínio canônico `dashboard-ads-s4x.vercel.app` aponta para a versão recém-publicada.
+3. atualizar a versão do build exibida na plataforma para refletir a nova entrega;
+4. publicar deploy necessário;
+5. validar que o deploy de produção está `READY`;
+6. validar que o domínio canônico `dashboard-ads-s4x.vercel.app` aponta para a versão recém-publicada.
 
 Não considerar tarefa concluída se a mudança estiver apenas local.
 
