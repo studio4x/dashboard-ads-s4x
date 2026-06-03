@@ -4,12 +4,22 @@ import type { KpiSummary } from "@/types/entities";
 
 export type MetricDisplayMode = "card" | "text" | "chart" | "table";
 export type TemplateMetricKind = "standard" | "composite";
+export type TemplateMetricCompositeType =
+  | "sum"
+  | "subtract"
+  | "average"
+  | "ratio_percent"
+  | "ratio_currency"
+  | "ratio_multiplier"
+  | "ratio_number"
+  | "per_thousand_currency";
 
 export interface TemplateMetricItem {
   key: string;
   label?: string;
   preview?: string;
   kind?: TemplateMetricKind;
+  compositeType?: TemplateMetricCompositeType;
   primaryMetricKey?: string;
   secondaryMetricKey?: string;
   enabled: boolean;
@@ -55,6 +65,7 @@ function metricItem(key: string, order: number, options?: Partial<TemplateMetric
     label: options?.label,
     preview: options?.preview,
     kind: options?.kind || "standard",
+    compositeType: options?.compositeType || "sum",
     primaryMetricKey: options?.primaryMetricKey,
     secondaryMetricKey: options?.secondaryMetricKey,
     enabled: options?.enabled ?? true,
@@ -332,6 +343,55 @@ function derivePreviousValue(currentValue: number, changePercent: number) {
   return currentValue / factor;
 }
 
+function resolveCompositeMetricValue(
+  compositeType: TemplateMetricCompositeType,
+  primaryValue: number,
+  secondaryValue: number
+) {
+  switch (compositeType) {
+    case "subtract":
+      return primaryValue - secondaryValue;
+    case "average":
+      return (primaryValue + secondaryValue) / 2;
+    case "ratio_percent":
+      return secondaryValue !== 0 ? (primaryValue / secondaryValue) * 100 : 0;
+    case "ratio_currency":
+      return secondaryValue !== 0 ? primaryValue / secondaryValue : 0;
+    case "ratio_multiplier":
+      return secondaryValue !== 0 ? primaryValue / secondaryValue : 0;
+    case "ratio_number":
+      return secondaryValue !== 0 ? primaryValue / secondaryValue : 0;
+    case "per_thousand_currency":
+      return secondaryValue !== 0 ? (primaryValue / secondaryValue) * 1000 : 0;
+    case "sum":
+    default:
+      return primaryValue + secondaryValue;
+  }
+}
+
+function getCompositeMetricUnit(
+  compositeType: TemplateMetricCompositeType,
+  primary?: KpiSummary,
+  secondary?: KpiSummary
+): KpiSummary["unit"] {
+  void secondary;
+  switch (compositeType) {
+    case "ratio_percent":
+      return "percent";
+    case "ratio_currency":
+    case "per_thousand_currency":
+      return "currency";
+    case "ratio_multiplier":
+    case "ratio_number":
+      return "ratio";
+    case "sum":
+    case "subtract":
+    case "average":
+    default:
+      return primary?.unit;
+  }
+}
+
 export function getDefaultTemplateMetricConfig(
   templateId: string,
   objectives: MetaAdsObjectiveId[] = [],
@@ -381,6 +441,7 @@ export function normalizeTemplateMetricConfig(
         label: found?.label?.trim() || metric.label,
         preview: found?.preview?.trim() || metric.preview,
         kind: found?.kind || metric.kind || "standard",
+        compositeType: found?.compositeType || metric.compositeType || "sum",
         primaryMetricKey: found?.primaryMetricKey?.trim() || metric.primaryMetricKey,
         secondaryMetricKey: found?.secondaryMetricKey?.trim() || metric.secondaryMetricKey,
         enabled: found?.enabled ?? metric.enabled,
@@ -397,6 +458,7 @@ export function normalizeTemplateMetricConfig(
         label: item.label?.trim() || undefined,
         preview: item.preview?.trim() || undefined,
         kind: item.kind || "standard",
+        compositeType: item.compositeType || "sum",
         primaryMetricKey: item.primaryMetricKey?.trim() || undefined,
         secondaryMetricKey: item.secondaryMetricKey?.trim() || undefined,
         enabled: item.enabled ?? true,
@@ -465,25 +527,29 @@ function buildCompositeKpi(
   const secondaryValue = Number(secondary.value || 0);
   if (!Number.isFinite(primaryValue) || !Number.isFinite(secondaryValue)) return null;
 
-  const currentValue = primaryValue + secondaryValue;
+  const compositeType = metricConfig.compositeType || "sum";
   const primaryChange = Number(primary.change_percent || 0);
   const secondaryChange = Number(secondary.change_percent || 0);
-  const previousValue =
-    derivePreviousValue(primaryValue, primaryChange) +
-    derivePreviousValue(secondaryValue, secondaryChange);
+  const currentCompositeValue = resolveCompositeMetricValue(compositeType, primaryValue, secondaryValue);
+  const previousValue = resolveCompositeMetricValue(
+    compositeType,
+    derivePreviousValue(primaryValue, primaryChange),
+    derivePreviousValue(secondaryValue, secondaryChange)
+  );
   const changePercent =
     previousValue > 0
-      ? ((currentValue - previousValue) / previousValue) * 100
+      ? ((currentCompositeValue - previousValue) / previousValue) * 100
       : 0;
+  const unit = getCompositeMetricUnit(compositeType, primary, secondary);
 
   return {
     metricKey: metricConfig.key,
     label: metricConfig.label?.trim() || `${primary.label} + ${secondary.label}`,
-    value: currentValue,
-    formatted_value: formatCompositeMetricValue(currentValue, primary.unit || secondary.unit),
+    value: currentCompositeValue,
+    formatted_value: formatCompositeMetricValue(currentCompositeValue, unit),
     change_percent: Number.isFinite(changePercent) ? changePercent : 0,
     change_direction: changePercent > 0 ? "up" : changePercent < 0 ? "down" : "neutral",
-    unit: primary.unit || secondary.unit,
+    unit,
     icon: primary.icon || secondary.icon,
     description: `${primary.label} + ${secondary.label}`,
     displayMode: metricConfig.displayMode || "card",

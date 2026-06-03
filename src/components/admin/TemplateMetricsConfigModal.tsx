@@ -8,6 +8,7 @@ import {
   getTemplateMetricLabel,
   listTemplateMetricSections,
   normalizeTemplateMetricConfig,
+  type TemplateMetricCompositeType,
   type DashboardTemplateMetricConfig,
   type MetricDisplayMode,
   type TemplateMetricKind,
@@ -34,6 +35,17 @@ const METRIC_KIND_OPTIONS: Array<{ value: TemplateMetricKind; label: string }> =
   { value: "composite", label: "Composta" },
 ];
 
+const COMPOSITE_TYPE_OPTIONS: Array<{ value: TemplateMetricCompositeType; label: string }> = [
+  { value: "sum", label: "Soma" },
+  { value: "subtract", label: "Subtracao" },
+  { value: "average", label: "Media" },
+  { value: "ratio_percent", label: "Taxa (%)" },
+  { value: "ratio_currency", label: "Custo por resultado" },
+  { value: "ratio_multiplier", label: "Multiplicador (ROAS)" },
+  { value: "ratio_number", label: "Razao numerica" },
+  { value: "per_thousand_currency", label: "CPM" },
+];
+
 export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }: TemplateMetricsConfigModalProps) {
   const { toast } = useToast();
   const [config, setConfig] = useState<DashboardTemplateMetricConfig | null>(null);
@@ -44,6 +56,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     key: string;
     preview: string;
     kind: TemplateMetricKind;
+    compositeType: TemplateMetricCompositeType;
     primaryMetricKey: string;
     secondaryMetricKey: string;
     displayMode: MetricDisplayMode;
@@ -110,7 +123,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
 
   const updateDraft = (
     sectionKey: string,
-    field: "label" | "key" | "preview" | "kind" | "primaryMetricKey" | "secondaryMetricKey" | "displayMode" | "enabled",
+    field: "label" | "key" | "preview" | "kind" | "compositeType" | "primaryMetricKey" | "secondaryMetricKey" | "displayMode" | "enabled",
     value: string | boolean
   ) => {
     setDrafts((prev) => ({
@@ -120,6 +133,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         key: prev[sectionKey]?.key || "",
         preview: prev[sectionKey]?.preview || "",
         kind: prev[sectionKey]?.kind || "standard",
+        compositeType: prev[sectionKey]?.compositeType || "sum",
         primaryMetricKey: prev[sectionKey]?.primaryMetricKey || "",
         secondaryMetricKey: prev[sectionKey]?.secondaryMetricKey || "",
         displayMode: prev[sectionKey]?.displayMode || "card",
@@ -135,6 +149,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     const key = String(draft?.key || "").trim();
     const preview = String(draft?.preview || "").trim();
     const kind = draft?.kind || "standard";
+    const compositeType = draft?.compositeType || "sum";
     const primaryMetricKey = String(draft?.primaryMetricKey || "").trim();
     const secondaryMetricKey = String(draft?.secondaryMetricKey || "").trim();
 
@@ -161,6 +176,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         label,
         preview: preview || undefined,
         kind,
+        compositeType: kind === "composite" ? compositeType : undefined,
         primaryMetricKey: kind === "composite" ? primaryMetricKey : undefined,
         secondaryMetricKey: kind === "composite" ? secondaryMetricKey : undefined,
         enabled: draft?.enabled ?? true,
@@ -188,6 +204,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         key: "",
         preview: "",
         kind: "standard",
+        compositeType: "sum",
         primaryMetricKey: "",
         secondaryMetricKey: "",
         displayMode: "card",
@@ -391,6 +408,18 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                   {(drafts[section.key]?.kind || "standard") === "composite" && (
                     <>
                       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Unificacao</span>
+                        <select
+                          value={drafts[section.key]?.compositeType || "sum"}
+                          onChange={(e) => updateDraft(section.key, "compositeType", e.target.value as TemplateMetricCompositeType)}
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                        >
+                          {COMPOSITE_TYPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Métrica base 1</span>
                         <select
                           value={drafts[section.key]?.primaryMetricKey || ""}
@@ -508,7 +537,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                           <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Chave: {metric.key} · Ordem {index + 1}</p>
                           {(metric.kind || "standard") === "composite" && (
                             <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>
-                              KPI composto: {metric.primaryMetricKey || "?"} + {metric.secondaryMetricKey || "?"}
+                              KPI composto ({metric.compositeType || "sum"}): {metric.primaryMetricKey || "?"} + {metric.secondaryMetricKey || "?"}
                             </p>
                           )}
                           {metric.preview && (
