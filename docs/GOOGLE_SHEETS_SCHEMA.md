@@ -200,6 +200,7 @@ Cada cliente deve ter uma planilha no Google Sheets com abas padronizadas. A pla
 - Para métricas padrão vindas do Google Sheets, use a chave canônica esperada pelo pipeline, por exemplo: `cost`, `impressions`, `clicks`, `ctr`, `cpc`, `cpa`, `roas`, `conversions`, `reach`, `frequency`.
 - Em várias abas o sistema aceita cabeçalhos humanos e também chaves técnicas no normalizador, mas a configuração do template deve usar a chave final padronizada, não o texto de apresentação.
 - Se você criar uma coluna nova na planilha, ela precisa ter uma chave estável e também precisa estar mapeada no importador para que o dashboard consiga renderizá-la.
+- No admin, a lista de chaves sugeridas é recalculada automaticamente a partir dos templates padrão e dos snapshots mais recentes das fontes Google Sheets ativas.
 
 ---
 

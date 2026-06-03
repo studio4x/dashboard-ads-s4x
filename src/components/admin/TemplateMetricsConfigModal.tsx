@@ -14,6 +14,7 @@ import {
   type TemplateMetricKind,
   type TemplateMetricItem,
 } from "@/lib/dashboard/template-metric-config";
+import { CANONICAL_METRIC_KEY_SUGGESTIONS, type MetricKeySuggestion } from "@/lib/dashboard/metric-key-catalog";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
 interface TemplateMetricsConfigModalProps {
@@ -51,6 +52,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   const [config, setConfig] = useState<DashboardTemplateMetricConfig | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [dragState, setDragState] = useState<{ sectionKey: string; metricKey: string } | null>(null);
+  const [metricKeySuggestions, setMetricKeySuggestions] = useState<MetricKeySuggestion[]>(CANONICAL_METRIC_KEY_SUGGESTIONS);
+  const [metricKeyLoading, setMetricKeyLoading] = useState(false);
+  const [metricKeyError, setMetricKeyError] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, {
     label: string;
     key: string;
@@ -101,6 +105,43 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
       )
     );
   }, [open, template, baseTemplateId, rawMetricConfig, templateObjectives, primaryObjective]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let mounted = true;
+    setMetricKeyLoading(true);
+    setMetricKeyError(null);
+
+    fetch("/api/admin/template-metric-keys", { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result?.success) {
+          throw new Error(result?.error || "Não foi possível carregar as chaves.");
+        }
+        return result.suggestions as MetricKeySuggestion[];
+      })
+      .then((suggestions) => {
+        if (!mounted) return;
+        setMetricKeySuggestions(
+          Array.isArray(suggestions) && suggestions.length > 0
+            ? suggestions
+            : CANONICAL_METRIC_KEY_SUGGESTIONS
+        );
+      })
+      .catch((error) => {
+        if (!mounted) return;
+        setMetricKeySuggestions(CANONICAL_METRIC_KEY_SUGGESTIONS);
+        setMetricKeyError(error instanceof Error ? error.message : "Erro ao carregar chaves.");
+      })
+      .finally(() => {
+        if (mounted) setMetricKeyLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -451,11 +492,24 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       value={drafts[section.key]?.key || ""}
                       onChange={(e) => updateDraft(section.key, "key", e.target.value)}
                       placeholder="Ex.: cost, impressions, custom_metric"
+                      list={`metric-key-suggestions-${section.key}`}
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     />
+                    <datalist id={`metric-key-suggestions-${section.key}`}>
+                      {metricKeySuggestions.map((item) => (
+                        <option key={item.key} value={item.key} label={`${item.key} — ${item.label}`} />
+                      ))}
+                    </datalist>
                     <span style={{ fontSize: 10, color: "#64748B" }}>
-                      Identificador técnico usado para casar a métrica com a coluna/field importado do Google Sheets ou com um KPI calculado.
+                      {metricKeyLoading
+                        ? "Carregando chaves das fontes Google Sheets..."
+                        : "Identificador técnico usado para casar a métrica com a coluna/field importado do Google Sheets ou com um KPI calculado."}
                     </span>
+                    {metricKeyError && (
+                      <span style={{ fontSize: 10, color: "#B45309" }}>
+                        Sugestões carregadas apenas com as chaves padrão: {metricKeyError}
+                      </span>
+                    )}
                   </label>
                   {(drafts[section.key]?.kind || "standard") === "composite" && (
                     <>
