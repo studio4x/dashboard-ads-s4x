@@ -165,7 +165,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.58)", zIndex: 100, padding: 20, overflowY: "auto" }}>
-      <div className="card" style={{ width: "100%", maxWidth: 1120, margin: "auto", padding: 0, overflow: "hidden", maxHeight: "calc(100vh - 40px)", display: "flex", flexDirection: "column" }}>
+      <div className="card" style={{ width: "100%", maxWidth: 1120, height: "calc(100vh - 40px)", margin: "auto", padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", background: "#F8FAFC" }}>
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Configurar Template</h2>
@@ -178,7 +178,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
           </button>
         </div>
 
-        <div style={{ padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16, minHeight: 0, flex: "1 1 auto" }}>
+        <div style={{ padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16, minHeight: 0, flex: "1 1 0" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, alignItems: "start" }}>
             <div style={{ padding: 14, borderRadius: 10, border: "1px solid #DBEAFE", background: "#EFF6FF" }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8" }}>Template ID</p>
@@ -229,11 +229,37 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
           {sections.map((section) => (
             <div key={section.key} style={{ border: "1px solid #E2E8F0", borderRadius: 14, background: "#FFFFFF", overflow: "hidden" }}>
               <div style={{ padding: "14px 16px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: "#F8FAFC" }}>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <p style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{section.label}</p>
                   <p style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>
                     Selecione as métricas que devem aparecer e o formato de cada uma.
                   </p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                    {section.metrics.filter((metric) => metric.enabled).slice(0, 4).map((metric) => (
+                      <span
+                        key={metric.key}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "4px 8px",
+                          borderRadius: 999,
+                          border: "1px solid #DBEAFE",
+                          background: "#EFF6FF",
+                          color: "#1D4ED8",
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {getMetricLabel(baseTemplateId, metric.key, primaryObjective)}
+                      </span>
+                    ))}
+                    {section.metrics.filter((metric) => metric.enabled).length > 4 && (
+                      <span style={{ fontSize: 11, color: "#64748B", padding: "4px 0" }}>
+                        +{section.metrics.filter((metric) => metric.enabled).length - 4} métricas
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -243,7 +269,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                   <RotateCcw size={14} /> Restaurar defaults
                 </button>
               </div>
-              <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+              <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, alignItems: "start" }}>
                 {section.metrics.length > 0 ? (
                   section.metrics.map((metric, index) => (
                     <div
