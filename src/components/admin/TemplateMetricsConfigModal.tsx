@@ -178,7 +178,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
           </button>
         </div>
 
-        <div style={{ padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16, minHeight: 0, flex: "1 1 0" }}>
+        <div style={{ padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16, minHeight: 0, flex: "1 1 0", scrollbarGutter: "stable" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, alignItems: "start" }}>
             <div style={{ padding: 14, borderRadius: 10, border: "1px solid #DBEAFE", background: "#EFF6FF" }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8" }}>Template ID</p>
@@ -227,39 +227,16 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
           )}
 
           {sections.map((section) => (
-            <div key={section.key} style={{ border: "1px solid #E2E8F0", borderRadius: 14, background: "#FFFFFF", overflow: "hidden" }}>
+            <div key={section.key} style={{ border: "1px solid #E2E8F0", borderRadius: 14, background: "#FFFFFF", overflow: "hidden", flexShrink: 0 }}>
               <div style={{ padding: "14px 16px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: "#F8FAFC" }}>
                 <div style={{ minWidth: 0 }}>
                   <p style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{section.label}</p>
                   <p style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>
                     Selecione as métricas que devem aparecer e o formato de cada uma.
                   </p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                    {section.metrics.filter((metric) => metric.enabled).slice(0, 4).map((metric) => (
-                      <span
-                        key={metric.key}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          padding: "4px 8px",
-                          borderRadius: 999,
-                          border: "1px solid #DBEAFE",
-                          background: "#EFF6FF",
-                          color: "#1D4ED8",
-                          fontSize: 11,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {getMetricLabel(baseTemplateId, metric.key, primaryObjective)}
-                      </span>
-                    ))}
-                    {section.metrics.filter((metric) => metric.enabled).length > 4 && (
-                      <span style={{ fontSize: 11, color: "#64748B", padding: "4px 0" }}>
-                        +{section.metrics.filter((metric) => metric.enabled).length - 4} métricas
-                      </span>
-                    )}
-                  </div>
+                  <p style={{ fontSize: 11, color: "#475569", marginTop: 8 }}>
+                    {section.metrics.length} métricas nesta seção
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -269,7 +246,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                   <RotateCcw size={14} /> Restaurar defaults
                 </button>
               </div>
-              <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, alignItems: "start" }}>
+              <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                 {section.metrics.length > 0 ? (
                   section.metrics.map((metric, index) => (
                     <div
@@ -287,7 +264,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       style={{
                         border: "1px solid #E2E8F0",
                         borderRadius: 12,
-                        padding: 12,
+                        padding: "12px 14px",
                         background: metric.enabled ? "#FFFFFF" : "#F8FAFC",
                         display: "flex",
                         flexDirection: "column",
@@ -296,8 +273,8 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                         opacity: dragState?.metricKey === metric.key ? 0.6 : 1,
                       }}
                     >
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                        <div>
+                      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(180px, 220px) 110px", gap: 12, alignItems: "center" }}>
+                        <div style={{ minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                             <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 6, background: "#F8FAFC", border: "1px solid #E2E8F0", color: "#64748B" }}>
                               <GripVertical size={13} />
@@ -313,13 +290,6 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                           </div>
                           <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Chave: {metric.key} · Ordem {index + 1}</p>
                         </div>
-                        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: "#334155" }}>
-                          <input type="checkbox" checked={metric.enabled} onChange={() => toggleMetric(section.key, metric.key)} />
-                          Ativo
-                        </label>
-                      </div>
-
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 10, alignItems: "center" }}>
                         <div>
                           <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 6 }}>Formato</p>
                           <select
@@ -332,17 +302,23 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                             ))}
                           </select>
                         </div>
-                        <div style={{ borderRadius: 10, border: "1px solid #E2E8F0", background: "#F8FAFC", padding: 10, minHeight: 64, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                          <p style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase" }}>Preview</p>
-                          <p style={{ fontSize: 14, fontWeight: 800, color: "#0F172A", marginTop: 4 }}>
-                            {metric.displayMode === "table" ? "Tabela" : metric.displayMode === "chart" ? "Gráfico" : metric.displayMode === "text" ? "Texto" : "Card"}
-                          </p>
-                        </div>
+                        <label style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, fontSize: 12, fontWeight: 600, color: "#334155" }}>
+                          <input type="checkbox" checked={metric.enabled} onChange={() => toggleMetric(section.key, metric.key)} />
+                          Ativo
+                        </label>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 8, borderTop: "1px solid #F1F5F9" }}>
+                        <span style={{ fontSize: 11, color: "#64748B" }}>
+                          Preview: {metric.displayMode === "table" ? "Tabela" : metric.displayMode === "chart" ? "Gráfico" : metric.displayMode === "text" ? "Texto" : "Card"}
+                        </span>
+                        <span style={{ fontSize: 11, color: "#64748B" }}>
+                          Arraste para reordenar
+                        </span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div style={{ gridColumn: "1 / -1", padding: 16, borderRadius: 12, border: "1px dashed #CBD5E1", background: "#F8FAFC", color: "#64748B", fontSize: 13 }}>
+                  <div style={{ padding: 16, borderRadius: 12, border: "1px dashed #CBD5E1", background: "#F8FAFC", color: "#64748B", fontSize: 13 }}>
                     Nenhuma métrica configurada nesta seção. Use “Restaurar defaults” para recuperar a estrutura padrão.
                   </div>
                 )}
