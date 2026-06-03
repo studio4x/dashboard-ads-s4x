@@ -1,6 +1,7 @@
 import { getDefaultTemplateMetricConfig, normalizeTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
 import { DashboardTemplateConfigService } from "@/services/dashboard-template-config-service";
 import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
+import { normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
 export type DashboardTemplateType = string;
 
@@ -45,6 +46,95 @@ const TEMPLATE_PAGES: Record<string, { key: string; title: string; sort: number 
 };
 
 export class DashboardTemplateService {
+  static async applyTemplateToExistingDashboard(
+    dashboardId: string,
+    templateType: DashboardTemplateType,
+    options?: {
+      metaObjectives?: string[];
+      metaPrimaryObjective?: string | null;
+    }
+  ) {
+    const { createAdminClient } = await import("@/lib/supabase/server");
+    const supabase = await createAdminClient();
+    const template = await DashboardTemplateCatalogService.getTemplateDefinition(templateType).catch(() => null);
+    if (!template) {
+      throw new Error("Template selecionado não encontrado.");
+    }
+
+    const { data: currentDashboard, error: fetchError } = await supabase
+      .from("dashboards")
+      .select("*")
+      .eq("id", dashboardId)
+      .single();
+
+    if (fetchError || !currentDashboard) {
+      throw new Error("Dashboard de destino não encontrado.");
+    }
+
+    const sheetTemplateId = template.sheetTemplateId || templateType;
+    const normalizedObjectives = template.platform === "meta_ads" || template.platform === "mixed"
+      ? normalizeMetaAdsObjectives(options?.metaObjectives || (currentDashboard.meta_objectives || []))
+      : [];
+
+    const storedTemplateConfig = template.isCustom
+      ? template.metricConfig
+      : await DashboardTemplateConfigService.getTemplateConfig(sheetTemplateId).catch(() => null);
+    const templateConfig = getDefaultTemplateMetricConfig(
+      sheetTemplateId,
+      normalizedObjectives as any,
+      (options?.metaPrimaryObjective || normalizedObjectives[0] || null) as any
+    );
+    const resolvedTemplateConfig = normalizeTemplateMetricConfig(
+      storedTemplateConfig || templateConfig,
+      sheetTemplateId,
+      normalizedObjectives as any,
+      (options?.metaPrimaryObjective || normalizedObjectives[0] || null) as any
+    );
+    const basePages = TEMPLATE_PAGES[sheetTemplateId] || TEMPLATE_PAGES["google_ads"];
+    const visiblePageKeys = Array.isArray(template.visiblePages) && template.visiblePages.length > 0
+      ? template.visiblePages
+      : [];
+    const pagesToCreate = visiblePageKeys.length > 0
+      ? visiblePageKeys.map((pageKey) => basePages.find((page) => page.key === pageKey) || { key: pageKey, title: pageKey, sort: 999 })
+      : basePages;
+
+    const { error: updateError } = await supabase
+      .from("dashboards")
+      .update({
+        dashboard_type: templateType,
+        template_version: template.version || "1.0",
+        platform: template.platform || currentDashboard.platform || "custom",
+        meta_objectives: normalizedObjectives,
+        meta_primary_objective: normalizedObjectives[0] || null,
+        template_config: resolvedTemplateConfig,
+      })
+      .eq("id", dashboardId);
+
+    if (updateError) throw new Error(`Erro ao atualizar template do dashboard: ${updateError.message}`);
+
+    await supabase.from("dashboard_pages").delete().eq("dashboard_id", dashboardId);
+    if (pagesToCreate.length > 0) {
+      const pages = pagesToCreate.map((page) => ({
+        dashboard_id: dashboardId,
+        page_key: page.key,
+        title: page.title,
+        sort_order: page.sort,
+        is_enabled: true,
+      }));
+      const { error: pagesError } = await supabase.from("dashboard_pages").insert(pages);
+      if (pagesError) throw new Error(`Erro ao recriar páginas do template: ${pagesError.message}`);
+    }
+
+    const { data: updatedDashboard, error: updatedFetchError } = await supabase
+      .from("dashboards")
+      .select("*")
+      .eq("id", dashboardId)
+      .single();
+
+    if (updatedFetchError) throw updatedFetchError;
+    return updatedDashboard;
+  }
+
   /**
    * Cria um novo dashboard usando um template predefinido
    */

@@ -54,6 +54,10 @@ export default function AdminDashboardsPage() {
   const [editObjectivesModalDashboard, setEditObjectivesModalDashboard] = useState<any | null>(null);
   const [editObjectives, setEditObjectives] = useState<MetaObjective[]>([]);
   const [isUpdatingObjectives, setIsUpdatingObjectives] = useState(false);
+  const [editTemplateModalDashboard, setEditTemplateModalDashboard] = useState<any | null>(null);
+  const [editTemplateType, setEditTemplateType] = useState("");
+  const [editTemplateObjectives, setEditTemplateObjectives] = useState<MetaObjective[]>([]);
+  const [isUpdatingTemplate, setIsUpdatingTemplate] = useState(false);
   // Integração Google Sheets
   const [integrationModalDashboard, setIntegrationModalDashboard] = useState<any | null>(null);
   const [integrationForm, setIntegrationForm] = useState({
@@ -237,6 +241,19 @@ export default function AdminDashboardsPage() {
     setEditObjectives(normalizeMetaAdsObjectives(dash.meta_objectives) as MetaObjective[]);
   };
 
+  const handleOpenEditTemplate = (dash: any) => {
+    setEditTemplateModalDashboard(dash);
+    setEditTemplateType(dash.dashboard_type || "google_ads_s4x");
+    setEditTemplateObjectives(normalizeMetaAdsObjectives(dash.meta_objectives) as MetaObjective[]);
+  };
+
+  const toggleEditTemplateObjective = (objective: MetaObjective) => {
+    setEditTemplateObjectives((prev) => {
+      const has = prev.includes(objective);
+      return has ? prev.filter((item) => item !== objective) : [...prev, objective];
+    });
+  };
+
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editModalDashboard) return;
@@ -407,6 +424,57 @@ export default function AdminDashboardsPage() {
       toast("Erro ao conectar com o servidor.");
     } finally {
       setIsUpdatingObjectives(false);
+    }
+  };
+
+  const handleSaveTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTemplateModalDashboard) return;
+
+    const selectedTemplate = templates.find((template) => template.id === editTemplateType);
+    if (!selectedTemplate) {
+      toast("Selecione um template válido.");
+      return;
+    }
+
+    const requiresObjectives = selectedTemplate.platform === "meta_ads" || selectedTemplate.platform === "mixed";
+    const normalizedObjectives = requiresObjectives ? normalizeMetaAdsObjectives(editTemplateObjectives) : [];
+    if (requiresObjectives && normalizedObjectives.length === 0) {
+      toast("Selecione ao menos um objetivo para templates Meta ou integrados.");
+      return;
+    }
+
+    setIsUpdatingTemplate(true);
+    try {
+      const response = await fetch(`/api/admin/dashboards/${editTemplateModalDashboard.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dashboard_type: editTemplateType,
+          meta_objectives: normalizedObjectives,
+          reprocess_template: true,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        toast("Erro ao atualizar template: " + (result.error || "erro desconhecido"));
+        return;
+      }
+
+      if (result?.reprocess?.failed > 0) {
+        toast(`Template atualizado, mas ${result.reprocess.failed} fonte(s) falharam no reprocessamento.`);
+      } else {
+        toast("Template atualizado e dashboard reprocessado com sucesso.");
+      }
+
+      setEditTemplateModalDashboard(null);
+      setEditTemplateType("");
+      setEditTemplateObjectives([]);
+      await fetchData();
+    } catch {
+      toast("Erro ao conectar com o servidor.");
+    } finally {
+      setIsUpdatingTemplate(false);
     }
   };
 
@@ -1183,6 +1251,18 @@ export default function AdminDashboardsPage() {
                     <Pencil size={14} /> Editar nome
                   </button>
 
+                  <button
+                    onClick={() => handleOpenEditTemplate(d)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+                      borderRadius: 8, background: "#FFF7ED", fontSize: 13, color: "#EA580C",
+                      border: "1px solid #FFEDD5", cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <RefreshCw size={14} /> Alterar template
+                  </button>
+
                   {(d.dashboard_type === META_TEMPLATE_ID || d.dashboard_type === INTEGRATED_TEMPLATE_ID) && (
                     <button
                       onClick={() => handleOpenEditObjectives(d)}
@@ -1504,6 +1584,119 @@ export default function AdminDashboardsPage() {
                   }}
                 >
                   {isUpdatingObjectives ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> Salvar Objetivos</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Alterar Template */}
+      {editTemplateModalDashboard && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div className="card" style={{ width: "100%", maxWidth: 680, padding: 0, overflow: "hidden", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F8FAFC" }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Alterar Template</h2>
+                <p style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>
+                  Dashboard: <strong>{editTemplateModalDashboard.name}</strong>
+                </p>
+              </div>
+              <button onClick={() => { setEditTemplateModalDashboard(null); setEditTemplateType(""); setEditTemplateObjectives([]); }} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTemplate} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flex: 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Template do Dashboard</label>
+                <select
+                  required
+                  value={editTemplateType}
+                  onChange={(e) => {
+                    setEditTemplateType(e.target.value);
+                    const selected = templates.find((template) => template.id === e.target.value);
+                    if (selected && (selected.platform === "meta_ads" || selected.platform === "mixed")) {
+                      setEditTemplateObjectives((prev) => prev.length > 0 ? prev : normalizeMetaAdsObjectives(editTemplateModalDashboard.meta_objectives) as MetaObjective[]);
+                    } else {
+                      setEditTemplateObjectives([]);
+                    }
+                  }}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
+                >
+                  <option value="">Selecione um template...</option>
+                  {templates.map((template: any) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 12 }}>
+                <p style={{ fontSize: 12, color: "#1E3A8A", fontWeight: 700 }}>Importante</p>
+                <p style={{ fontSize: 11, color: "#1D4ED8", marginTop: 4, lineHeight: 1.5 }}>
+                  Ao salvar, o dashboard terá suas páginas e configuração do template reconstruídas e será reprocessado usando as fontes já vinculadas.
+                </p>
+              </div>
+
+              {(() => {
+                const selected = templates.find((template) => template.id === editTemplateType);
+                const showObjectives = Boolean(selected && (selected.platform === "meta_ads" || selected.platform === "mixed"));
+                if (!showObjectives) return null;
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Objetivos da Campanha (Meta Ads)</label>
+                    <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {META_ADS_OBJECTIVES.map((objective) => {
+                        const active = editTemplateObjectives.includes(objective.id as MetaObjective);
+                        return (
+                          <button
+                            key={objective.id}
+                            type="button"
+                            onClick={() => toggleEditTemplateObjective(objective.id as MetaObjective)}
+                            style={{
+                              textAlign: "left",
+                              padding: "8px 10px",
+                              borderRadius: 8,
+                              border: active ? "1px solid #2563EB" : "1px solid #E2E8F0",
+                              background: active ? "#EFF6FF" : "#FFFFFF",
+                              color: active ? "#1D4ED8" : "#475569",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {objective.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p style={{ fontSize: 11, color: "#64748B" }}>
+                      O primeiro objetivo selecionado será usado como objetivo principal.
+                    </p>
+                  </div>
+                );
+              })()}
+
+              <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => { setEditTemplateModalDashboard(null); setEditTemplateType(""); setEditTemplateObjectives([]); }}
+                  style={{ flex: 1, padding: "12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingTemplate}
+                  style={{
+                    flex: 1, padding: "12px", borderRadius: 8, border: "none",
+                    background: "#2563EB", color: "white", fontSize: 14,
+                    fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8
+                  }}
+                >
+                  {isUpdatingTemplate ? <Loader2 className="animate-spin" size={18} /> : <><RefreshCw size={18} /> Salvar Template</>}
                 </button>
               </div>
             </form>

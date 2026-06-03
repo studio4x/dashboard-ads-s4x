@@ -4,6 +4,10 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 import { apiErrorResponse, parseJsonObject } from "@/lib/security/api-safety";
+import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
+import { DashboardTemplateService } from "@/services/dashboard-template-service";
+import { DataSourceService } from "@/services/data-source-service";
+import { GoogleSheetsImportService } from "@/lib/google-sheets/google-sheets-import-service";
 
 interface RouteParams {
   params: Promise<{ dashboardId: string }>;
@@ -49,6 +53,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       name,
       slug,
       meta_objectives,
+      dashboard_type,
       automation_enabled,
       automation_frequency,
       automation_day_of_week,
@@ -57,10 +62,40 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       automation_period_days,
       automation_report_mode,
       automation_channels,
+      reprocess_template,
     } = body || {};
 
     if (!dashboardId) {
       return NextResponse.json({ error: "dashboardId é obrigatório" }, { status: 400 });
+    }
+
+    let templateUpdatedDashboard: any | null = null;
+    const templateType = typeof dashboard_type === "string" && dashboard_type.trim() ? dashboard_type.trim() : "";
+    const templateWasRequested = Boolean(templateType);
+    const currentDashboard = templateWasRequested
+      ? await DashboardService.getDashboardById(dashboardId, { bypassRls: true }).catch(() => null)
+      : null;
+
+    if (templateWasRequested) {
+      const templateDefinition = await DashboardTemplateCatalogService.getTemplateDefinition(templateType);
+      if (!templateDefinition) {
+        return NextResponse.json({ error: "Template selecionado inválido ou indisponível." }, { status: 400 });
+      }
+
+      const normalizedObjectives = templateDefinition.platform === "meta_ads" || templateDefinition.platform === "mixed"
+        ? normalizeMetaAdsObjectives(Array.isArray(meta_objectives) && meta_objectives.length > 0
+          ? meta_objectives
+          : (Array.isArray(currentDashboard?.meta_objectives) ? currentDashboard.meta_objectives : []))
+        : [];
+
+      templateUpdatedDashboard = await DashboardTemplateService.applyTemplateToExistingDashboard(
+        dashboardId,
+        templateType,
+        {
+          metaObjectives: normalizedObjectives,
+          metaPrimaryObjective: normalizedObjectives[0] || null,
+        }
+      );
     }
 
     const updates: {
@@ -88,7 +123,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       }
     }
 
-    if (meta_objectives !== undefined) {
+    if (!templateWasRequested && meta_objectives !== undefined) {
       const objectives = normalizeMetaAdsObjectives(meta_objectives);
       updates.meta_objectives = objectives;
       updates.meta_primary_objective = objectives[0] || null;
@@ -158,11 +193,65 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: "Nenhum campo para atualização foi informado" }, { status: 400 });
+      if (!templateWasRequested) {
+        return NextResponse.json({ error: "Nenhum campo para atualização foi informado" }, { status: 400 });
+      }
     }
 
-    const dashboard = await DashboardService.updateDashboard(dashboardId, updates);
-    return NextResponse.json({ success: true, dashboard });
+    const dashboard = Object.keys(updates).length > 0
+      ? await DashboardService.updateDashboard(dashboardId, updates)
+      : templateUpdatedDashboard;
+
+    const shouldReprocess = templateWasRequested ? reprocess_template !== false : false;
+    let reprocessResult: any = null;
+
+    if (shouldReprocess) {
+      const sources = await DataSourceService.getActiveGoogleSheetsSources().catch(() => []);
+      const dashboardSources = (sources || []).filter((source: any) => source.dashboard_id === dashboardId);
+      const results: Array<{ sourceId: string; spreadsheetId: string; success: boolean; error?: string }> = [];
+
+      for (const source of dashboardSources) {
+        const gsheet = Array.isArray(source.google_sheet_sources)
+          ? source.google_sheet_sources[0]
+          : source.google_sheet_sources;
+        const spreadsheetId = gsheet?.spreadsheet_id;
+        if (!spreadsheetId) {
+          results.push({ sourceId: source.id, spreadsheetId: "", success: false, error: "spreadsheet_id ausente" });
+          continue;
+        }
+
+        try {
+          const result = await GoogleSheetsImportService.importDashboardData(
+            source.client_id,
+            dashboardId,
+            spreadsheetId,
+            source.id
+          );
+
+          results.push({
+            sourceId: source.id,
+            spreadsheetId,
+            success: Boolean(result.success),
+          });
+        } catch (error: any) {
+          results.push({
+            sourceId: source.id,
+            spreadsheetId,
+            success: false,
+            error: error instanceof Error ? error.message : "Erro ao reprocessar a fonte.",
+          });
+        }
+      }
+
+      reprocessResult = {
+        total: results.length,
+        success: results.filter((item) => item.success).length,
+        failed: results.filter((item) => !item.success).length,
+        results,
+      };
+    }
+
+    return NextResponse.json({ success: true, dashboard, reprocess: reprocessResult });
   } catch (error: any) {
     console.error("Erro ao atualizar dashboard:", error);
     return apiErrorResponse(error);
