@@ -37,24 +37,26 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   const baseTemplateId = template?.baseTemplateId || template?.sheetTemplateId || templateId;
   const templateName = template?.name || "Template";
   const isMetaTemplate = baseTemplateId === "meta_ads_s4x" || baseTemplateId === "google_meta_ads_s4x";
+  const rawMetricConfig = template?.metric_config || template?.metricConfig || null;
 
   const templateObjectives = useMemo(
-    () => normalizeMetaAdsObjectives(template?.metric_config?.objectives || []),
-    [template?.metric_config]
+    () => normalizeMetaAdsObjectives((rawMetricConfig as any)?.objectives || []),
+    [rawMetricConfig]
   );
-  const primaryObjective = normalizeMetaAdsObjectives([template?.metric_config?.primaryObjective])[0] || templateObjectives[0] || null;
+  const primaryObjective =
+    normalizeMetaAdsObjectives([(rawMetricConfig as any)?.primaryObjective])[0] || templateObjectives[0] || null;
 
   useEffect(() => {
     if (!open || !template) return;
     setConfig(
       normalizeTemplateMetricConfig(
-        template.metric_config,
+        rawMetricConfig,
         baseTemplateId,
         templateObjectives,
         primaryObjective
       )
     );
-  }, [open, template, baseTemplateId, templateObjectives, primaryObjective]);
+  }, [open, template, baseTemplateId, rawMetricConfig, templateObjectives, primaryObjective]);
 
   if (!open || !template || !config) return null;
 
@@ -176,8 +178,8 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
           </button>
         </div>
 
-        <div style={{ padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+        <div style={{ padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16, minHeight: 0, flex: "1 1 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, alignItems: "start" }}>
             <div style={{ padding: 14, borderRadius: 10, border: "1px solid #DBEAFE", background: "#EFF6FF" }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8" }}>Template ID</p>
               <p style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", marginTop: 4 }}>{templateId}</p>
@@ -196,9 +198,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
               <p style={{ fontSize: 12, color: "#4338CA", marginTop: 4, lineHeight: 1.5 }}>
                 A configuração abaixo define as métricas principais do template e serve de padrão para dashboards novos criados a partir dele. O dashboard ajusta apenas os objetivos Meta quando necessário.
               </p>
-              <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
+              <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 8, marginTop: 12 }}>
                 {META_ADS_OBJECTIVES.map((objective) => {
-                  const active = templateObjectives.includes(objective.id as any);
+                  const active = config?.objectives?.includes(objective.id as any) || false;
                   return (
                     <button
                       key={objective.id}
@@ -242,76 +244,82 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                 </button>
               </div>
               <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
-                {section.metrics.map((metric, index) => (
-                  <div
-                    key={metric.key}
-                    draggable
-                    onDragStart={() => setDragState({ sectionKey: section.key, metricKey: metric.key })}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => {
-                      if (dragState && dragState.sectionKey === section.key) {
-                        reorderMetrics(section.key, dragState.metricKey, metric.key);
-                      }
-                      setDragState(null);
-                    }}
-                    onDragEnd={() => setDragState(null)}
-                    style={{
-                      border: "1px solid #E2E8F0",
-                      borderRadius: 12,
-                      padding: 12,
-                      background: metric.enabled ? "#FFFFFF" : "#F8FAFC",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10,
-                      cursor: "grab",
-                      opacity: dragState?.metricKey === metric.key ? 0.6 : 1,
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 6, background: "#F8FAFC", border: "1px solid #E2E8F0", color: "#64748B" }}>
-                            <GripVertical size={13} />
-                          </span>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>
-                            {getMetricLabel(baseTemplateId, metric.key, primaryObjective)}
-                          </p>
-                          {metric.recommended && (
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 999, padding: "2px 8px" }}>
-                              Recomendado
+                {section.metrics.length > 0 ? (
+                  section.metrics.map((metric, index) => (
+                    <div
+                      key={metric.key}
+                      draggable
+                      onDragStart={() => setDragState({ sectionKey: section.key, metricKey: metric.key })}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (dragState && dragState.sectionKey === section.key) {
+                          reorderMetrics(section.key, dragState.metricKey, metric.key);
+                        }
+                        setDragState(null);
+                      }}
+                      onDragEnd={() => setDragState(null)}
+                      style={{
+                        border: "1px solid #E2E8F0",
+                        borderRadius: 12,
+                        padding: 12,
+                        background: metric.enabled ? "#FFFFFF" : "#F8FAFC",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                        cursor: "grab",
+                        opacity: dragState?.metricKey === metric.key ? 0.6 : 1,
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 6, background: "#F8FAFC", border: "1px solid #E2E8F0", color: "#64748B" }}>
+                              <GripVertical size={13} />
                             </span>
-                          )}
+                            <p style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>
+                              {getMetricLabel(baseTemplateId, metric.key, primaryObjective)}
+                            </p>
+                            {metric.recommended && (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 999, padding: "2px 8px" }}>
+                                Recomendado
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Chave: {metric.key} · Ordem {index + 1}</p>
                         </div>
-                        <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Chave: {metric.key} · Ordem {index + 1}</p>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: "#334155" }}>
+                          <input type="checkbox" checked={metric.enabled} onChange={() => toggleMetric(section.key, metric.key)} />
+                          Ativo
+                        </label>
                       </div>
-                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: "#334155" }}>
-                        <input type="checkbox" checked={metric.enabled} onChange={() => toggleMetric(section.key, metric.key)} />
-                        Ativo
-                      </label>
-                    </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 10, alignItems: "center" }}>
-                      <div>
-                        <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 6 }}>Formato</p>
-                        <select
-                          value={metric.displayMode}
-                          onChange={(e) => updateMetric(section.key, metric.key, (item) => ({ ...item, displayMode: e.target.value as MetricDisplayMode }))}
-                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "white" }}
-                        >
-                          {DISPLAY_MODE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div style={{ borderRadius: 10, border: "1px solid #E2E8F0", background: "#F8FAFC", padding: 10, minHeight: 64, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase" }}>Preview</p>
-                        <p style={{ fontSize: 14, fontWeight: 800, color: "#0F172A", marginTop: 4 }}>
-                          {metric.displayMode === "table" ? "Tabela" : metric.displayMode === "chart" ? "Gráfico" : metric.displayMode === "text" ? "Texto" : "Card"}
-                        </p>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 10, alignItems: "center" }}>
+                        <div>
+                          <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 6 }}>Formato</p>
+                          <select
+                            value={metric.displayMode}
+                            onChange={(e) => updateMetric(section.key, metric.key, (item) => ({ ...item, displayMode: e.target.value as MetricDisplayMode }))}
+                            style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "white" }}
+                          >
+                            {DISPLAY_MODE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div style={{ borderRadius: 10, border: "1px solid #E2E8F0", background: "#F8FAFC", padding: 10, minHeight: 64, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase" }}>Preview</p>
+                          <p style={{ fontSize: 14, fontWeight: 800, color: "#0F172A", marginTop: 4 }}>
+                            {metric.displayMode === "table" ? "Tabela" : metric.displayMode === "chart" ? "Gráfico" : metric.displayMode === "text" ? "Texto" : "Card"}
+                          </p>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div style={{ gridColumn: "1 / -1", padding: 16, borderRadius: 12, border: "1px dashed #CBD5E1", background: "#F8FAFC", color: "#64748B", fontSize: 13 }}>
+                    Nenhuma métrica configurada nesta seção. Use “Restaurar defaults” para recuperar a estrutura padrão.
                   </div>
-                ))}
+                )}
               </div>
             </div>
           ))}

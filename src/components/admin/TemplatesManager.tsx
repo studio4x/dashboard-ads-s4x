@@ -19,6 +19,7 @@ type TemplateItem = {
   optionalSheets?: string[];
   visiblePages?: string[];
   metric_config?: Record<string, unknown>;
+  metricConfig?: Record<string, unknown>;
   isCustom?: boolean;
   baseTemplateId?: string | null;
   sheetTemplateId?: string;
