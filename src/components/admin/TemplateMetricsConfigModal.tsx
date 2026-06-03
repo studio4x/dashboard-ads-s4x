@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, GripVertical, Loader2, Plus, RotateCcw, Save, X } from "lucide-react";
+import { CheckCircle2, GripVertical, Loader2, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import {
   getDefaultTemplateMetricConfig,
@@ -76,6 +76,20 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   const primaryObjective =
     normalizeMetaAdsObjectives([(rawMetricConfig as any)?.primaryObjective])[0] || templateObjectives[0] || null;
 
+  const getPreviewPlaceholder = (displayMode: MetricDisplayMode) => {
+    switch (displayMode) {
+      case "text":
+        return "Ex.: 12.5%";
+      case "chart":
+        return "Ex.: Série do gráfico";
+      case "table":
+        return "Ex.: Linha da tabela";
+      case "card":
+      default:
+        return "Ex.: R$ 0,00";
+    }
+  };
+
   useEffect(() => {
     if (!open || !template) return;
     setConfig(
@@ -119,6 +133,30 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
 
   const toggleMetric = (sectionKey: string, metricKey: string) => {
     updateMetric(sectionKey, metricKey, (metric) => ({ ...metric, enabled: !metric.enabled }));
+  };
+
+  const deleteMetric = (sectionKey: string, metricKey: string) => {
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const section = prev.sections[sectionKey];
+      if (!section) return prev;
+
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionKey]: {
+            ...section,
+            metrics: section.metrics
+              .filter((metric) => metric.key !== metricKey)
+              .map((metric, index) => ({
+                ...metric,
+                order: (index + 1) * 10,
+              })),
+          },
+        },
+      };
+    });
   };
 
   const updateDraft = (
@@ -456,13 +494,16 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                     </>
                   )}
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Preview</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Preview / exemplo</span>
                     <input
                       value={drafts[section.key]?.preview || ""}
                       onChange={(e) => updateDraft(section.key, "preview", e.target.value)}
-                      placeholder="R$ 0,00"
+                      placeholder={getPreviewPlaceholder(drafts[section.key]?.displayMode || "card")}
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     />
+                    <span style={{ fontSize: 10, color: "#64748B" }}>
+                      Valor opcional de exibição. O formato visual é definido no campo “Formato”.
+                    </span>
                   </label>
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Formato</span>
@@ -540,11 +581,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                               KPI composto ({metric.compositeType || "sum"}): {metric.primaryMetricKey || "?"} + {metric.secondaryMetricKey || "?"}
                             </p>
                           )}
-                          {metric.preview && (
-                            <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
-                              Preview: {metric.preview}
-                            </p>
-                          )}
+                          <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
+                            Preview: {metric.preview || (metric.displayMode === "table" ? "Tabela" : metric.displayMode === "chart" ? "Gráfico" : metric.displayMode === "text" ? "Texto" : "Card")}
+                          </p>
                         </div>
                         <div>
                           <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 6 }}>Formato</p>
@@ -565,11 +604,28 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       </div>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 8, borderTop: "1px solid #F1F5F9" }}>
                         <span style={{ fontSize: 11, color: "#64748B" }}>
-                          Preview: {metric.displayMode === "table" ? "Tabela" : metric.displayMode === "chart" ? "Gráfico" : metric.displayMode === "text" ? "Texto" : "Card"}
-                        </span>
-                        <span style={{ fontSize: 11, color: "#64748B" }}>
                           Arraste para reordenar
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => deleteMetric(section.key, metric.key)}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "7px 10px",
+                            borderRadius: 8,
+                            border: "1px solid #FECACA",
+                            background: "#FEF2F2",
+                            color: "#DC2626",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <Trash2 size={14} />
+                          Excluir métrica
+                        </button>
                       </div>
                     </div>
                   ))
