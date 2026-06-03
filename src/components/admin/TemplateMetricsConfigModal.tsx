@@ -94,6 +94,12 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     }
   };
 
+  const getMetricKeyOrigins = (item: MetricKeySuggestion) => {
+    if (item.origin === "canonical") return ["Padrão do sistema"];
+    if (item.sourceLabels && item.sourceLabels.length > 0) return item.sourceLabels;
+    return ["Fonte importada"];
+  };
+
   useEffect(() => {
     if (!open || !template) return;
     setConfig(
@@ -511,6 +517,57 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       </span>
                     )}
                   </label>
+                  <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Sugestões com origem</span>
+                      <span style={{ fontSize: 10, color: "#64748B" }}>Clique para preencher a chave</span>
+                    </div>
+                    <div style={{ maxHeight: 160, overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 8, paddingRight: 4 }}>
+                      {metricKeySuggestions.slice(0, 24).map((item) => {
+                        const origins = getMetricKeyOrigins(item);
+                        const isCanonical = item.origin === "canonical";
+                        return (
+                          <button
+                            key={`${item.key}-${item.origin}`}
+                            type="button"
+                            onClick={() => updateDraft(section.key, "key", item.key)}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 8,
+                              padding: "8px 10px",
+                              borderRadius: 999,
+                              border: isCanonical ? "1px solid #BFDBFE" : "1px solid #BBF7D0",
+                              background: isCanonical ? "#EFF6FF" : "#F0FDF4",
+                              color: "#0F172A",
+                              cursor: "pointer",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              textAlign: "left",
+                            }}
+                          >
+                            <span>{item.key}</span>
+                            <span style={{ fontWeight: 600, color: "#64748B" }}>·</span>
+                            <span style={{ fontWeight: 600, color: "#334155" }}>{item.label}</span>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                padding: "2px 8px",
+                                borderRadius: 999,
+                                fontSize: 10,
+                                fontWeight: 700,
+                                background: isCanonical ? "#DBEAFE" : "#DCFCE7",
+                                color: isCanonical ? "#1D4ED8" : "#166534",
+                              }}
+                            >
+                              {isCanonical ? "Sistema" : origins.join(" · ")}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   {(drafts[section.key]?.kind || "standard") === "composite" && (
                     <>
                       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>

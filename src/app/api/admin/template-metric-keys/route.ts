@@ -8,6 +8,24 @@ import {
   type MetricKeySuggestion,
 } from "@/lib/dashboard/metric-key-catalog";
 
+function getSourceRoleLabel(source: any) {
+  const role = Array.isArray(source?.google_sheet_sources)
+    ? source?.google_sheet_sources?.[0]?.source_role
+    : source?.google_sheet_sources?.source_role;
+
+  if (role === "google_ads") return "Google Ads";
+  if (role === "meta_ads") return "Meta Ads";
+
+  const dashboardType = Array.isArray(source?.dashboards)
+    ? source?.dashboards?.[0]?.dashboard_type
+    : source?.dashboards?.dashboard_type;
+
+  if (dashboardType === "google_meta_ads_s4x") return "Google + Meta";
+  if (dashboardType === "google_ads_s4x") return "Google Ads";
+  if (dashboardType === "meta_ads_s4x") return "Meta Ads";
+  return "Sistema";
+}
+
 async function getLatestSnapshotForSource(supabase: Awaited<ReturnType<typeof createAdminClient>>, sourceId: string, dashboardId: string) {
   const bySource = await supabase
     .from("dashboard_data_snapshots")
@@ -64,11 +82,18 @@ export async function GET() {
         if (!snapshot?.payload_json) return;
 
         const discovered = collectMetricKeysFromPayload(snapshot.payload_json);
+        const sourceRoleLabel = getSourceRoleLabel(source);
+        const sourceRole = Array.isArray(source?.google_sheet_sources)
+          ? source?.google_sheet_sources?.[0]?.source_role
+          : source?.google_sheet_sources?.source_role;
+
         discovered.forEach((item) => {
           const current = discoveredMap.get(item.key);
           discoveredMap.set(item.key, {
             ...item,
             sourceCount: (current?.sourceCount || 0) + (item.sourceCount || 0),
+            sourceRoles: Array.from(new Set([...(current?.sourceRoles || []), sourceRole || "unknown"])),
+            sourceLabels: Array.from(new Set([...(current?.sourceLabels || []), sourceRoleLabel])),
           });
         });
       })

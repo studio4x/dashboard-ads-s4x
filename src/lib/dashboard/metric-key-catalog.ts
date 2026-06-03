@@ -6,6 +6,8 @@ export interface MetricKeySuggestion {
   label: string;
   sourceCount?: number;
   origin: "canonical" | "discovered";
+  sourceRoles?: string[];
+  sourceLabels?: string[];
 }
 
 const IGNORED_KEYS = new Set([
