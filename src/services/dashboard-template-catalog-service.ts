@@ -44,6 +44,11 @@ function toStringArray(input: unknown): string[] {
   return Array.isArray(input) ? input.map((item) => String(item).trim()).filter(Boolean) : [];
 }
 
+function isMissingRelationError(error: any) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return message.includes("does not exist") || message.includes("relation") || message.includes("not exist");
+}
+
 function getSystemTemplateDefinition(templateId: string): DashboardTemplateCatalogDefinition | null {
   const template = DASHBOARD_TEMPLATES.find((item) => item.id === templateId);
   if (!template) return null;
@@ -69,14 +74,22 @@ function getSystemTemplateDefinition(templateId: string): DashboardTemplateCatal
 
 export const DashboardTemplateCatalogService = {
   async getCustomTemplates() {
-    const supabase = await createAdminClient({ actor: "admin", action: "template-catalog:list-custom" });
-    const { data, error } = await supabase
-      .from("dashboard_custom_templates")
-      .select("*")
-      .order("name");
+    try {
+      const supabase = await createAdminClient({ actor: "admin", action: "template-catalog:list-custom" });
+      const { data, error } = await supabase
+        .from("dashboard_custom_templates")
+        .select("*")
+        .order("name");
 
-    if (error) throw error;
-    return (data || []) as CustomTemplateRow[];
+      if (error) {
+        if (isMissingRelationError(error)) return [];
+        throw error;
+      }
+      return (data || []) as CustomTemplateRow[];
+    } catch (error: any) {
+      if (isMissingRelationError(error)) return [];
+      throw error;
+    }
   },
 
   async getTemplateDefinition(templateId: string): Promise<DashboardTemplateCatalogDefinition | null> {
@@ -90,14 +103,24 @@ export const DashboardTemplateCatalogService = {
       };
     }
 
-    const supabase = await createAdminClient({ actor: "admin", action: "template-catalog:get" });
-    const { data, error } = await supabase
-      .from("dashboard_custom_templates")
-      .select("*")
-      .eq("template_id", templateId)
-      .maybeSingle();
+    let data: CustomTemplateRow | null = null;
+    try {
+      const supabase = await createAdminClient({ actor: "admin", action: "template-catalog:get" });
+      const res = await supabase
+        .from("dashboard_custom_templates")
+        .select("*")
+        .eq("template_id", templateId)
+        .maybeSingle();
 
-    if (error) throw error;
+      if (res.error) {
+        if (isMissingRelationError(res.error)) return null;
+        throw res.error;
+      }
+      data = (res.data || null) as CustomTemplateRow | null;
+    } catch (error: any) {
+      if (isMissingRelationError(error)) return null;
+      throw error;
+    }
     if (!data) return null;
 
     const row = data as CustomTemplateRow;
@@ -135,7 +158,7 @@ export const DashboardTemplateCatalogService = {
   },
 
   async getAllTemplates(): Promise<DashboardTemplateCatalogDefinition[]> {
-    const customTemplates = await this.getCustomTemplates();
+    const customTemplates = await this.getCustomTemplates().catch(() => []);
     const systemTemplates = DASHBOARD_TEMPLATES.filter((template) =>
       ["google_ads_s4x", "meta_ads_s4x", "google_meta_ads_s4x"].includes(template.id)
     ).map((template) => {
