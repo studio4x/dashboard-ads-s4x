@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, GripVertical, Loader2, RotateCcw, Save, X } from "lucide-react";
+import { CheckCircle2, GripVertical, Loader2, Plus, RotateCcw, Save, X } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import {
   getDefaultTemplateMetricConfig,
-  getMetricLabel,
+  getTemplateMetricLabel,
   listTemplateMetricSections,
   normalizeTemplateMetricConfig,
   type DashboardTemplateMetricConfig,
   type MetricDisplayMode,
+  type TemplateMetricItem,
 } from "@/lib/dashboard/template-metric-config";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
@@ -32,6 +33,13 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   const [config, setConfig] = useState<DashboardTemplateMetricConfig | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [dragState, setDragState] = useState<{ sectionKey: string; metricKey: string } | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, {
+    label: string;
+    key: string;
+    preview: string;
+    displayMode: MetricDisplayMode;
+    enabled: boolean;
+  }>>({});
 
   const templateId = template?.id || "google_ads_s4x";
   const baseTemplateId = template?.baseTemplateId || template?.sheetTemplateId || templateId;
@@ -57,6 +65,11 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
       )
     );
   }, [open, template, baseTemplateId, rawMetricConfig, templateObjectives, primaryObjective]);
+
+  useEffect(() => {
+    if (!open) return;
+    setDrafts({});
+  }, [open, templateId]);
 
   if (!open || !template || !config) return null;
 
@@ -84,6 +97,78 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
 
   const toggleMetric = (sectionKey: string, metricKey: string) => {
     updateMetric(sectionKey, metricKey, (metric) => ({ ...metric, enabled: !metric.enabled }));
+  };
+
+  const updateDraft = (
+    sectionKey: string,
+    field: "label" | "key" | "preview" | "displayMode" | "enabled",
+    value: string | boolean
+  ) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [sectionKey]: {
+        label: prev[sectionKey]?.label || "",
+        key: prev[sectionKey]?.key || "",
+        preview: prev[sectionKey]?.preview || "",
+        displayMode: prev[sectionKey]?.displayMode || "card",
+        enabled: prev[sectionKey]?.enabled ?? true,
+        [field]: value,
+      },
+    }));
+  };
+
+  const addManualMetric = (sectionKey: string) => {
+    const draft = drafts[sectionKey];
+    const label = String(draft?.label || "").trim();
+    const key = String(draft?.key || "").trim();
+    const preview = String(draft?.preview || "").trim();
+
+    if (!label || !key) {
+      toast("Informe nome e chave da métrica.");
+      return;
+    }
+
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const section = prev.sections[sectionKey];
+      if (!section) return prev;
+      if (section.metrics.some((metric) => metric.key === key)) {
+        toast("Já existe uma métrica com essa chave nesta seção.");
+        return prev;
+      }
+
+      const nextMetric: TemplateMetricItem = {
+        key,
+        label,
+        preview: preview || undefined,
+        enabled: draft?.enabled ?? true,
+        displayMode: draft?.displayMode || "card",
+        order: (section.metrics.length + 1) * 10,
+        recommended: false,
+      };
+
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionKey]: {
+            ...section,
+            metrics: [...section.metrics, nextMetric],
+          },
+        },
+      };
+    });
+
+    setDrafts((prev) => ({
+      ...prev,
+      [sectionKey]: {
+        label: "",
+        key: "",
+        preview: "",
+        displayMode: "card",
+        enabled: true,
+      },
+    }));
   };
 
   const toggleObjective = (objective: string) => {
@@ -247,6 +332,63 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                 </button>
               </div>
               <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ border: "1px dashed #CBD5E1", borderRadius: 12, padding: 12, background: "#F8FAFC", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, alignItems: "end" }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Nome</span>
+                    <input
+                      value={drafts[section.key]?.label || ""}
+                      onChange={(e) => updateDraft(section.key, "label", e.target.value)}
+                      placeholder="Ex.: Ticket Médio"
+                      style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                    />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Chave</span>
+                    <input
+                      value={drafts[section.key]?.key || ""}
+                      onChange={(e) => updateDraft(section.key, "key", e.target.value)}
+                      placeholder="ticket_medio"
+                      style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                    />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Preview</span>
+                    <input
+                      value={drafts[section.key]?.preview || ""}
+                      onChange={(e) => updateDraft(section.key, "preview", e.target.value)}
+                      placeholder="R$ 0,00"
+                      style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                    />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Formato</span>
+                    <select
+                      value={drafts[section.key]?.displayMode || "card"}
+                      onChange={(e) => updateDraft(section.key, "displayMode", e.target.value as MetricDisplayMode)}
+                      style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                    >
+                      {DISPLAY_MODE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 38, fontSize: 12, fontWeight: 600, color: "#334155" }}>
+                    <input
+                      type="checkbox"
+                      checked={drafts[section.key]?.enabled ?? true}
+                      onChange={(e) => updateDraft(section.key, "enabled", e.target.checked)}
+                    />
+                    Ativo
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => addManualMetric(section.key)}
+                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 38, padding: "9px 12px", borderRadius: 8, border: "1px solid #BFDBFE", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    <Plus size={14} />
+                    Adicionar
+                  </button>
+                </div>
                 {section.metrics.length > 0 ? (
                   section.metrics.map((metric, index) => (
                     <div
@@ -280,7 +422,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                               <GripVertical size={13} />
                             </span>
                             <p style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>
-                              {getMetricLabel(baseTemplateId, metric.key, primaryObjective)}
+                              {getTemplateMetricLabel(baseTemplateId, metric, primaryObjective)}
                             </p>
                             {metric.recommended && (
                               <span style={{ fontSize: 11, fontWeight: 700, color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 999, padding: "2px 8px" }}>
@@ -289,6 +431,11 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                             )}
                           </div>
                           <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Chave: {metric.key} · Ordem {index + 1}</p>
+                          {metric.preview && (
+                            <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
+                              Preview: {metric.preview}
+                            </p>
+                          )}
                         </div>
                         <div>
                           <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 6 }}>Formato</p>

@@ -4,6 +4,8 @@ export type MetricDisplayMode = "card" | "text" | "chart" | "table";
 
 export interface TemplateMetricItem {
   key: string;
+  label?: string;
+  preview?: string;
   enabled: boolean;
   displayMode: MetricDisplayMode;
   order: number;
@@ -295,6 +297,14 @@ export function getMetricLabel(templateId: string, metricKey: string, primaryObj
   }
 }
 
+export function getTemplateMetricLabel(
+  templateId: string,
+  metric: Pick<TemplateMetricItem, "key" | "label">,
+  primaryObjective?: MetaAdsObjectiveId | null
+): string {
+  return metric.label?.trim() || getMetricLabel(templateId, metric.key, primaryObjective);
+}
+
 export function getDefaultTemplateMetricConfig(
   templateId: string,
   objectives: MetaAdsObjectiveId[] = [],
@@ -341,6 +351,8 @@ export function normalizeTemplateMetricConfig(
       const found = rawSection?.metrics?.find((item) => item.key === metric.key);
       return {
         ...metric,
+        label: found?.label?.trim() || metric.label,
+        preview: found?.preview?.trim() || metric.preview,
         enabled: found?.enabled ?? metric.enabled,
         displayMode: found?.displayMode || metric.displayMode,
         order: found?.order ?? metric.order,
@@ -352,6 +364,8 @@ export function normalizeTemplateMetricConfig(
       .filter((item) => !defaultSection.metrics.some((metric) => metric.key === item.key))
       .map((item) => ({
         key: item.key,
+        label: item.label?.trim() || undefined,
+        preview: item.preview?.trim() || undefined,
         enabled: item.enabled ?? true,
         displayMode: item.displayMode || "card",
         order: item.order ?? 999,
@@ -430,6 +444,7 @@ export function applyTemplateMetricConfigToKpis(
       const configMetric = orderMap.get(key);
       return {
         ...metric,
+        label: configMetric?.label?.trim() || metric.label,
         displayMode: configMetric?.displayMode || metric.displayMode || "card",
       };
     })
