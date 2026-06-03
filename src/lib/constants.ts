@@ -7,7 +7,10 @@ import type { DashboardPageKey } from "@/types/entities";
 export const APP_NAME = "Dashboard ADS S4X";
 export const APP_SLUG = "s4x";
 export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.1.12";
-export const APP_BUILD_HASH = process.env.NEXT_PUBLIC_GIT_HASH || "5924809";
+export const APP_BUILD_HASH =
+  process.env.NEXT_PUBLIC_GIT_HASH ||
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ||
+  "5924809";
 export const APP_BUILD_LABEL = `v${APP_VERSION}-${APP_BUILD_HASH}`;
 
 // IDs de demonstração (mock)
