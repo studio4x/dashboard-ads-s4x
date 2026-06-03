@@ -194,6 +194,13 @@ Cada cliente deve ter uma planilha no Google Sheets com abas padronizadas. A pla
 - A identificação é feita via vínculo no sistema (spreadsheet_id → client_id)
 - Não é necessário incluir coluna de cliente_id na planilha
 
+### Chave da Métrica
+- A `chave` usada nos templates não é o rótulo visual da métrica.
+- Ela é o identificador técnico que o importador e o dashboard usam para casar a métrica com os dados normalizados.
+- Para métricas padrão vindas do Google Sheets, use a chave canônica esperada pelo pipeline, por exemplo: `cost`, `impressions`, `clicks`, `ctr`, `cpc`, `cpa`, `roas`, `conversions`, `reach`, `frequency`.
+- Em várias abas o sistema aceita cabeçalhos humanos e também chaves técnicas no normalizador, mas a configuração do template deve usar a chave final padronizada, não o texto de apresentação.
+- Se você criar uma coluna nova na planilha, ela precisa ter uma chave estável e também precisa estar mapeada no importador para que o dashboard consiga renderizá-la.
+
 ---
 
 ## 5. Mapeamento Aba → Página do Dashboard

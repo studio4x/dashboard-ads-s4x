@@ -136,6 +136,17 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   };
 
   const deleteMetric = (sectionKey: string, metricKey: string) => {
+    const section = config?.sections?.[sectionKey];
+    const metric = section?.metrics.find((item) => item.key === metricKey);
+    if (!metric) return;
+
+    const warning = metric.recommended
+      ? `Esta métrica é recomendada pelo template. Excluir pode remover um KPI essencial. Deseja continuar?`
+      : `Excluir a métrica "${getTemplateMetricLabel(baseTemplateId, metric, primaryObjective)}"?`;
+
+    if (!window.confirm(warning)) return;
+    if (metric.recommended && !window.confirm("Confirme novamente a exclusão desta métrica recomendada.")) return;
+
     setConfig((prev) => {
       if (!prev) return prev;
       const section = prev.sections[sectionKey];
@@ -439,9 +450,12 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                     <input
                       value={drafts[section.key]?.key || ""}
                       onChange={(e) => updateDraft(section.key, "key", e.target.value)}
-                      placeholder="ticket_medio"
+                      placeholder="Ex.: cost, impressions, custom_metric"
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     />
+                    <span style={{ fontSize: 10, color: "#64748B" }}>
+                      Identificador técnico usado para casar a métrica com a coluna/field importado do Google Sheets ou com um KPI calculado.
+                    </span>
                   </label>
                   {(drafts[section.key]?.kind || "standard") === "composite" && (
                     <>
