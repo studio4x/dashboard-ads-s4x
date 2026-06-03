@@ -10,6 +10,7 @@ import {
   normalizeTemplateMetricConfig,
   type DashboardTemplateMetricConfig,
   type MetricDisplayMode,
+  type TemplateMetricKind,
   type TemplateMetricItem,
 } from "@/lib/dashboard/template-metric-config";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
@@ -28,6 +29,11 @@ const DISPLAY_MODE_OPTIONS: Array<{ value: MetricDisplayMode; label: string }> =
   { value: "table", label: "Tabela" },
 ];
 
+const METRIC_KIND_OPTIONS: Array<{ value: TemplateMetricKind; label: string }> = [
+  { value: "standard", label: "Simples" },
+  { value: "composite", label: "Composta" },
+];
+
 export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }: TemplateMetricsConfigModalProps) {
   const { toast } = useToast();
   const [config, setConfig] = useState<DashboardTemplateMetricConfig | null>(null);
@@ -37,6 +43,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     label: string;
     key: string;
     preview: string;
+    kind: TemplateMetricKind;
+    primaryMetricKey: string;
+    secondaryMetricKey: string;
     displayMode: MetricDisplayMode;
     enabled: boolean;
   }>>({});
@@ -101,7 +110,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
 
   const updateDraft = (
     sectionKey: string,
-    field: "label" | "key" | "preview" | "displayMode" | "enabled",
+    field: "label" | "key" | "preview" | "kind" | "primaryMetricKey" | "secondaryMetricKey" | "displayMode" | "enabled",
     value: string | boolean
   ) => {
     setDrafts((prev) => ({
@@ -110,6 +119,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         label: prev[sectionKey]?.label || "",
         key: prev[sectionKey]?.key || "",
         preview: prev[sectionKey]?.preview || "",
+        kind: prev[sectionKey]?.kind || "standard",
+        primaryMetricKey: prev[sectionKey]?.primaryMetricKey || "",
+        secondaryMetricKey: prev[sectionKey]?.secondaryMetricKey || "",
         displayMode: prev[sectionKey]?.displayMode || "card",
         enabled: prev[sectionKey]?.enabled ?? true,
         [field]: value,
@@ -122,9 +134,16 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     const label = String(draft?.label || "").trim();
     const key = String(draft?.key || "").trim();
     const preview = String(draft?.preview || "").trim();
+    const kind = draft?.kind || "standard";
+    const primaryMetricKey = String(draft?.primaryMetricKey || "").trim();
+    const secondaryMetricKey = String(draft?.secondaryMetricKey || "").trim();
 
     if (!label || !key) {
       toast("Informe nome e chave da métrica.");
+      return;
+    }
+    if (kind === "composite" && (!primaryMetricKey || !secondaryMetricKey)) {
+      toast("Selecione as duas métricas base do KPI composto.");
       return;
     }
 
@@ -141,6 +160,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         key,
         label,
         preview: preview || undefined,
+        kind,
+        primaryMetricKey: kind === "composite" ? primaryMetricKey : undefined,
+        secondaryMetricKey: kind === "composite" ? secondaryMetricKey : undefined,
         enabled: draft?.enabled ?? true,
         displayMode: draft?.displayMode || "card",
         order: (section.metrics.length + 1) * 10,
@@ -165,6 +187,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         label: "",
         key: "",
         preview: "",
+        kind: "standard",
+        primaryMetricKey: "",
+        secondaryMetricKey: "",
         displayMode: "card",
         enabled: true,
       },
@@ -334,6 +359,18 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
               <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ border: "1px dashed #CBD5E1", borderRadius: 12, padding: 12, background: "#F8FAFC", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, alignItems: "end" }}>
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Tipo</span>
+                    <select
+                      value={drafts[section.key]?.kind || "standard"}
+                      onChange={(e) => updateDraft(section.key, "kind", e.target.value as TemplateMetricKind)}
+                      style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                    >
+                      {METRIC_KIND_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Nome</span>
                     <input
                       value={drafts[section.key]?.label || ""}
@@ -351,6 +388,44 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     />
                   </label>
+                  {(drafts[section.key]?.kind || "standard") === "composite" && (
+                    <>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Métrica base 1</span>
+                        <select
+                          value={drafts[section.key]?.primaryMetricKey || ""}
+                          onChange={(e) => updateDraft(section.key, "primaryMetricKey", e.target.value)}
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                        >
+                          <option value="">Selecione</option>
+                          {section.metrics
+                            .filter((metric) => (metric.kind || "standard") === "standard")
+                            .map((metric) => (
+                              <option key={metric.key} value={metric.key}>
+                                {getTemplateMetricLabel(baseTemplateId, metric, primaryObjective)}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Métrica base 2</span>
+                        <select
+                          value={drafts[section.key]?.secondaryMetricKey || ""}
+                          onChange={(e) => updateDraft(section.key, "secondaryMetricKey", e.target.value)}
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                        >
+                          <option value="">Selecione</option>
+                          {section.metrics
+                            .filter((metric) => (metric.kind || "standard") === "standard")
+                            .map((metric) => (
+                              <option key={metric.key} value={metric.key}>
+                                {getTemplateMetricLabel(baseTemplateId, metric, primaryObjective)}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                    </>
+                  )}
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Preview</span>
                     <input
@@ -431,6 +506,11 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                             )}
                           </div>
                           <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Chave: {metric.key} · Ordem {index + 1}</p>
+                          {(metric.kind || "standard") === "composite" && (
+                            <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>
+                              KPI composto: {metric.primaryMetricKey || "?"} + {metric.secondaryMetricKey || "?"}
+                            </p>
+                          )}
                           {metric.preview && (
                             <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
                               Preview: {metric.preview}

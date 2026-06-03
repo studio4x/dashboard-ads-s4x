@@ -1,11 +1,17 @@
+import { formatCurrency, formatNumber } from "@/lib/formatters";
 import { getMetaConversionLabel, getMetaCostLabel, normalizeMetaAdsObjectives, type MetaAdsObjectiveId } from "@/lib/meta-ads/objectives";
+import type { KpiSummary } from "@/types/entities";
 
 export type MetricDisplayMode = "card" | "text" | "chart" | "table";
+export type TemplateMetricKind = "standard" | "composite";
 
 export interface TemplateMetricItem {
   key: string;
   label?: string;
   preview?: string;
+  kind?: TemplateMetricKind;
+  primaryMetricKey?: string;
+  secondaryMetricKey?: string;
   enabled: boolean;
   displayMode: MetricDisplayMode;
   order: number;
@@ -46,6 +52,11 @@ const DEFAULT_DISPLAY: Record<string, MetricDisplayMode> = {
 function metricItem(key: string, order: number, options?: Partial<TemplateMetricItem>): TemplateMetricItem {
   return {
     key,
+    label: options?.label,
+    preview: options?.preview,
+    kind: options?.kind || "standard",
+    primaryMetricKey: options?.primaryMetricKey,
+    secondaryMetricKey: options?.secondaryMetricKey,
     enabled: options?.enabled ?? true,
     displayMode: options?.displayMode || DEFAULT_DISPLAY[key] || "card",
     order,
@@ -305,6 +316,22 @@ export function getTemplateMetricLabel(
   return metric.label?.trim() || getMetricLabel(templateId, metric.key, primaryObjective);
 }
 
+function formatCompositeMetricValue(value: number, unit?: KpiSummary["unit"]) {
+  if (!Number.isFinite(value)) return "0";
+  if (unit === "currency") return formatCurrency(value, true);
+  if (unit === "percent") return `${value.toFixed(2)}%`;
+  if (unit === "ratio") return `${value.toFixed(2)}x`;
+  return formatNumber(value);
+}
+
+function derivePreviousValue(currentValue: number, changePercent: number) {
+  if (!Number.isFinite(currentValue)) return 0;
+  if (!Number.isFinite(changePercent) || changePercent === -100) return currentValue;
+  const factor = 1 + changePercent / 100;
+  if (factor === 0) return currentValue;
+  return currentValue / factor;
+}
+
 export function getDefaultTemplateMetricConfig(
   templateId: string,
   objectives: MetaAdsObjectiveId[] = [],
@@ -353,6 +380,9 @@ export function normalizeTemplateMetricConfig(
         ...metric,
         label: found?.label?.trim() || metric.label,
         preview: found?.preview?.trim() || metric.preview,
+        kind: found?.kind || metric.kind || "standard",
+        primaryMetricKey: found?.primaryMetricKey?.trim() || metric.primaryMetricKey,
+        secondaryMetricKey: found?.secondaryMetricKey?.trim() || metric.secondaryMetricKey,
         enabled: found?.enabled ?? metric.enabled,
         displayMode: found?.displayMode || metric.displayMode,
         order: found?.order ?? metric.order,
@@ -366,6 +396,9 @@ export function normalizeTemplateMetricConfig(
         key: item.key,
         label: item.label?.trim() || undefined,
         preview: item.preview?.trim() || undefined,
+        kind: item.kind || "standard",
+        primaryMetricKey: item.primaryMetricKey?.trim() || undefined,
+        secondaryMetricKey: item.secondaryMetricKey?.trim() || undefined,
         enabled: item.enabled ?? true,
         displayMode: item.displayMode || "card",
         order: item.order ?? 999,
@@ -420,6 +453,43 @@ export function listTemplateMetricSections(
   return Object.values(config?.sections || {});
 }
 
+function buildCompositeKpi(
+  metricConfig: TemplateMetricItem,
+  baseMetrics: Array<KpiSummary & { metricKey?: string }>
+): (KpiSummary & { metricKey: string }) | null {
+  const primary = baseMetrics.find((metric) => metric.metricKey === metricConfig.primaryMetricKey);
+  const secondary = baseMetrics.find((metric) => metric.metricKey === metricConfig.secondaryMetricKey);
+  if (!primary || !secondary) return null;
+
+  const primaryValue = Number(primary.value || 0);
+  const secondaryValue = Number(secondary.value || 0);
+  if (!Number.isFinite(primaryValue) || !Number.isFinite(secondaryValue)) return null;
+
+  const currentValue = primaryValue + secondaryValue;
+  const primaryChange = Number(primary.change_percent || 0);
+  const secondaryChange = Number(secondary.change_percent || 0);
+  const previousValue =
+    derivePreviousValue(primaryValue, primaryChange) +
+    derivePreviousValue(secondaryValue, secondaryChange);
+  const changePercent =
+    previousValue > 0
+      ? ((currentValue - previousValue) / previousValue) * 100
+      : 0;
+
+  return {
+    metricKey: metricConfig.key,
+    label: metricConfig.label?.trim() || `${primary.label} + ${secondary.label}`,
+    value: currentValue,
+    formatted_value: formatCompositeMetricValue(currentValue, primary.unit || secondary.unit),
+    change_percent: Number.isFinite(changePercent) ? changePercent : 0,
+    change_direction: changePercent > 0 ? "up" : changePercent < 0 ? "down" : "neutral",
+    unit: primary.unit || secondary.unit,
+    icon: primary.icon || secondary.icon,
+    description: `${primary.label} + ${secondary.label}`,
+    displayMode: metricConfig.displayMode || "card",
+  };
+}
+
 export function applyTemplateMetricConfigToKpis(
   metrics: Array<{ metricKey?: string; label: string; displayMode?: MetricDisplayMode; [key: string]: any }>,
   config: DashboardTemplateMetricConfig | null | undefined,
@@ -433,7 +503,7 @@ export function applyTemplateMetricConfigToKpis(
   if (!section) return metrics;
 
   const orderMap = new Map(section.metrics.map((metric) => [metric.key, metric]));
-  return metrics
+  const filteredBaseMetrics = metrics
     .filter((metric) => {
       const key = metric.metricKey || metric.label;
       const configMetric = orderMap.get(key);
@@ -455,4 +525,17 @@ export function applyTemplateMetricConfigToKpis(
       const orderB = orderMap.get(keyB)?.order ?? 999;
       return orderA - orderB;
     });
+
+  const compositeMetrics = section.metrics
+    .filter((metric) => metric.enabled && (metric.kind || "standard") === "composite")
+    .map((metric) => buildCompositeKpi(metric, metrics as Array<KpiSummary & { metricKey?: string }>))
+    .filter(Boolean) as Array<KpiSummary & { metricKey: string }>;
+
+  return [...filteredBaseMetrics, ...compositeMetrics].sort((a, b) => {
+    const keyA = a.metricKey || a.label;
+    const keyB = b.metricKey || b.label;
+    const orderA = orderMap.get(keyA)?.order ?? 999;
+    const orderB = orderMap.get(keyB)?.order ?? 999;
+    return orderA - orderB;
+  });
 }
