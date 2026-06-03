@@ -27,7 +27,7 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
     return <div style={{ minHeight: 36 }} aria-hidden="true" />;
   }
 
-  const visiblePageKeys = getVisiblePages(data?.templateId);
+  const visiblePageKeys = data?.templatePageKeys?.length ? data.templatePageKeys : getVisiblePages(data?.templateId);
   const filteredPages = DASHBOARD_PAGES.filter(p => visiblePageKeys.includes(p.key));
 
   return (

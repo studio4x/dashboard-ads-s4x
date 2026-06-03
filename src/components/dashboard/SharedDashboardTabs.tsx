@@ -25,7 +25,7 @@ export function SharedDashboardTabs({ token }: SharedDashboardTabsProps) {
     return <div className="py-2" style={{ minHeight: 44 }} aria-hidden="true" />;
   }
 
-  const visiblePageKeys = getVisiblePages(data?.templateId);
+  const visiblePageKeys = data?.templatePageKeys?.length ? data.templatePageKeys : getVisiblePages(data?.templateId);
   const filteredPages = DASHBOARD_PAGES.filter(p => visiblePageKeys.includes(p.key));
 
   return (

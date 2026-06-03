@@ -1,15 +1,8 @@
-import { getTemplateById } from "@/lib/dashboard/templates";
 import { getDefaultTemplateMetricConfig, normalizeTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
 import { DashboardTemplateConfigService } from "@/services/dashboard-template-config-service";
+import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
 
-export type DashboardTemplateType = 
-  | "google_ads" 
-  | "meta_ads" 
-  | "google_ads_meta_ads" 
-  | "custom" 
-  | "google_ads_s4x" 
-  | "meta_ads_s4x"
-  | "google_meta_ads_s4x";
+export type DashboardTemplateType = string;
 
 const TEMPLATE_PAGES: Record<string, { key: string; title: string; sort: number }[]> = {
   google_meta_ads_s4x: [
@@ -68,19 +61,29 @@ export class DashboardTemplateService {
   ) {
     const { createAdminClient } = await import("@/lib/supabase/server");
     const supabase = await createAdminClient();
-    const template = getTemplateById(templateType);
-    const storedTemplateConfig = await DashboardTemplateConfigService.getTemplateConfig(templateType).catch(() => null);
+    const template = await DashboardTemplateCatalogService.getTemplateDefinition(templateType).catch(() => null);
+    const sheetTemplateId = template?.sheetTemplateId || templateType;
+    const storedTemplateConfig = template?.isCustom
+      ? template.metricConfig
+      : await DashboardTemplateConfigService.getTemplateConfig(sheetTemplateId).catch(() => null);
     const templateConfig = getDefaultTemplateMetricConfig(
-      templateType,
+      sheetTemplateId,
       (options?.metaObjectives || []) as any,
       (options?.metaPrimaryObjective || null) as any
     );
     const resolvedTemplateConfig = normalizeTemplateMetricConfig(
-      storedTemplateConfig?.metric_config || templateConfig,
-      templateType,
+      storedTemplateConfig || templateConfig,
+      sheetTemplateId,
       (options?.metaObjectives || []) as any,
       (options?.metaPrimaryObjective || null) as any
     );
+    const basePages = TEMPLATE_PAGES[sheetTemplateId] || TEMPLATE_PAGES["google_ads"];
+    const visiblePageKeys = Array.isArray(template?.visiblePages) && template.visiblePages.length > 0
+      ? template.visiblePages
+      : [];
+    const pagesToCreate = visiblePageKeys.length > 0
+      ? visiblePageKeys.map((pageKey) => basePages.find((page) => page.key === pageKey) || { key: pageKey, title: pageKey, sort: 999 })
+      : basePages;
 
     // 1. Criar Dashboard
     const { data: dashboard, error: dashError } = await supabase
@@ -104,9 +107,7 @@ export class DashboardTemplateService {
     if (dashError) throw new Error(`Erro ao criar dashboard: ${dashError.message}`);
 
     // 2. Criar Páginas do Template
-    const pagesToCreate = TEMPLATE_PAGES[templateType] || TEMPLATE_PAGES["google_ads"];
-    
-    if (templateType !== "custom") {
+    if (pagesToCreate && pagesToCreate.length > 0) {
       const pages = pagesToCreate.map(p => ({
         dashboard_id: dashboard.id,
         page_key: p.key,
@@ -155,9 +156,11 @@ export class DashboardTemplateService {
       .eq("dashboard_id", sourceDashboardId);
 
     if (fetchPagesError) throw new Error("Erro ao carregar páginas originais");
+    const sourceTemplateDefinition = await DashboardTemplateCatalogService.getTemplateDefinition(sourceDash.dashboard_type).catch(() => null);
+    const sourceSheetTemplateId = sourceTemplateDefinition?.sheetTemplateId || sourceDash.dashboard_type;
     const templateConfig = normalizeTemplateMetricConfig(
       (sourceDash as any)?.template_config,
-      sourceDash.dashboard_type,
+      sourceSheetTemplateId,
       (sourceDash.meta_objectives || []) as any,
       sourceDash.meta_primary_objective || null
     );

@@ -3,13 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff } from "lucide-react";
-import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 import { useToast } from "@/components/ui/Toast";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
-// Somente os templates ativos aparecem no dropdown
-const ACTIVE_TEMPLATES = DASHBOARD_TEMPLATES.filter(t => t.status === "active");
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
 type MetaObjective = (typeof META_ADS_OBJECTIVES)[number]["id"];
 const META_TEMPLATE_ID = "meta_ads_s4x";
@@ -46,6 +43,7 @@ export default function AdminDashboardsPage() {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [sources, setSources] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -93,18 +91,21 @@ export default function AdminDashboardsPage() {
   async function fetchData() {
     setIsLoading(true);
     try {
-      const [dashRes, clientsRes, sourcesRes] = await Promise.all([
+      const [dashRes, clientsRes, sourcesRes, templatesRes] = await Promise.all([
         fetch("/api/admin/dashboards/list-all"),
         fetch("/api/admin/clients"),
-        fetch("/api/admin/google-sheets")
+        fetch("/api/admin/google-sheets"),
+        fetch("/api/admin/templates")
       ]);
       const dashboardsData = await dashRes.json();
       const clientsData = await clientsRes.json();
       const sourcesData = await sourcesRes.json();
+      const templatesData = await templatesRes.json();
       
       setDashboards(Array.isArray(dashboardsData) ? dashboardsData : []);
       setClients(Array.isArray(clientsData) ? clientsData : []);
       setSources(Array.isArray(sourcesData) ? sourcesData : []);
+      setTemplates(Array.isArray(templatesData) ? templatesData.filter((template: any) => template.status !== "deprecated") : []);
       if (Array.isArray(dashboardsData)) {
         const nextForms: Record<string, AutomationForm> = {};
         dashboardsData.forEach((d: any) => {
@@ -1298,17 +1299,28 @@ export default function AdminDashboardsPage() {
                   <select 
                     required
                     value={formData.dashboard_type}
-                    onChange={e => setFormData({ ...formData, dashboard_type: e.target.value, meta_objectives: e.target.value === META_TEMPLATE_ID ? formData.meta_objectives : [] })}
+                    onChange={e => {
+                      const selected = templates.find((template) => template.id === e.target.value);
+                      setFormData({
+                        ...formData,
+                        dashboard_type: e.target.value,
+                        meta_objectives: selected && (selected.platform === "meta_ads" || selected.platform === "mixed") ? formData.meta_objectives : [],
+                      });
+                    }}
                     style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white" }}
                   >
                     <option value="">Selecione um modelo...</option>
-                    {ACTIVE_TEMPLATES.map(t => (
+                    {templates.map(t => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                   </select>
                 </div>
 
-                {formData.dashboard_type === META_TEMPLATE_ID && (
+                {(() => {
+                  const selected = templates.find((template) => template.id === formData.dashboard_type);
+                  const showObjectives = Boolean(selected && (selected.platform === "meta_ads" || selected.platform === "mixed"));
+                  if (!showObjectives) return null;
+                  return (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <label style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>Objetivos da Campanha (Meta Ads)</label>
                     <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -1340,7 +1352,8 @@ export default function AdminDashboardsPage() {
                       Você pode selecionar múltiplos objetivos. O primeiro selecionado será o objetivo principal.
                     </p>
                   </div>
-                )}
+                  );
+                })()}
 
                 <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
                   <button 

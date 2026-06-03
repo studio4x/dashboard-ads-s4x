@@ -1,13 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Save, X } from "lucide-react";
-import { DASHBOARD_TEMPLATES } from "@/lib/dashboard/templates";
 import { META_ADS_OBJECTIVES, type MetaAdsObjectiveId } from "@/lib/meta-ads/objectives";
 import { useToast } from "@/components/ui/Toast";
 
-const ACTIVE_TEMPLATES = DASHBOARD_TEMPLATES.filter((t) => t.status === "active");
-const META_TEMPLATE_ID = "meta_ads_s4x";
+type TemplateOption = {
+  id: string;
+  name: string;
+  status: string;
+  platform: string;
+  isCustom?: boolean;
+  baseTemplateId?: string | null;
+};
 
 function generateSlug(name: string) {
   return name
@@ -22,6 +27,7 @@ export function CreateDashboardModalButton({ clientId }: { clientId: string }) {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -32,7 +38,22 @@ export function CreateDashboardModalButton({ clientId }: { clientId: string }) {
     meta_objectives: [] as MetaAdsObjectiveId[],
   });
 
-  const isMetaTemplate = useMemo(() => formData.dashboard_type === META_TEMPLATE_ID, [formData.dashboard_type]);
+  const selectedTemplate = useMemo(
+    () => templates.find((template) => template.id === formData.dashboard_type),
+    [templates, formData.dashboard_type]
+  );
+  const isMetaTemplate = useMemo(
+    () => Boolean(selectedTemplate && (selectedTemplate.platform === "meta_ads" || selectedTemplate.platform === "mixed")),
+    [selectedTemplate]
+  );
+
+  useEffect(() => {
+    if (!isOpen || templates.length > 0) return;
+    fetch("/api/admin/templates")
+      .then((res) => res.json())
+      .then((data) => setTemplates(Array.isArray(data) ? data.filter((item) => item.status !== "deprecated") : []))
+      .catch(() => setTemplates([]));
+  }, [isOpen, templates.length]);
 
   function toggleObjective(objective: MetaAdsObjectiveId) {
     setFormData((prev) => {
@@ -125,12 +146,16 @@ export function CreateDashboardModalButton({ clientId }: { clientId: string }) {
                     setFormData((prev) => ({
                       ...prev,
                       dashboard_type: e.target.value,
-                      meta_objectives: e.target.value === META_TEMPLATE_ID ? prev.meta_objectives : [],
+                      meta_objectives:
+                        templates.find((template) => template.id === e.target.value)?.platform === "meta_ads" ||
+                        templates.find((template) => template.id === e.target.value)?.platform === "mixed"
+                          ? prev.meta_objectives
+                          : [],
                     }))
                   }
                   style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 14, background: "#fff" }}
                 >
-                  {ACTIVE_TEMPLATES.map((t) => (
+                  {templates.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
                     </option>

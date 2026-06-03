@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 import { apiErrorResponse, parseJsonObject, requireString } from "@/lib/security/api-safety";
+import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
 
 export async function GET(request: Request) {
   try {
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
   }
 }
 
-import { DashboardTemplateService, DashboardTemplateType } from "@/services/dashboard-template-service";
+import { DashboardTemplateService } from "@/services/dashboard-template-service";
 
 export async function POST(request: Request) {
   try {
@@ -48,12 +49,12 @@ export async function POST(request: Request) {
     if (!clientId || !safeName || !safeSlug) {
       return NextResponse.json({ error: "Cliente, Nome e Slug são obrigatórios" }, { status: 400 });
     }
-    const allowedTypes: DashboardTemplateType[] = ["google_ads", "meta_ads", "custom", "google_ads_s4x", "meta_ads_s4x", "google_meta_ads_s4x"];
-    const type: DashboardTemplateType = allowedTypes.includes(dashboardTypeRaw as DashboardTemplateType)
-      ? (dashboardTypeRaw as DashboardTemplateType)
-      : "google_ads";
+    const templateDefinition = await DashboardTemplateCatalogService.getTemplateDefinition(dashboardTypeRaw);
+    if (!templateDefinition) {
+      return NextResponse.json({ error: "Modelo de dashboard inválido ou indisponível." }, { status: 400 });
+    }
 
-    const normalizedObjectives = type === "meta_ads_s4x"
+    const normalizedObjectives = templateDefinition.platform === "meta_ads" || templateDefinition.platform === "mixed"
       ? normalizeMetaAdsObjectives(metaObjectives)
       : [];
 
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
       clientId,
       safeName,
       safeSlug,
-      type,
+      dashboardTypeRaw,
       safeDescription,
       {
         metaObjectives: normalizedObjectives,

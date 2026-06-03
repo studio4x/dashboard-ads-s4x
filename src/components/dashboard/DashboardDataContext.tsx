@@ -34,6 +34,7 @@ interface DashboardData {
   google_ads_summary?: any;
   meta_ads_summary?: any;
   templateId?: string;
+  templateBaseId?: string;
   templateVersion?: string;
   platform?: string;
   metaObjectives?: string[];
@@ -41,6 +42,7 @@ interface DashboardData {
   metaValidationStatus?: "not_configured" | "ok" | "missing_metrics";
   metaValidationNotes?: Record<string, unknown>;
   templateConfig?: DashboardTemplateMetricConfig;
+  templatePageKeys?: string[];
   viewerRole?: string;
   source: "mock" | "google_sheets" | "google_sheets_cache";
   lastUpdated?: string;

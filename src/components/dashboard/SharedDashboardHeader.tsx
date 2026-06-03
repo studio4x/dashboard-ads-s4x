@@ -177,7 +177,7 @@ export function SharedDashboardHeader({
       const { jsPDF } = await import("jspdf");
       const html2canvas = (await import("html2canvas-pro")).default;
 
-      const visiblePageKeys = getVisiblePages(data?.templateId);
+      const visiblePageKeys = data?.templatePageKeys?.length ? data.templatePageKeys : getVisiblePages(data?.templateId);
       const pages = DASHBOARD_PAGES.filter((p) => visiblePageKeys.includes(p.key));
       const pageErrors: string[] = [];
 

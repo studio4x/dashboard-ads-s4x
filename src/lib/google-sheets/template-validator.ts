@@ -1,6 +1,6 @@
 import { readSheetRange } from "./read-sheet-range";
 import { ImportResult, ImportError } from "@/types/import";
-import { getTemplateById } from "@/lib/dashboard/templates";
+import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
 
 export class TemplateValidator {
   /**
@@ -20,7 +20,7 @@ export class TemplateValidator {
     }
 
     // Verifica se Dashboard_Config é obrigatória para este template
-    const templateDef = getTemplateById(expectedTemplateId);
+    const templateDef = await DashboardTemplateCatalogService.getTemplateDefinition(expectedTemplateId).catch(() => null);
     const isConfigRequired = templateDef?.requiredSheets?.includes("Dashboard_Config") ?? true;
     
     try {

@@ -14,6 +14,8 @@ import { getDefaultTemplateMetricConfig, normalizeTemplateMetricConfig } from "@
 import { DashboardAggregator } from "./dashboard-aggregator";
 import { parseISO } from "date-fns";
 import { isDateInRange } from "./date-utils";
+import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
+import { getVisiblePages } from "@/lib/dashboard/templates";
 
 function extractAvailableDateRange(data: any): { from: string; to: string } | null {
   const candidates = [
@@ -179,6 +181,9 @@ export async function getDashboardData(
 
       // 2. Busca informações do dashboard para o template
       const dashboard = await DashboardService.getDashboardById(dashboardId, { bypassRls: options?.bypassRls });
+      const templateDefinition = await DashboardTemplateCatalogService.getTemplateDefinition(dashboard?.dashboard_type || "google_ads_s4x").catch(() => null);
+      const templateBaseId = templateDefinition?.sheetTemplateId || dashboard?.dashboard_type || "google_ads_s4x";
+      const templatePageKeys = templateDefinition?.visiblePages?.length ? templateDefinition.visiblePages : getVisiblePages(templateBaseId);
 
       return {
         ...data,
@@ -201,16 +206,18 @@ export async function getDashboardData(
         source: snapshot.source_type || "google_sheets",
         lastUpdated: `${new Date(snapshot.imported_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} (UTC-3)`,
         templateId: dashboard?.dashboard_type || "google_ads_s4x",
-        templateVersion: dashboard?.template_version || "1.0",
+        templateBaseId,
+        templateVersion: templateDefinition?.version || dashboard?.template_version || "1.0",
         platform: dashboard?.platform || "google_ads",
         metaObjectives: dashboard?.meta_objectives || data?.metaObjectives || [],
         metaPrimaryObjective: dashboard?.meta_primary_objective || data?.metaPrimaryObjective || null,
         templateConfig: normalizeTemplateMetricConfig(
-          dashboard?.template_config || data?.templateConfig,
-          dashboard?.dashboard_type || "google_ads_s4x",
+          templateDefinition?.metricConfig || dashboard?.template_config || data?.templateConfig,
+          templateBaseId,
           dashboard?.meta_objectives || data?.metaObjectives || [],
           dashboard?.meta_primary_objective || data?.metaPrimaryObjective || null
         ),
+        templatePageKeys,
         metaValidationStatus: dashboard?.meta_validation_status || data?.metaValidationStatus || "not_configured",
         metaValidationNotes: dashboard?.meta_validation_notes || data?.metaValidationNotes || {},
         availableDateRange,
@@ -224,6 +231,9 @@ export async function getDashboardData(
   if (useMocks) {
     const dashboard = await DashboardService.getDashboardById(dashboardId, { bypassRls: options?.bypassRls }).catch(() => null);
     const templateId = dashboard?.dashboard_type || "google_ads_s4x";
+    const templateDefinition = await DashboardTemplateCatalogService.getTemplateDefinition(templateId).catch(() => null);
+    const templateBaseId = templateDefinition?.sheetTemplateId || templateId;
+    const templatePageKeys = templateDefinition?.visiblePages?.length ? templateDefinition.visiblePages : getVisiblePages(templateBaseId);
 
     if (templateId === "google_ads_s4x") {
       const availableDateRange = extractAvailableDateRange(mockGoogleAdsS4XPayload);
@@ -239,9 +249,11 @@ export async function getDashboardData(
         insights: mockInsights.mockInsights,
         source: "mock",
         templateId: "google_ads_s4x",
-        templateVersion: "1.0",
+        templateBaseId: "google_ads_s4x",
+        templateVersion: templateDefinition?.version || "1.0",
         platform: "google_ads",
         templateConfig: getDefaultTemplateMetricConfig("google_ads_s4x"),
+        templatePageKeys: getVisiblePages("google_ads_s4x"),
         availableDateRange,
       };
     }
@@ -287,7 +299,8 @@ export async function getDashboardData(
         google_ads_summary: null,
         source: "mock",
         templateId: "meta_ads_s4x",
-        templateVersion: "1.0",
+        templateBaseId: "meta_ads_s4x",
+        templateVersion: templateDefinition?.version || "1.0",
         platform: "meta_ads",
         metaObjectives: mockPayload.metaObjectives || [],
         metaPrimaryObjective: mockPayload.metaPrimaryObjective || null,
@@ -298,6 +311,7 @@ export async function getDashboardData(
         ),
         metaValidationStatus: mockPayload.metaValidationStatus || "not_configured",
         metaValidationNotes: mockPayload.metaValidationNotes || {},
+        templatePageKeys: getVisiblePages("meta_ads_s4x"),
         availableDateRange: extractAvailableDateRange(mockPayload),
       };
     }
@@ -318,9 +332,11 @@ export async function getDashboardData(
       insights: mockInsights.mockInsights,
       source: "mock",
       templateId,
+      templateBaseId,
       templateVersion: "1.0",
       platform: dashboard?.platform || (templateId.includes("google_meta") ? "mixed" : templateId.includes("meta") ? "meta_ads" : "google_ads"),
-      templateConfig: getDefaultTemplateMetricConfig(templateId as any)
+      templateConfig: getDefaultTemplateMetricConfig(templateBaseId as any),
+      templatePageKeys,
     } as any;
 
     return {

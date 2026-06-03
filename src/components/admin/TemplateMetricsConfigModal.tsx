@@ -34,8 +34,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   const [dragState, setDragState] = useState<{ sectionKey: string; metricKey: string } | null>(null);
 
   const templateId = template?.id || "google_ads_s4x";
+  const baseTemplateId = template?.baseTemplateId || template?.sheetTemplateId || templateId;
   const templateName = template?.name || "Template";
-  const isMetaTemplate = templateId === "meta_ads_s4x" || templateId === "google_meta_ads_s4x";
+  const isMetaTemplate = baseTemplateId === "meta_ads_s4x" || baseTemplateId === "google_meta_ads_s4x";
 
   const templateObjectives = useMemo(
     () => normalizeMetaAdsObjectives(template?.metric_config?.objectives || []),
@@ -48,17 +49,17 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     setConfig(
       normalizeTemplateMetricConfig(
         template.metric_config,
-        templateId,
+        baseTemplateId,
         templateObjectives,
         primaryObjective
       )
     );
-  }, [open, template, templateId, templateObjectives, primaryObjective]);
+  }, [open, template, baseTemplateId, templateObjectives, primaryObjective]);
 
   if (!open || !template || !config) return null;
 
   const resetToDefaults = () => {
-    setConfig(getDefaultTemplateMetricConfig(templateId, templateObjectives, primaryObjective));
+    setConfig(getDefaultTemplateMetricConfig(baseTemplateId, templateObjectives, primaryObjective));
   };
 
   const updateMetric = (sectionKey: string, metricKey: string, updater: (metric: any) => any) => {
@@ -139,6 +140,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "save_config",
           templateId: template.id,
           metric_config: config,
         }),
@@ -192,7 +194,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
             <div style={{ borderRadius: 10, border: "1px solid #C7D2FE", background: "#EEF2FF", padding: 14 }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: "#3730A3" }}>Objetivos do template</p>
               <p style={{ fontSize: 12, color: "#4338CA", marginTop: 4, lineHeight: 1.5 }}>
-                A configuração abaixo define as métricas principais do template e serve de padrão para dashboards novos criados a partir dele.
+                A configuração abaixo define as métricas principais do template e serve de padrão para dashboards novos criados a partir dele. O dashboard ajusta apenas os objetivos Meta quando necessário.
               </p>
               <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
                 {META_ADS_OBJECTIVES.map((objective) => {
@@ -272,7 +274,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                             <GripVertical size={13} />
                           </span>
                           <p style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>
-                            {getMetricLabel(templateId, metric.key, primaryObjective)}
+                            {getMetricLabel(baseTemplateId, metric.key, primaryObjective)}
                           </p>
                           {metric.recommended && (
                             <span style={{ fontSize: 11, fontWeight: 700, color: "#166534", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 999, padding: "2px 8px" }}>

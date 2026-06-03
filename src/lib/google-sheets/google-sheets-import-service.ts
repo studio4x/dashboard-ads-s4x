@@ -16,6 +16,7 @@ import { SheetNormalizer } from "./sheet-normalizer";
 import { ImportResult, ImportError } from "@/types/import";
 import { GoogleAdsS4XPayload, GoogleAdsS4XSummary, GoogleAdsS4XDiagnostics } from "@/types/google-ads-s4x";
 import { MetaAdsS4XPayload } from "@/types/meta-ads-s4x";
+import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
 import {
   normalizeMetaAdsObjectives,
   validateMetaObjectivesMetrics,
@@ -280,7 +281,9 @@ export const GoogleSheetsImportService = {
         .single();
         
       const dashboardTemplateId = dashboard?.dashboard_type || "google_ads_s4x";
-      const isIntegratedDashboard = this.isIntegratedDashboardTemplate(dashboardTemplateId);
+      const templateDefinition = await DashboardTemplateCatalogService.getTemplateDefinition(dashboardTemplateId).catch(() => null);
+      const sheetTemplateId = templateDefinition?.sheetTemplateId || dashboardTemplateId;
+      const isIntegratedDashboard = this.isIntegratedDashboardTemplate(sheetTemplateId);
       let sourceRole: "google_ads" | "meta_ads" | null = null;
       if (dataSourceId) {
         const { data: sourceConfig } = await supabase
@@ -312,12 +315,13 @@ export const GoogleSheetsImportService = {
 
       const expectedTemplateId = isIntegratedDashboard
         ? this.getExpectedTemplateBySourceRole(sourceRole)
-        : dashboardTemplateId;
+        : sheetTemplateId;
       const metaObjectives = normalizeMetaAdsObjectives(dashboard?.meta_objectives);
       const metaPrimaryObjective = metaObjectives[0] || null;
+      const expectedTemplateVersion = templateDefinition?.version || dashboard?.template_version || "1.0";
 
       // 2. Validação Preliminar de Template (Dashboard_Config)
-      const templateVal = await TemplateValidator.validate(spreadsheetId, expectedTemplateId);
+      const templateVal = await TemplateValidator.validate(spreadsheetId, expectedTemplateId, expectedTemplateVersion);
       
       templateVal.errors.forEach(err => errors.push(err));
       templateVal.warnings.forEach(warn => warnings.push(warn));
@@ -578,7 +582,7 @@ export const GoogleSheetsImportService = {
           ignoredRows: 0, // Poderia ser calculado se rastreado no reader
           sourceSpreadsheetId: spreadsheetId,
           importedAt: new Date().toISOString(),
-          snapshotVersion: "google_ads_s4x_v1"
+          snapshotVersion: `${sheetTemplateId}_v1`
         };
 
         const s4xPayload: GoogleAdsS4XPayload = {
@@ -593,9 +597,9 @@ export const GoogleSheetsImportService = {
             timezone: metaData["Timezone"]
           },
           config: {
-            templateId: configData["Template"] || "google_ads_s4x",
+            templateId: configData["Template"] || sheetTemplateId,
             templateLabel: configData["Template_Label"] || "Google Ads S4X",
-            templateVersion: configData["Versao_Template"] || "1.0",
+            templateVersion: configData["Versao_Template"] || expectedTemplateVersion,
             source: configData["Fonte"] || "Google Sheets",
             periodToken: configData["Periodo_Token"],
             dateStart: SheetNormalizer.toDate(configData["Data_Inicial"]),
@@ -633,7 +637,7 @@ export const GoogleSheetsImportService = {
           ignoredRows: 0,
           sourceSpreadsheetId: spreadsheetId,
           importedAt: new Date().toISOString(),
-          snapshotVersion: "meta_ads_s4x_v1"
+          snapshotVersion: `${sheetTemplateId}_v1`
         };
 
         const s4xMetaPayload: MetaAdsS4XPayload = {
@@ -648,9 +652,9 @@ export const GoogleSheetsImportService = {
             timezone: metaData["Timezone"]
           },
           config: {
-            templateId: configData["Template"] || "meta_ads_s4x",
+            templateId: configData["Template"] || sheetTemplateId,
             templateLabel: configData["Template_Label"] || "Meta Ads S4X",
-            templateVersion: configData["Versao_Template"] || "1.0",
+            templateVersion: configData["Versao_Template"] || expectedTemplateVersion,
             source: configData["Fonte"] || "Google Sheets",
             periodToken: configData["Periodo_Token"],
             dateStart: SheetNormalizer.toDate(configData["Data_Inicial"]),
@@ -671,7 +675,7 @@ export const GoogleSheetsImportService = {
         finalPayload = s4xMetaPayload;
       }
 
-      if (this.isIntegratedDashboardTemplate(dashboardTemplateId) && sourceRole && errors.length === 0) {
+      if (this.isIntegratedDashboardTemplate(sheetTemplateId) && sourceRole && errors.length === 0) {
         const { data: previousSnapshot } = await supabase
           .from("dashboard_data_snapshots")
           .select("payload_json")
