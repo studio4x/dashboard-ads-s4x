@@ -46,6 +46,16 @@ export function generateExecutiveKpis(overviewRows: any[], summary?: any): KpiSu
       unit: "currency", 
       description: summary ? "vs. período anterior" : "Conversões rastreadas" 
     }, 
+    {
+      metricKey: "reach",
+      label: "Alcance",
+      value: current.reach || current.total_reach || 0,
+      formatted_value: formatNumber(current.reach || current.total_reach || 0),
+      change_percent: changes.reach || 0,
+      change_direction: getDirection(changes.reach || 0),
+      unit: "number",
+      description: summary ? "vs. período anterior" : "Pessoas únicas alcançadas",
+    },
     { 
       metricKey: "roas",
       label: "ROAS Médio", 

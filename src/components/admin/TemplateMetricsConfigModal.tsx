@@ -374,9 +374,17 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
       if (!response.ok || !result.success) {
         throw new Error(result.error || "Erro ao salvar template.");
       }
+      if (result.template?.metricConfig || result.normalized) {
+        const nextConfig = normalizeTemplateMetricConfig(
+          result.template?.metricConfig || result.normalized,
+          baseTemplateId,
+          templateObjectives,
+          primaryObjective
+        );
+        setConfig(nextConfig);
+      }
       toast("Template atualizado.");
       await onSaved?.();
-      onClose();
     } catch (error) {
       toast(error instanceof Error ? error.message : "Erro ao salvar template.");
     } finally {

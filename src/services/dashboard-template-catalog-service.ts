@@ -2,6 +2,7 @@ import { DASHBOARD_TEMPLATES, getVisiblePages } from "@/lib/dashboard/templates"
 import { createAdminClient } from "@/lib/supabase/server";
 import { getDefaultTemplateMetricConfig, normalizeTemplateMetricConfig, type DashboardTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
 import { DashboardTemplateConfigService } from "@/services/dashboard-template-config-service";
+import { DataSourceService } from "@/services/data-source-service";
 
 export type TemplateStatus = "active" | "coming_soon" | "deprecated";
 export type TemplateSourceType = "google_sheets" | "api" | "mixed";
@@ -47,6 +48,72 @@ function toStringArray(input: unknown): string[] {
 function isMissingRelationError(error: any) {
   const message = String(error?.message || error || "").toLowerCase();
   return message.includes("does not exist") || message.includes("relation") || message.includes("not exist");
+}
+
+async function reprocessDashboardsForTemplate(templateId: string) {
+  const supabase = await createAdminClient({ actor: "admin", action: "template-catalog:reprocess-linked-dashboards" });
+  const { data: dashboards, error: dashboardsError } = await supabase
+    .from("dashboards")
+    .select("id")
+    .eq("dashboard_type", templateId);
+
+  if (dashboardsError) throw dashboardsError;
+
+  const dashboardIds = Array.from(
+    new Set(
+      (dashboards || [])
+        .map((dashboard: any) => dashboard.id)
+        .filter((dashboardId: unknown) => typeof dashboardId === "string" && dashboardId.trim().length > 0)
+    )
+  );
+
+  if (dashboardIds.length === 0) return { total: 0, success: 0, failed: 0, results: [] as Array<{ dashboardId: string; success: boolean; error?: string }> };
+
+  const { GoogleSheetsImportService } = await import("@/lib/google-sheets/google-sheets-import-service");
+  const activeSources = await DataSourceService.getActiveGoogleSheetsSources().catch(() => []);
+  const results: Array<{ dashboardId: string; success: boolean; error?: string }> = [];
+
+  for (const dashboardId of dashboardIds) {
+    const dashboardSources = (activeSources || []).filter((source: any) => source.dashboard_id === dashboardId);
+    if (dashboardSources.length === 0) continue;
+
+    let dashboardSuccess = true;
+    let dashboardError: string | undefined;
+
+    for (const source of dashboardSources) {
+      const gsheet = Array.isArray(source.google_sheet_sources)
+        ? source.google_sheet_sources[0]
+        : source.google_sheet_sources;
+      const spreadsheetId = gsheet?.spreadsheet_id;
+      if (!spreadsheetId) {
+        dashboardSuccess = false;
+        dashboardError = "spreadsheet_id ausente";
+        continue;
+      }
+
+      try {
+        await GoogleSheetsImportService.importDashboardData(
+          source.client_id,
+          dashboardId,
+          spreadsheetId,
+          source.id
+        );
+      } catch (error: any) {
+        dashboardSuccess = false;
+        dashboardError = error instanceof Error ? error.message : "Erro ao reprocessar dashboard.";
+      }
+    }
+
+    results.push({ dashboardId, success: dashboardSuccess, error: dashboardError });
+  }
+
+  return {
+    total: results.length,
+    success: results.filter((item) => item.success).length,
+    failed: results.filter((item) => !item.success).length,
+    results,
+    templateId,
+  };
 }
 
 function getSystemTemplateDefinition(templateId: string): DashboardTemplateCatalogDefinition | null {
@@ -233,7 +300,8 @@ export const DashboardTemplateCatalogService = {
         .eq("dashboard_type", templateId);
 
       if (dashboardUpdateError) throw dashboardUpdateError;
-      return data as CustomTemplateRow;
+      const reprocess = await reprocessDashboardsForTemplate(templateId).catch(() => null);
+      return { ...data, reprocess } as CustomTemplateRow & { reprocess?: unknown };
     }
 
     const saved = await DashboardTemplateConfigService.upsertTemplateConfig(templateId, metricConfig);
@@ -246,7 +314,8 @@ export const DashboardTemplateCatalogService = {
       .eq("dashboard_type", templateId);
 
     if (dashboardUpdateError) throw dashboardUpdateError;
-    return saved;
+    const reprocess = await reprocessDashboardsForTemplate(templateId).catch(() => null);
+    return { ...saved, reprocess };
   },
 
   async createCustomTemplate(params: {
