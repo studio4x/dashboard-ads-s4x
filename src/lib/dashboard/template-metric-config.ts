@@ -61,6 +61,25 @@ const DEFAULT_DISPLAY: Record<string, MetricDisplayMode> = {
   postComments: "table",
   postReactions: "table",
   postShares: "table",
+  google_cost: "card",
+  google_impressions: "text",
+  google_clicks: "text",
+  google_ctr: "text",
+  google_cpc: "text",
+  google_cpa: "card",
+  google_roas: "card",
+  google_conversions: "card",
+  meta_cost: "card",
+  meta_impressions: "text",
+  meta_reach: "card",
+  meta_clicks: "text",
+  meta_ctr: "text",
+  meta_cpc: "text",
+  meta_cpa: "card",
+  meta_cpm: "text",
+  meta_frequency: "text",
+  meta_postEngagement: "text",
+  meta_conversions: "card",
 };
 
 function metricItem(key: string, order: number, options?: Partial<TemplateMetricItem>): TemplateMetricItem {
@@ -69,9 +88,9 @@ function metricItem(key: string, order: number, options?: Partial<TemplateMetric
     label: options?.label,
     preview: options?.preview,
     kind: options?.kind || "standard",
-    sourcePlatform: options?.sourcePlatform,
-    primarySourcePlatform: options?.primarySourcePlatform,
-    secondarySourcePlatform: options?.secondarySourcePlatform,
+    sourcePlatform: options?.sourcePlatform || inferMetricSourcePlatform(key),
+    primarySourcePlatform: options?.primarySourcePlatform || inferMetricSourcePlatform(options?.primaryMetricKey || ""),
+    secondarySourcePlatform: options?.secondarySourcePlatform || inferMetricSourcePlatform(options?.secondaryMetricKey || ""),
     compositeType: options?.compositeType || "sum",
     primaryMetricKey: options?.primaryMetricKey,
     secondaryMetricKey: options?.secondaryMetricKey,
@@ -90,55 +109,72 @@ function customDefaults(): Record<string, TemplateMetricSectionConfig> {
   return {};
 }
 
+function inferMetricSourcePlatform(key: string): TemplateMetricSourcePlatform | undefined {
+  if (key.startsWith("google_")) return "google_ads";
+  if (key.startsWith("meta_")) return "meta_ads";
+  return undefined;
+}
+
+function inferSectionSourcePlatform(templateId: string, sectionKey: string): TemplateMetricSourcePlatform | undefined {
+  if (templateId === "google_ads_s4x") return "google_ads";
+  if (templateId === "meta_ads_s4x") return "meta_ads";
+  if (templateId === "google_meta_ads_s4x") {
+    if (sectionKey === "google-ads") return "google_ads";
+    if (sectionKey === "meta-ads") return "meta_ads";
+    if (sectionKey === "executive-summary" || sectionKey === "campaigns") return "mixed";
+  }
+  return undefined;
+}
+
 function objectiveMetrics(objective: MetaAdsObjectiveId | null) {
   switch (objective) {
     case "leads":
       return [
-        metricItem("conversions", 10, { displayMode: "card", recommended: true }),
-        metricItem("cpa", 20, { displayMode: "card", recommended: true }),
-        metricItem("reach", 30, { displayMode: "text", recommended: true }),
-        metricItem("clicks", 40, { displayMode: "text", recommended: true }),
-        metricItem("ctr", 50, { displayMode: "text", recommended: true }),
+        metricItem("conversions", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("cpa", 20, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("reach", 30, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("clicks", 40, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("ctr", 50, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
       ];
     case "engajamento":
       return [
-        metricItem("postEngagement", 10, { displayMode: "card", recommended: true }),
-        metricItem("cpa", 20, { displayMode: "card", recommended: true }),
-        metricItem("reach", 30, { displayMode: "text", recommended: true }),
-        metricItem("clicks", 40, { displayMode: "text", recommended: true }),
-        metricItem("ctr", 50, { displayMode: "text", recommended: true }),
+        metricItem("postEngagement", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("cpa", 20, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("reach", 30, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("clicks", 40, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("ctr", 50, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
       ];
     case "trafego":
       return [
-        metricItem("clicks", 10, { displayMode: "card", recommended: true }),
-        metricItem("cpc", 20, { displayMode: "card", recommended: true }),
-        metricItem("ctr", 30, { displayMode: "text", recommended: true }),
-        metricItem("impressions", 40, { displayMode: "text", recommended: true }),
+        metricItem("clicks", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("cpc", 20, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("ctr", 30, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("impressions", 40, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
       ];
     case "alcance":
       return [
-        metricItem("reach", 10, { displayMode: "card", recommended: true }),
-        metricItem("cpa", 20, { displayMode: "card", recommended: true }),
-        metricItem("frequency", 30, { displayMode: "card", recommended: true }),
-        metricItem("impressions", 40, { displayMode: "text", recommended: true }),
-        metricItem("cpc", 50, { displayMode: "text", recommended: true }),
+        metricItem("reach", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("cpa", 20, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("frequency", 30, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("impressions", 40, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("cpc", 50, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
       ];
     case "vendas":
       return [
-        metricItem("conversions", 10, { displayMode: "card", recommended: true }),
-        metricItem("roas", 20, { displayMode: "card", recommended: true }),
-        metricItem("cpa", 30, { displayMode: "card", recommended: true }),
-        metricItem("clicks", 40, { displayMode: "text", recommended: true }),
-        metricItem("ctr", 50, { displayMode: "text", recommended: true }),
+        metricItem("conversions", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("roas", 20, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("cpa", 30, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("clicks", 40, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("ctr", 50, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
       ];
     case "conversao":
     default:
       return [
-        metricItem("conversions", 10, { displayMode: "card", recommended: true }),
-        metricItem("cpa", 20, { displayMode: "card", recommended: true }),
-        metricItem("clicks", 30, { displayMode: "text", recommended: true }),
-        metricItem("ctr", 40, { displayMode: "text", recommended: true }),
-        metricItem("impressions", 50, { displayMode: "text", recommended: true }),
+        metricItem("conversions", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("cpa", 20, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("clicks", 30, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("ctr", 40, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+        metricItem("impressions", 50, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
       ];
   }
 }
@@ -146,57 +182,57 @@ function objectiveMetrics(objective: MetaAdsObjectiveId | null) {
 function googleAdsDefaults(): Record<string, TemplateMetricSectionConfig> {
   return {
     "executive-summary": section("executive-summary", "Resumo Executivo", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("revenue", 20, { displayMode: "card", recommended: true }),
-      metricItem("impressions", 30, { displayMode: "card", recommended: true }),
-      metricItem("clicks", 40, { displayMode: "card", recommended: true }),
-      metricItem("ctr", 50, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 60, { displayMode: "card", recommended: true }),
-      metricItem("cpa", 70, { displayMode: "card", recommended: true }),
-      metricItem("roas", 80, { displayMode: "card", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("revenue", 20, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("impressions", 30, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("clicks", 40, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("ctr", 50, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("conversions", 60, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("cpa", 70, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("roas", 80, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
     ]),
     "google-ads": section("google-ads", "Google Ads", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("revenue", 20, { displayMode: "card", recommended: true }),
-      metricItem("impressions", 30, { displayMode: "text", recommended: true }),
-      metricItem("clicks", 40, { displayMode: "text", recommended: true }),
-      metricItem("ctr", 50, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 60, { displayMode: "card", recommended: true }),
-      metricItem("cpa", 70, { displayMode: "card", recommended: true }),
-      metricItem("roas", 80, { displayMode: "chart", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("revenue", 20, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("impressions", 30, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("clicks", 40, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("ctr", 50, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("conversions", 60, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("cpa", 70, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("roas", 80, { displayMode: "chart", recommended: true, sourcePlatform: "google_ads" }),
     ]),
     campaigns: section("campaigns", "Campanhas", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("impressions", 20, { displayMode: "text", recommended: true }),
-      metricItem("clicks", 30, { displayMode: "text", recommended: true }),
-      metricItem("ctr", 40, { displayMode: "table", recommended: true }),
-      metricItem("conversions", 50, { displayMode: "table", recommended: true }),
-      metricItem("cpa", 60, { displayMode: "table", recommended: true }),
-      metricItem("roas", 70, { displayMode: "chart", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("impressions", 20, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("clicks", 30, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("ctr", 40, { displayMode: "table", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("conversions", 50, { displayMode: "table", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("cpa", 60, { displayMode: "table", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("roas", 70, { displayMode: "chart", recommended: true, sourcePlatform: "google_ads" }),
     ]),
     keywords: section("keywords", "Palavras-chave", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("impressions", 20, { displayMode: "text", recommended: true }),
-      metricItem("clicks", 30, { displayMode: "text", recommended: true }),
-      metricItem("ctr", 40, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 50, { displayMode: "table", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("impressions", 20, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("clicks", 30, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("ctr", 40, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("conversions", 50, { displayMode: "table", recommended: true, sourcePlatform: "google_ads" }),
     ]),
     "search-terms": section("search-terms", "Termos de Pesquisa", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("clicks", 20, { displayMode: "text", recommended: true }),
-      metricItem("ctr", 30, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 40, { displayMode: "table", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("clicks", 20, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("ctr", 30, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("conversions", 40, { displayMode: "table", recommended: true, sourcePlatform: "google_ads" }),
     ]),
     "ads-assets": section("ads-assets", "Anúncios e Recursos", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("clicks", 20, { displayMode: "text", recommended: true }),
-      metricItem("ctr", 30, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 40, { displayMode: "table", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("clicks", 20, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("ctr", 30, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("conversions", 40, { displayMode: "table", recommended: true, sourcePlatform: "google_ads" }),
     ]),
     "negative-keywords": section("negative-keywords", "Palavras-chave Negativas", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("clicks", 20, { displayMode: "text", recommended: true }),
-      metricItem("impressions", 30, { displayMode: "text", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("clicks", 20, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("impressions", 30, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
     ]),
   };
 }
@@ -205,52 +241,52 @@ function metaDefaults(primaryObjective: MetaAdsObjectiveId | null): Record<strin
   const objMetrics = objectiveMetrics(primaryObjective);
   return {
     "executive-summary": section("executive-summary", "Resumo Executivo", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("revenue", 20, { displayMode: "card", recommended: true }),
-      metricItem("reach", 30, { displayMode: "card", recommended: true }),
-      metricItem("clicks", 40, { displayMode: "card", recommended: true }),
-      metricItem("frequency", 50, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 60, { displayMode: "card", recommended: true }),
-      metricItem("cpa", 70, { displayMode: "card", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("revenue", 20, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("reach", 30, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("clicks", 40, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("frequency", 50, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("conversions", 60, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("cpa", 70, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
       ...objMetrics.slice(0, 3),
     ]),
     campanhas: section("campanhas", "Campanhas", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("reach", 20, { displayMode: "text", recommended: true }),
-      metricItem("clicks", 30, { displayMode: "text", recommended: true }),
-      metricItem("ctr", 40, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 50, { displayMode: "card", recommended: true }),
-      metricItem("cpa", 60, { displayMode: "card", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("reach", 20, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("clicks", 30, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("ctr", 40, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("conversions", 50, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("cpa", 60, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
     ]),
     conjuntos: section("conjuntos", "Conjuntos", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("reach", 20, { displayMode: "text", recommended: true }),
-      metricItem("clicks", 30, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 40, { displayMode: "card", recommended: true }),
-      metricItem("cpa", 50, { displayMode: "card", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("reach", 20, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("clicks", 30, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("conversions", 40, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("cpa", 50, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
     ]),
     anuncios: section("anuncios", "Anúncios", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("reach", 20, { displayMode: "text", recommended: true }),
-      metricItem("clicks", 30, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 40, { displayMode: "card", recommended: true }),
-      metricItem("cpa", 50, { displayMode: "card", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("reach", 20, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("clicks", 30, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("conversions", 40, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("cpa", 50, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
     ]),
     funil: section("funil", "Funil", [
-      metricItem("impressions", 10, { displayMode: "card", recommended: true }),
-      metricItem("reach", 20, { displayMode: "card", recommended: true }),
-      metricItem("clicks", 30, { displayMode: "card", recommended: true }),
-      metricItem("conversions", 40, { displayMode: "card", recommended: true }),
-      metricItem("frequency", 50, { displayMode: "text", recommended: true }),
-      metricItem("cpc", 60, { displayMode: "text", recommended: true }),
-      metricItem("cpm", 70, { displayMode: "text", recommended: true }),
+      metricItem("impressions", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("reach", 20, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("clicks", 30, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("conversions", 40, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("frequency", 50, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("cpc", 60, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("cpm", 70, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
     ]),
     engajamento: section("engajamento", "Engajamento", [
-      metricItem("postEngagement", 10, { displayMode: "card", recommended: true }),
-      metricItem("postComments", 20, { displayMode: "table", recommended: true }),
-      metricItem("postReactions", 30, { displayMode: "table", recommended: true }),
-      metricItem("postShares", 40, { displayMode: "table", recommended: true }),
-      metricItem("reach", 50, { displayMode: "text", recommended: true }),
+      metricItem("postEngagement", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("postComments", 20, { displayMode: "table", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("postReactions", 30, { displayMode: "table", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("postShares", 40, { displayMode: "table", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("reach", 50, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
     ]),
   };
 }
@@ -259,33 +295,34 @@ function integratedDefaults(primaryObjective: MetaAdsObjectiveId | null): Record
   const objMetrics = objectiveMetrics(primaryObjective);
   return {
     "executive-summary": section("executive-summary", "Resumo Executivo", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("revenue", 20, { displayMode: "card", recommended: true }),
-      metricItem("reach", 30, { displayMode: "card", recommended: true }),
-      metricItem("clicks", 40, { displayMode: "card", recommended: true }),
-      metricItem("frequency", 50, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 60, { displayMode: "card", recommended: true }),
-      metricItem("cpa", 70, { displayMode: "card", recommended: true }),
-      metricItem("roas", 80, { displayMode: "card", recommended: true }),
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "mixed" }),
+      metricItem("revenue", 20, { displayMode: "card", recommended: true, sourcePlatform: "mixed" }),
+      metricItem("impressions", 30, { displayMode: "card", recommended: true, sourcePlatform: "mixed" }),
+      metricItem("clicks", 40, { displayMode: "card", recommended: true, sourcePlatform: "mixed" }),
+      metricItem("reach", 50, { displayMode: "card", recommended: true, sourcePlatform: "mixed" }),
+      metricItem("frequency", 60, { displayMode: "text", recommended: true, sourcePlatform: "mixed" }),
+      metricItem("conversions", 70, { displayMode: "card", recommended: true, sourcePlatform: "mixed" }),
+      metricItem("cpa", 80, { displayMode: "card", recommended: true, sourcePlatform: "mixed" }),
+      metricItem("roas", 90, { displayMode: "card", recommended: true, sourcePlatform: "mixed" }),
       ...objMetrics.slice(0, 3),
     ]),
     "google-ads": section("google-ads", "Google Ads", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("impressions", 20, { displayMode: "text", recommended: true }),
-      metricItem("clicks", 30, { displayMode: "text", recommended: true }),
-      metricItem("ctr", 40, { displayMode: "text", recommended: true }),
-      metricItem("conversions", 50, { displayMode: "card", recommended: true }),
-      metricItem("cpa", 60, { displayMode: "card", recommended: true }),
-      metricItem("roas", 70, { displayMode: "chart", recommended: true }),
+      metricItem("google_cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("google_impressions", 20, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("google_clicks", 30, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("google_ctr", 40, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("google_conversions", 50, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("google_cpa", 60, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
+      metricItem("google_roas", 70, { displayMode: "chart", recommended: true, sourcePlatform: "google_ads" }),
     ]),
     "meta-ads": section("meta-ads", "Meta Ads", [
-      metricItem("cost", 10, { displayMode: "card", recommended: true }),
-      metricItem("reach", 20, { displayMode: "card", recommended: true }),
-      metricItem("clicks", 30, { displayMode: "card", recommended: true }),
-      metricItem("conversions", 40, { displayMode: "card", recommended: true }),
-      metricItem("cpa", 50, { displayMode: "card", recommended: true }),
-      metricItem("frequency", 60, { displayMode: "text", recommended: true }),
-      metricItem("postEngagement", 70, { displayMode: "text", recommended: true }),
+      metricItem("meta_cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("meta_reach", 20, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("meta_clicks", 30, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("meta_conversions", 40, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("meta_cpa", 50, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("meta_frequency", 60, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("meta_postEngagement", 70, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
     ]),
   };
 }
@@ -293,6 +330,62 @@ function integratedDefaults(primaryObjective: MetaAdsObjectiveId | null): Record
 export function getMetricLabel(templateId: string, metricKey: string, primaryObjective?: MetaAdsObjectiveId | null): string {
   const isMetaLike = templateId === "meta_ads_s4x" || templateId === "google_meta_ads_s4x";
   const objective = normalizeMetaAdsObjectives([primaryObjective])[0] || null;
+
+  if (metricKey.startsWith("google_")) {
+    const baseKey = metricKey.replace(/^google_/, "");
+    switch (baseKey) {
+      case "cost":
+        return "Investimento Google Ads";
+      case "impressions":
+        return "Impressões Google Ads";
+      case "clicks":
+        return "Cliques Google Ads";
+      case "ctr":
+        return "CTR Google Ads";
+      case "cpc":
+        return "CPC Google Ads";
+      case "cpa":
+        return "CPA Google Ads";
+      case "roas":
+        return "ROAS Google Ads";
+      case "conversions":
+        return "Conversões Google Ads";
+      default:
+        return `${getMetricLabel("google_ads_s4x", baseKey, primaryObjective)} Google Ads`;
+    }
+  }
+
+  if (metricKey.startsWith("meta_")) {
+    const baseKey = metricKey.replace(/^meta_/, "");
+    switch (baseKey) {
+      case "cost":
+        return "Investimento Meta Ads";
+      case "impressions":
+        return "Impressões Meta Ads";
+      case "reach":
+        return "Alcance Meta Ads";
+      case "clicks":
+        return "Cliques Meta Ads";
+      case "ctr":
+        return "CTR Meta Ads";
+      case "cpc":
+        return "CPC Meta Ads";
+      case "cpa":
+        return "CPA Meta Ads";
+      case "cpm":
+        return "CPM Meta Ads";
+      case "frequency":
+        return "Frequência Meta Ads";
+      case "postEngagement":
+        return "Engajamentos Meta Ads";
+      case "conversions":
+        return "Conversões Meta Ads";
+      case "roas":
+        return "ROAS Meta Ads";
+      default:
+        return `${getMetricLabel("meta_ads_s4x", baseKey, primaryObjective)} Meta Ads`;
+    }
+  }
 
   switch (metricKey) {
     case "cost":
@@ -457,9 +550,9 @@ export function normalizeTemplateMetricConfig(
             label: item.label?.trim() || defaultMetric?.label,
             preview: item.preview?.trim() || defaultMetric?.preview,
             kind: item.kind || defaultMetric?.kind || "standard",
-            sourcePlatform: item.sourcePlatform || defaultMetric?.sourcePlatform,
-            primarySourcePlatform: item.primarySourcePlatform || defaultMetric?.primarySourcePlatform,
-            secondarySourcePlatform: item.secondarySourcePlatform || defaultMetric?.secondarySourcePlatform,
+            sourcePlatform: item.sourcePlatform || defaultMetric?.sourcePlatform || inferMetricSourcePlatform(item.key) || inferSectionSourcePlatform(templateId, sectionKey),
+            primarySourcePlatform: item.primarySourcePlatform || defaultMetric?.primarySourcePlatform || inferMetricSourcePlatform(item.primaryMetricKey || "") || inferSectionSourcePlatform(templateId, sectionKey),
+            secondarySourcePlatform: item.secondarySourcePlatform || defaultMetric?.secondarySourcePlatform || inferMetricSourcePlatform(item.secondaryMetricKey || "") || inferSectionSourcePlatform(templateId, sectionKey),
             compositeType: item.compositeType || defaultMetric?.compositeType || "sum",
             primaryMetricKey: item.primaryMetricKey?.trim() || defaultMetric?.primaryMetricKey,
             secondaryMetricKey: item.secondaryMetricKey?.trim() || defaultMetric?.secondaryMetricKey,
@@ -488,9 +581,9 @@ export function normalizeTemplateMetricConfig(
         label: item.label?.trim() || getMetricLabel(templateId, item.key, primaryObjective),
         preview: item.preview?.trim() || undefined,
         kind: item.kind || "standard",
-        sourcePlatform: item.sourcePlatform || undefined,
-        primarySourcePlatform: item.primarySourcePlatform || undefined,
-        secondarySourcePlatform: item.secondarySourcePlatform || undefined,
+        sourcePlatform: item.sourcePlatform || inferMetricSourcePlatform(item.key) || inferSectionSourcePlatform(templateId, sectionKey),
+        primarySourcePlatform: item.primarySourcePlatform || inferMetricSourcePlatform(item.primaryMetricKey || "") || inferSectionSourcePlatform(templateId, sectionKey),
+        secondarySourcePlatform: item.secondarySourcePlatform || inferMetricSourcePlatform(item.secondaryMetricKey || "") || inferSectionSourcePlatform(templateId, sectionKey),
         compositeType: item.compositeType || "sum",
         primaryMetricKey: item.primaryMetricKey?.trim() || undefined,
         secondaryMetricKey: item.secondaryMetricKey?.trim() || undefined,

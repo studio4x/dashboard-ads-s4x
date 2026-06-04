@@ -107,6 +107,104 @@ const DEFAULT_SECTIONS = [
   "metaPayload",
 ];
 
+const SOURCE_SPECIFIC_KEY_LABELS: Record<string, { label: string; sourceLabels: string[]; sourceRoles: string[] }> = {
+  google_cost: {
+    label: "Investimento Google Ads",
+    sourceLabels: ["Google Ads"],
+    sourceRoles: ["google_ads"],
+  },
+  google_impressions: {
+    label: "Impressões Google Ads",
+    sourceLabels: ["Google Ads"],
+    sourceRoles: ["google_ads"],
+  },
+  google_clicks: {
+    label: "Cliques Google Ads",
+    sourceLabels: ["Google Ads"],
+    sourceRoles: ["google_ads"],
+  },
+  google_ctr: {
+    label: "CTR Google Ads",
+    sourceLabels: ["Google Ads"],
+    sourceRoles: ["google_ads"],
+  },
+  google_cpc: {
+    label: "CPC Google Ads",
+    sourceLabels: ["Google Ads"],
+    sourceRoles: ["google_ads"],
+  },
+  google_cpa: {
+    label: "CPA Google Ads",
+    sourceLabels: ["Google Ads"],
+    sourceRoles: ["google_ads"],
+  },
+  google_roas: {
+    label: "ROAS Google Ads",
+    sourceLabels: ["Google Ads"],
+    sourceRoles: ["google_ads"],
+  },
+  google_conversions: {
+    label: "Conversões Google Ads",
+    sourceLabels: ["Google Ads"],
+    sourceRoles: ["google_ads"],
+  },
+  meta_cost: {
+    label: "Investimento Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+  meta_impressions: {
+    label: "Impressões Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+  meta_reach: {
+    label: "Alcance Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+  meta_clicks: {
+    label: "Cliques Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+  meta_ctr: {
+    label: "CTR Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+  meta_cpc: {
+    label: "CPC Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+  meta_cpa: {
+    label: "CPA Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+  meta_cpm: {
+    label: "CPM Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+  meta_frequency: {
+    label: "Frequência Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+  meta_postEngagement: {
+    label: "Engajamentos Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+  meta_conversions: {
+    label: "Conversões Meta Ads",
+    sourceLabels: ["Meta Ads"],
+    sourceRoles: ["meta_ads"],
+  },
+};
+
 function isNumericLike(value: unknown) {
   if (typeof value === "number") return Number.isFinite(value);
   if (typeof value === "string") {
@@ -126,15 +224,27 @@ function humanizeKey(key: string) {
 }
 
 function buildCanonicalSuggestion(key: string): MetricKeySuggestion {
+  const sourceSpecific = SOURCE_SPECIFIC_KEY_LABELS[key];
+  const label = sourceSpecific?.label || getMetricLabel("google_meta_ads_s4x", key as any) || humanizeKey(key);
   return {
     key,
-    label: getMetricLabel("google_meta_ads_s4x", key as any) || humanizeKey(key),
+    label,
     origin: "canonical",
+    ...(sourceSpecific
+      ? {
+          sourceLabels: sourceSpecific.sourceLabels,
+          sourceRoles: sourceSpecific.sourceRoles,
+        }
+      : {}),
   };
 }
 
 function collectCanonicalMetricKeys() {
   const suggestions = new Map<string, MetricKeySuggestion>();
+
+  Object.keys(SOURCE_SPECIFIC_KEY_LABELS).forEach((key) => {
+    suggestions.set(key, buildCanonicalSuggestion(key));
+  });
 
   const templates = [
     getDefaultTemplateMetricConfig("google_ads_s4x"),

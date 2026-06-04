@@ -4,7 +4,14 @@ import { formatCurrency, formatNumber } from "@/lib/formatters";
 /**
  * Gera os KPIs do Resumo Executivo a partir dos dados brutos e do sumário de comparação.
  */
-export function generateExecutiveKpis(overviewRows: any[], summary?: any): KpiSummary[] {
+export function generateExecutiveKpis(
+  overviewRows: any[],
+  summary?: any,
+  sources?: {
+    google?: any;
+    meta?: any;
+  }
+): KpiSummary[] {
   if (!overviewRows || overviewRows.length === 0) return [];
 
   // Se tivermos o summary (Fase 5.3), usamos os dados agregados e calculados lá
@@ -18,8 +25,12 @@ export function generateExecutiveKpis(overviewRows: any[], summary?: any): KpiSu
   const roas = summary ? summary.current.roas : (current.total_spend > 0 ? current.total_revenue / current.total_spend : 0);
   const cpa = summary ? summary.current.cpa : (current.total_conversions > 0 ? current.total_spend / current.total_conversions : 0);
   const changes = summary?.change || {};
+  const googleCurrent = sources?.google?.current || {};
+  const metaCurrent = sources?.meta?.current || {};
+  const googleChanges = sources?.google?.change || {};
+  const metaChanges = sources?.meta?.change || {};
 
-  const getDirection = (value: number, inverse = false) => {
+  const getDirection = (value: number, inverse = false): KpiSummary["change_direction"] => {
     if (Math.abs(value) < 0.01) return "neutral";
     if (inverse) return value > 0 ? "down" : "up";
     return value > 0 ? "up" : "down";
@@ -96,6 +107,180 @@ export function generateExecutiveKpis(overviewRows: any[], summary?: any): KpiSu
       unit: "number", 
       description: summary ? "vs. período anterior" : "Tráfego pago" 
     },
+    ...((sources?.google ? [
+      {
+        metricKey: "google_cost",
+        label: "Investimento Google Ads",
+        value: Number(googleCurrent.total_spend || googleCurrent.cost || 0),
+        formatted_value: formatCurrency(Number(googleCurrent.total_spend || googleCurrent.cost || 0), true),
+        change_percent: googleChanges.total_spend || googleChanges.cost || 0,
+        change_direction: getDirection(googleChanges.total_spend || googleChanges.cost || 0),
+        unit: "currency",
+        description: "Somente Google Ads",
+      },
+      {
+        metricKey: "google_clicks",
+        label: "Cliques Google Ads",
+        value: Number(googleCurrent.total_clicks || 0),
+        formatted_value: formatNumber(Number(googleCurrent.total_clicks || 0)),
+        change_percent: googleChanges.total_clicks || 0,
+        change_direction: getDirection(googleChanges.total_clicks || 0),
+        unit: "number",
+        description: "Somente Google Ads",
+      },
+      {
+        metricKey: "google_conversions",
+        label: "Conversões Google Ads",
+        value: Number(googleCurrent.total_conversions || 0),
+        formatted_value: formatNumber(Number(googleCurrent.total_conversions || 0)),
+        change_percent: googleChanges.total_conversions || 0,
+        change_direction: getDirection(googleChanges.total_conversions || 0),
+        unit: "number",
+        description: "Somente Google Ads",
+      },
+      {
+        metricKey: "google_impressions",
+        label: "Impressões Google Ads",
+        value: Number(googleCurrent.total_impressions || 0),
+        formatted_value: formatNumber(Number(googleCurrent.total_impressions || 0)),
+        change_percent: googleChanges.total_impressions || 0,
+        change_direction: getDirection(googleChanges.total_impressions || 0),
+        unit: "number",
+        description: "Somente Google Ads",
+      },
+      {
+        metricKey: "google_ctr",
+        label: "CTR Google Ads",
+        value: Number(googleCurrent.ctr || 0),
+        formatted_value: `${Number(googleCurrent.ctr || 0).toFixed(2)}%`,
+        change_percent: googleChanges.ctr || 0,
+        change_direction: getDirection(googleChanges.ctr || 0),
+        unit: "percent",
+        description: "Somente Google Ads",
+      },
+      {
+        metricKey: "google_cpc",
+        label: "CPC Google Ads",
+        value: Number(googleCurrent.cpc || 0),
+        formatted_value: formatCurrency(Number(googleCurrent.cpc || 0)),
+        change_percent: googleChanges.cpc || 0,
+        change_direction: getDirection(googleChanges.cpc || 0, true),
+        unit: "currency",
+        description: "Somente Google Ads",
+      },
+      {
+        metricKey: "google_cpa",
+        label: "CPA Google Ads",
+        value: Number(googleCurrent.cpa || 0),
+        formatted_value: formatCurrency(Number(googleCurrent.cpa || 0)),
+        change_percent: googleChanges.cpa || 0,
+        change_direction: getDirection(googleChanges.cpa || 0, true),
+        unit: "currency",
+        description: "Somente Google Ads",
+      },
+      {
+        metricKey: "google_roas",
+        label: "ROAS Google Ads",
+        value: Number(googleCurrent.roas || 0),
+        formatted_value: `${Number(googleCurrent.roas || 0).toFixed(2)}x`,
+        change_percent: googleChanges.roas || 0,
+        change_direction: getDirection(googleChanges.roas || 0),
+        unit: "ratio",
+        description: "Somente Google Ads",
+      },
+    ] : []) as any[]),
+    ...((sources?.meta ? [
+      {
+        metricKey: "meta_cost",
+        label: "Investimento Meta Ads",
+        value: Number(metaCurrent.total_spend || metaCurrent.cost || 0),
+        formatted_value: formatCurrency(Number(metaCurrent.total_spend || metaCurrent.cost || 0), true),
+        change_percent: metaChanges.total_spend || metaChanges.cost || 0,
+        change_direction: getDirection(metaChanges.total_spend || metaChanges.cost || 0),
+        unit: "currency",
+        description: "Somente Meta Ads",
+      },
+      {
+        metricKey: "meta_reach",
+        label: "Alcance Meta Ads",
+        value: Number(metaCurrent.reach || metaCurrent.total_reach || 0),
+        formatted_value: formatNumber(Number(metaCurrent.reach || metaCurrent.total_reach || 0)),
+        change_percent: metaChanges.reach || 0,
+        change_direction: getDirection(metaChanges.reach || 0),
+        unit: "number",
+        description: "Somente Meta Ads",
+      },
+      {
+        metricKey: "meta_clicks",
+        label: "Cliques Meta Ads",
+        value: Number(metaCurrent.total_clicks || metaCurrent.clicks || 0),
+        formatted_value: formatNumber(Number(metaCurrent.total_clicks || metaCurrent.clicks || 0)),
+        change_percent: metaChanges.total_clicks || metaChanges.clicks || 0,
+        change_direction: getDirection(metaChanges.total_clicks || metaChanges.clicks || 0),
+        unit: "number",
+        description: "Somente Meta Ads",
+      },
+      {
+        metricKey: "meta_conversions",
+        label: "Conversões Meta Ads",
+        value: Number(metaCurrent.total_conversions || metaCurrent.conversions || 0),
+        formatted_value: formatNumber(Number(metaCurrent.total_conversions || metaCurrent.conversions || 0)),
+        change_percent: metaChanges.total_conversions || metaChanges.conversions || 0,
+        change_direction: getDirection(metaChanges.total_conversions || metaChanges.conversions || 0),
+        unit: "number",
+        description: "Somente Meta Ads",
+      },
+      {
+        metricKey: "meta_frequency",
+        label: "Frequência Meta Ads",
+        value: Number(metaCurrent.frequency || 0),
+        formatted_value: `${Number(metaCurrent.frequency || 0).toFixed(2)}x`,
+        change_percent: metaChanges.frequency || 0,
+        change_direction: getDirection(metaChanges.frequency || 0),
+        unit: "ratio",
+        description: "Somente Meta Ads",
+      },
+      {
+        metricKey: "meta_cpm",
+        label: "CPM Meta Ads",
+        value: Number(metaCurrent.avgCpm || metaCurrent.cpm || 0),
+        formatted_value: formatCurrency(Number(metaCurrent.avgCpm || metaCurrent.cpm || 0)),
+        change_percent: metaChanges.avgCpm || metaChanges.cpm || 0,
+        change_direction: getDirection(metaChanges.avgCpm || metaChanges.cpm || 0, true),
+        unit: "currency",
+        description: "Somente Meta Ads",
+      },
+      {
+        metricKey: "meta_cpc",
+        label: "CPC Meta Ads",
+        value: Number(metaCurrent.cpc || 0),
+        formatted_value: formatCurrency(Number(metaCurrent.cpc || 0)),
+        change_percent: metaChanges.cpc || 0,
+        change_direction: getDirection(metaChanges.cpc || 0, true),
+        unit: "currency",
+        description: "Somente Meta Ads",
+      },
+      {
+        metricKey: "meta_cpa",
+        label: "CPA Meta Ads",
+        value: Number(metaCurrent.cpa || 0),
+        formatted_value: formatCurrency(Number(metaCurrent.cpa || 0)),
+        change_percent: metaChanges.cpa || 0,
+        change_direction: getDirection(metaChanges.cpa || 0, true),
+        unit: "currency",
+        description: "Somente Meta Ads",
+      },
+      {
+        metricKey: "meta_postEngagement",
+        label: "Engajamentos Meta Ads",
+        value: Number(metaCurrent.postEngagement || metaCurrent.total_engagement || 0),
+        formatted_value: formatNumber(Number(metaCurrent.postEngagement || metaCurrent.total_engagement || 0)),
+        change_percent: metaChanges.postEngagement || metaChanges.engagement || 0,
+        change_direction: getDirection(metaChanges.postEngagement || metaChanges.engagement || 0),
+        unit: "number",
+        description: "Somente Meta Ads",
+      },
+    ] : []) as any[]),
   ];
 }
 
@@ -118,7 +303,7 @@ export function generateGoogleAdsKpis(adsRows: any[], summary?: any): KpiSummary
   const ctr = summary ? summary.current.ctr : (current.total_impressions > 0 ? (current.total_clicks / current.total_impressions) * 100 : 0);
   
   const changes = summary?.change || {};
-  const getDirection = (value: number, inverse = false) => {
+  const getDirection = (value: number, inverse = false): KpiSummary["change_direction"] => {
     if (Math.abs(value) < 0.01) return "neutral";
     if (inverse) return value > 0 ? "down" : "up";
     return value > 0 ? "up" : "down";
@@ -175,7 +360,7 @@ export function generateMetaAdsS4XKpisWithLabels(
   const cpm = summary?.current?.avgCpm !== undefined ? summary.current.avgCpm : (current.total_impressions > 0 ? (current.total_spend / current.total_impressions) * 1000 : 0);
   
   const changes = summary?.change || {};
-  const getDirection = (value: number, inverse = false) => {
+  const getDirection = (value: number, inverse = false): KpiSummary["change_direction"] => {
     if (Math.abs(value) < 0.01) return "neutral";
     if (inverse) return value > 0 ? "down" : "up";
     return value > 0 ? "up" : "down";

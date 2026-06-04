@@ -111,7 +111,7 @@ export default function ExecutiveSummaryPage() {
 
   if (!data) return null;
 
-  const { summary, overview, audience, insights } = data;
+  const { summary, overview, audience, insights, google_ads_summary: googleAdsSummary, meta_ads_summary: metaAdsSummary } = data;
   const isAdminView = data.viewerRole === "admin" || data.viewerRole === "owner";
   const current = summary?.current || {};
   const changes = summary?.change || {};
@@ -139,6 +139,11 @@ export default function ExecutiveSummaryPage() {
       : resultMetric === "reach" ? (changes.reach || 0)
       : (changes.total_conversions || changes.conversions || 0);
   const hasMetric = (metric: string) => {
+    if (metric.startsWith("google_")) return Boolean(googleAdsSummary?.current);
+    if (metric.startsWith("meta_")) return Boolean(metaAdsSummary?.current);
+    if (["cost", "revenue", "impressions", "reach", "clicks", "ctr", "cpc", "conversions", "postEngagement", "cpa", "roas", "frequency"].includes(metric)) {
+      return Boolean(summary?.current || overview.length > 0);
+    }
     if (!availableMetrics) return true;
     return Boolean(availableMetrics[metric]);
   };
@@ -225,6 +230,200 @@ export default function ExecutiveSummaryPage() {
       icon: DollarSign,
       tooltip: "Custo médio para gerar o resultado principal da campanha.",
     },
+    ...(googleAdsSummary?.current ? [
+      {
+        metricKey: "google_cost",
+        label: "Investimento Google Ads",
+        value: formatCurrency(Number(googleAdsSummary.current.total_spend || 0)),
+        delta: `${Number(googleAdsSummary.change?.total_spend || 0).toFixed(1)}%`,
+        positive: Number(googleAdsSummary.change?.total_spend || 0) <= 0,
+        icon: DollarSign,
+        description: "Google Ads",
+        tooltip: "Investimento somente da fonte Google Ads.",
+      },
+      {
+        metricKey: "google_clicks",
+        label: "Cliques Google Ads",
+        value: formatNumber(Number(googleAdsSummary.current.total_clicks || 0)),
+        delta: `${Number(googleAdsSummary.change?.total_clicks || 0).toFixed(1)}%`,
+        positive: Number(googleAdsSummary.change?.total_clicks || 0) >= 0,
+        icon: MousePointerClick,
+        description: "Google Ads",
+        tooltip: "Cliques somente da fonte Google Ads.",
+      },
+      {
+        metricKey: "google_conversions",
+        label: "Conversões Google Ads",
+        value: formatNumber(Number(googleAdsSummary.current.total_conversions || 0)),
+        delta: `${Number(googleAdsSummary.change?.total_conversions || 0).toFixed(1)}%`,
+        positive: Number(googleAdsSummary.change?.total_conversions || 0) >= 0,
+        icon: Target,
+        description: "Google Ads",
+        tooltip: "Conversões somente da fonte Google Ads.",
+      },
+      {
+        metricKey: "google_impressions",
+        label: "Impressões Google Ads",
+        value: formatNumber(Number(googleAdsSummary.current.total_impressions || 0)),
+        delta: `${Number(googleAdsSummary.change?.total_impressions || 0).toFixed(1)}%`,
+        positive: Number(googleAdsSummary.change?.total_impressions || 0) >= 0,
+        icon: Eye,
+        description: "Google Ads",
+        tooltip: "Impressões somente da fonte Google Ads.",
+      },
+      {
+        metricKey: "google_ctr",
+        label: "CTR Google Ads",
+        value: `${Number(googleAdsSummary.current.ctr || 0).toFixed(2)}%`,
+        delta: `${Number(googleAdsSummary.change?.ctr || 0).toFixed(1)}%`,
+        positive: Number(googleAdsSummary.change?.ctr || 0) >= 0,
+        icon: Percent,
+        description: "Google Ads",
+        tooltip: "CTR somente da fonte Google Ads.",
+      },
+      {
+        metricKey: "google_cpc",
+        label: "CPC Google Ads",
+        value: formatCurrency(Number(googleAdsSummary.current.cpc || 0)),
+        delta: `${Number(googleAdsSummary.change?.cpc || 0).toFixed(1)}%`,
+        positive: Number(googleAdsSummary.change?.cpc || 0) <= 0,
+        icon: DollarSign,
+        description: "Google Ads",
+        tooltip: "CPC somente da fonte Google Ads.",
+      },
+      {
+        metricKey: "google_cpa",
+        label: "CPA Google Ads",
+        value: formatCurrency(Number(googleAdsSummary.current.cpa || 0)),
+        delta: `${Number(googleAdsSummary.change?.cpa || 0).toFixed(1)}%`,
+        positive: Number(googleAdsSummary.change?.cpa || 0) <= 0,
+        icon: DollarSign,
+        description: "Google Ads",
+        tooltip: "CPA somente da fonte Google Ads.",
+      },
+      {
+        metricKey: "google_roas",
+        label: "ROAS Google Ads",
+        value: `${Number(googleAdsSummary.current.roas || 0).toFixed(2)}x`,
+        delta: `${Number(googleAdsSummary.change?.roas || 0).toFixed(1)}%`,
+        positive: Number(googleAdsSummary.change?.roas || 0) >= 0,
+        icon: TrendingUp,
+        description: "Google Ads",
+        tooltip: "ROAS somente da fonte Google Ads.",
+      },
+    ] : []),
+    ...(metaAdsSummary?.current ? [
+      {
+        metricKey: "meta_cost",
+        label: "Investimento Meta Ads",
+        value: formatCurrency(Number(metaAdsSummary.current.total_spend || 0)),
+        delta: `${Number(metaAdsSummary.change?.total_spend || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.total_spend || 0) <= 0,
+        icon: DollarSign,
+        description: "Meta Ads",
+        tooltip: "Investimento somente da fonte Meta Ads.",
+      },
+      {
+        metricKey: "meta_reach",
+        label: "Alcance Meta Ads",
+        value: formatNumber(Number(metaAdsSummary.current.reach || metaAdsSummary.current.total_reach || 0)),
+        delta: `${Number(metaAdsSummary.change?.reach || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.reach || 0) >= 0,
+        icon: Users,
+        description: "Meta Ads",
+        tooltip: "Alcance somente da fonte Meta Ads.",
+      },
+      {
+        metricKey: "meta_clicks",
+        label: "Cliques Meta Ads",
+        value: formatNumber(Number(metaAdsSummary.current.total_clicks || 0)),
+        delta: `${Number(metaAdsSummary.change?.total_clicks || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.total_clicks || 0) >= 0,
+        icon: MousePointerClick,
+        description: "Meta Ads",
+        tooltip: "Cliques somente da fonte Meta Ads.",
+      },
+      {
+        metricKey: "meta_conversions",
+        label: "Conversões Meta Ads",
+        value: formatNumber(Number(metaAdsSummary.current.total_conversions || 0)),
+        delta: `${Number(metaAdsSummary.change?.total_conversions || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.total_conversions || 0) >= 0,
+        icon: Target,
+        description: "Meta Ads",
+        tooltip: "Conversões somente da fonte Meta Ads.",
+      },
+      {
+        metricKey: "meta_impressions",
+        label: "Impressões Meta Ads",
+        value: formatNumber(Number(metaAdsSummary.current.total_impressions || 0)),
+        delta: `${Number(metaAdsSummary.change?.total_impressions || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.total_impressions || 0) >= 0,
+        icon: Eye,
+        description: "Meta Ads",
+        tooltip: "Impressões somente da fonte Meta Ads.",
+      },
+      {
+        metricKey: "meta_ctr",
+        label: "CTR Meta Ads",
+        value: `${Number(metaAdsSummary.current.ctr || 0).toFixed(2)}%`,
+        delta: `${Number(metaAdsSummary.change?.ctr || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.ctr || 0) >= 0,
+        icon: Percent,
+        description: "Meta Ads",
+        tooltip: "CTR somente da fonte Meta Ads.",
+      },
+      {
+        metricKey: "meta_cpc",
+        label: "CPC Meta Ads",
+        value: formatCurrency(Number(metaAdsSummary.current.cpc || 0)),
+        delta: `${Number(metaAdsSummary.change?.cpc || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.cpc || 0) <= 0,
+        icon: DollarSign,
+        description: "Meta Ads",
+        tooltip: "CPC somente da fonte Meta Ads.",
+      },
+      {
+        metricKey: "meta_cpa",
+        label: "CPA Meta Ads",
+        value: formatCurrency(Number(metaAdsSummary.current.cpa || 0)),
+        delta: `${Number(metaAdsSummary.change?.cpa || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.cpa || 0) <= 0,
+        icon: DollarSign,
+        description: "Meta Ads",
+        tooltip: "CPA somente da fonte Meta Ads.",
+      },
+      {
+        metricKey: "meta_cpm",
+        label: "CPM Meta Ads",
+        value: formatCurrency(Number(metaAdsSummary.current.avgCpm || metaAdsSummary.current.cpm || 0)),
+        delta: `${Number(metaAdsSummary.change?.avgCpm || metaAdsSummary.change?.cpm || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.avgCpm || metaAdsSummary.change?.cpm || 0) <= 0,
+        icon: DollarSign,
+        description: "Meta Ads",
+        tooltip: "CPM somente da fonte Meta Ads.",
+      },
+      {
+        metricKey: "meta_frequency",
+        label: "Frequência Meta Ads",
+        value: `${Number(metaAdsSummary.current.frequency || 0).toFixed(2)}x`,
+        delta: `${Number(metaAdsSummary.change?.frequency || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.frequency || 0) >= 0,
+        icon: BarChart3,
+        description: "Meta Ads",
+        tooltip: "Frequência somente da fonte Meta Ads.",
+      },
+      {
+        metricKey: "meta_postEngagement",
+        label: "Engajamentos Meta Ads",
+        value: formatNumber(Number(metaAdsSummary.current.postEngagement || metaAdsSummary.current.total_engagement || 0)),
+        delta: `${Number(metaAdsSummary.change?.postEngagement || metaAdsSummary.change?.engagement || 0).toFixed(1)}%`,
+        positive: Number(metaAdsSummary.change?.postEngagement || metaAdsSummary.change?.engagement || 0) >= 0,
+        icon: BarChart3,
+        description: "Meta Ads",
+        tooltip: "Engajamentos somente da fonte Meta Ads.",
+      },
+    ] : []),
   ];
 
   const filteredKpis = kpis.filter((kpi) => {

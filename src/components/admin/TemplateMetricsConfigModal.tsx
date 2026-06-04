@@ -115,8 +115,8 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   };
 
   const getMetricKeyOrigins = (item: MetricKeySuggestion) => {
-    if (item.origin === "canonical") return ["Padrão do sistema"];
     if (item.sourceLabels && item.sourceLabels.length > 0) return item.sourceLabels;
+    if (item.origin === "canonical") return ["Padrão do sistema"];
     return ["Fonte importada"];
   };
 
@@ -124,7 +124,38 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     if (sourcePlatform === "google_ads") return "Google Ads";
     if (sourcePlatform === "meta_ads") return "Meta Ads";
     if (sourcePlatform === "mixed") return "Múltiplas origens";
-    return "Google Ads";
+    return "Sistema";
+  };
+
+  const inferSourcePlatformFromKey = (key: string, fallback: TemplateMetricSourcePlatform) => {
+    if (key.startsWith("google_")) return "google_ads";
+    if (key.startsWith("meta_")) return "meta_ads";
+    return fallback;
+  };
+
+  const getSuggestionBucketLabel = (item: {
+    key: string;
+    origin?: "canonical" | "discovered";
+    sourceLabels?: string[];
+    sourceRoles?: string[];
+    sourcePlatform?: TemplateMetricSourcePlatform;
+  }) => {
+    const labels = item.sourceLabels || [];
+    const roles = item.sourceRoles || [];
+
+    if (labels.includes("Google Ads") && labels.includes("Meta Ads")) return "Google Ads + Meta Ads";
+    if (roles.includes("google_ads") && roles.includes("meta_ads")) return "Google Ads + Meta Ads";
+    if (labels.includes("Google Ads")) return "Google Ads";
+    if (labels.includes("Meta Ads")) return "Meta Ads";
+    if (roles.includes("google_ads")) return "Google Ads";
+    if (roles.includes("meta_ads")) return "Meta Ads";
+    if (item.sourcePlatform === "google_ads") return "Google Ads";
+    if (item.sourcePlatform === "meta_ads") return "Meta Ads";
+    if (item.sourcePlatform === "mixed") return "Múltiplas origens";
+    if (item.origin === "canonical") return "Sistema";
+    if (item.key.startsWith("google_")) return "Google Ads";
+    if (item.key.startsWith("meta_")) return "Meta Ads";
+    return "Origem não identificada";
   };
 
   const formatMetricSuggestionLabel = (item: MetricKeySuggestion) => {
@@ -132,57 +163,40 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     return `${item.key} - ${item.label} (${origins.join(" / ")})`;
   };
 
-  const filterSuggestionsBySource = (sourcePlatform: TemplateMetricSourcePlatform) => {
-    const googleCanonical = new Set(["cost", "impressions", "clicks", "ctr", "cpc", "cpa", "roas", "conversions"]);
-    const metaCanonical = new Set(["cost", "impressions", "reach", "clicks", "ctr", "cpc", "cpa", "conversions", "frequency", "postEngagement", "postComments", "postReactions", "postShares", "cpm"]);
+  const sourceBucketMatches = (bucketLabel: string, sourcePlatform: TemplateMetricSourcePlatform) => {
+    if (sourcePlatform === "mixed") return true;
+    if (bucketLabel === "Sistema") return true;
+    if (bucketLabel === "Origem não identificada") return true;
+    return bucketLabel === getSourceLabel(sourcePlatform);
+  };
 
-    return metricKeySuggestions.filter((item) => {
-      if (sourcePlatform === "mixed") {
-        if (item.origin === "discovered") {
-          return !item.sourceRoles || item.sourceRoles.length === 0 || item.sourceRoles.includes("google_ads") || item.sourceRoles.includes("meta_ads");
-        }
-        return googleCanonical.has(item.key) || metaCanonical.has(item.key);
-      }
-      if (item.origin === "discovered") {
-        if (!item.sourceRoles || item.sourceRoles.length === 0) return true;
-        return item.sourceRoles.includes(sourcePlatform);
-      }
-      return sourcePlatform === "google_ads"
-        ? googleCanonical.has(item.key)
-        : metaCanonical.has(item.key);
+  const groupBySourceBucket = <T extends { key: string }>(items: T[], sourcePlatform: TemplateMetricSourcePlatform) => {
+    const groups = new Map<string, T[]>();
+    items.forEach((item) => {
+      const bucket = getSuggestionBucketLabel(item as any);
+      if (!sourceBucketMatches(bucket, sourcePlatform)) return;
+      if (!groups.has(bucket)) groups.set(bucket, []);
+      groups.get(bucket)!.push(item);
     });
+
+    const order = ["Sistema", "Google Ads", "Meta Ads", "Google Ads + Meta Ads", "Múltiplas origens", "Origem não identificada"];
+    return order
+      .filter((bucket) => groups.has(bucket))
+      .map((bucket) => ({
+        label: bucket,
+        options: groups.get(bucket)!
+          .slice()
+          .sort((a, b) => {
+            const left = (a as any).label || a.key;
+            const right = (b as any).label || b.key;
+            return String(left).localeCompare(String(right));
+          }),
+      }));
   };
 
   const buildSuggestionGroups = (kind: TemplateMetricKind, sourcePlatform: TemplateMetricSourcePlatform) => {
     const effectiveSource = kind === "composite" ? "mixed" : sourcePlatform;
-    const filtered = filterSuggestionsBySource(effectiveSource);
-
-    const groups: Array<{ label: string; options: MetricKeySuggestion[] }> = [];
-    const canonical = filtered.filter((item) => item.origin === "canonical");
-    const importGoogle = filtered.filter((item) => item.origin === "discovered" && (item.sourceRoles || []).includes("google_ads"));
-    const importMeta = filtered.filter((item) => item.origin === "discovered" && (item.sourceRoles || []).includes("meta_ads"));
-    const importMixed = filtered.filter((item) => item.origin === "discovered" && (item.sourceRoles || []).includes("google_ads") && (item.sourceRoles || []).includes("meta_ads"));
-    const importUnknown = filtered.filter((item) => item.origin === "discovered" && (!item.sourceRoles || item.sourceRoles.length === 0));
-
-    if (canonical.length > 0) {
-      groups.push({ label: "Sistema", options: canonical });
-    }
-
-    if (effectiveSource === "mixed") {
-      if (importGoogle.length > 0) groups.push({ label: "Google Ads", options: importGoogle });
-      if (importMeta.length > 0) groups.push({ label: "Meta Ads", options: importMeta });
-      if (importMixed.length > 0) groups.push({ label: "Google Ads + Meta Ads", options: importMixed });
-    } else {
-      const sourceLabel = getSourceLabel(effectiveSource);
-      const originItems = filtered.filter((item) => item.origin === "discovered" && (!item.sourceRoles || item.sourceRoles.length === 0 || item.sourceRoles.includes(effectiveSource)));
-      if (originItems.length > 0) groups.push({ label: sourceLabel, options: originItems });
-    }
-
-    if (importUnknown.length > 0) {
-      groups.push({ label: "Origem não identificada", options: importUnknown });
-    }
-
-    return groups.filter((group) => group.options.length > 0);
+    return groupBySourceBucket(metricKeySuggestions, effectiveSource);
   };
 
   useEffect(() => {
@@ -369,7 +383,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         label,
         preview: preview || undefined,
         kind,
-        sourcePlatform: kind === "composite" ? "mixed" : sourcePlatform,
+        sourcePlatform: kind === "composite" ? "mixed" : inferSourcePlatformFromKey(resolvedKey, sourcePlatform),
         primarySourcePlatform: kind === "composite" ? primarySourcePlatform : undefined,
         secondarySourcePlatform: kind === "composite" ? secondarySourcePlatform : undefined,
         compositeType: kind === "composite" ? compositeType : undefined,
@@ -464,28 +478,44 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
 
   const availablePageOptions = DASHBOARD_PAGES.filter((page) => !visiblePages.includes(page.key));
 
-  const getMetricBaseOptions = (sectionKey: string, sourcePlatform: TemplateMetricSourcePlatform) => {
-    const section = config.sections?.[sectionKey];
-    const fromSection = (section?.metrics || [])
-      .filter((metric) => (metric.kind || "standard") === "standard")
+  const getMetricBaseOptions = (sourcePlatform: TemplateMetricSourcePlatform) => {
+    const fromSections = Object.values(config.sections || {})
+      .flatMap((section) => section.metrics || [])
+      .filter((metric) => (metric.kind || "standard") === "standard" && metric.enabled)
       .map((metric) => ({
         key: metric.key,
         label: getTemplateMetricLabel(baseTemplateId, metric, primaryObjective),
-        origin: metric.sourcePlatform === "mixed" ? ["Múltiplas origens"] : [getSourceLabel(metric.sourcePlatform)],
+        origin: [getSuggestionBucketLabel(metric as any)],
       }));
 
-    const fromSuggestions = filterSuggestionsBySource(sourcePlatform).map((item) => ({
+    const fromSuggestions = metricKeySuggestions.map((item) => ({
       key: item.key,
       label: item.label,
-      origin: item.origin === "canonical" ? ["Sistema"] : getMetricKeyOrigins(item),
+      origin: [getSuggestionBucketLabel(item)],
     }));
 
     const merged = new Map<string, { key: string; label: string; origin: string[] }>();
-    [...fromSection, ...fromSuggestions].forEach((item) => {
+    [...fromSections, ...fromSuggestions].forEach((item) => {
+      if (!sourceBucketMatches(item.origin[0], sourcePlatform)) return;
       if (!merged.has(item.key)) merged.set(item.key, item);
     });
 
-    return Array.from(merged.values()).sort((a, b) => a.label.localeCompare(b.label));
+    const groups = new Map<string, { key: string; label: string; origin: string[] }[]>();
+    Array.from(merged.values()).forEach((item) => {
+      const bucket = item.origin[0] || "Origem não identificada";
+      if (!groups.has(bucket)) groups.set(bucket, []);
+      groups.get(bucket)!.push(item);
+    });
+
+    const order = ["Sistema", "Google Ads", "Meta Ads", "Google Ads + Meta Ads", "Múltiplas origens", "Origem não identificada"];
+    return order
+      .filter((bucket) => groups.has(bucket))
+      .map((bucket) => ({
+        label: bucket,
+        options: groups.get(bucket)!
+          .slice()
+          .sort((a, b) => a.label.localeCompare(b.label)),
+      }));
   };
 
   const addPageSection = () => {
@@ -813,6 +843,17 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                         const selectedSuggestion = buildSuggestionGroups(drafts[section.key]?.kind || "standard", sourcePlatform)
                           .flatMap((group) => group.options)
                           .find((item) => item.key === suggestionKey);
+                        const suggestionSourceBucket = selectedSuggestion ? getSuggestionBucketLabel(selectedSuggestion as any) : null;
+                        const resolvedSourcePlatform =
+                          (drafts[section.key]?.kind || "standard") === "composite"
+                            ? "mixed"
+                            : suggestionSourceBucket === "Google Ads"
+                              ? "google_ads"
+                              : suggestionSourceBucket === "Meta Ads"
+                                ? "meta_ads"
+                                : suggestionSourceBucket === "Google Ads + Meta Ads" || suggestionSourceBucket === "Múltiplas origens"
+                                  ? "mixed"
+                                  : (drafts[section.key]?.sourcePlatform || "google_ads");
                         setDrafts((prev) => ({
                           ...prev,
                           [section.key]: {
@@ -820,7 +861,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                             key: suggestionKey || "",
                             preview: prev[section.key]?.preview || "",
                             kind: prev[section.key]?.kind || "standard",
-                            sourcePlatform: prev[section.key]?.sourcePlatform || "google_ads",
+                            sourcePlatform: resolvedSourcePlatform,
                             primarySourcePlatform: prev[section.key]?.primarySourcePlatform || "google_ads",
                             secondarySourcePlatform: prev[section.key]?.secondarySourcePlatform || "meta_ads",
                             compositeType: prev[section.key]?.compositeType || "sum",
@@ -934,12 +975,15 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                           style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                         >
                           <option value="">Selecione</option>
-                          {getMetricBaseOptions(section.key, drafts[section.key]?.primarySourcePlatform || "google_ads")
-                            .map((metric) => (
-                              <option key={metric.key} value={metric.key}>
-                                {metric.label} ({metric.origin.join(" / ")})
-                              </option>
-                            ))}
+                          {getMetricBaseOptions(drafts[section.key]?.primarySourcePlatform || "google_ads").map((group) => (
+                            <optgroup key={group.label} label={group.label}>
+                              {group.options.map((metric) => (
+                                <option key={metric.key} value={metric.key}>
+                                  {metric.label} ({metric.origin.join(" / ")})
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
                         </select>
                       </label>
                       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -982,12 +1026,15 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                           style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                         >
                           <option value="">Selecione</option>
-                          {getMetricBaseOptions(section.key, drafts[section.key]?.secondarySourcePlatform || "meta_ads")
-                            .map((metric) => (
-                              <option key={metric.key} value={metric.key}>
-                                {metric.label} ({metric.origin.join(" / ")})
-                              </option>
-                            ))}
+                          {getMetricBaseOptions(drafts[section.key]?.secondarySourcePlatform || "meta_ads").map((group) => (
+                            <optgroup key={group.label} label={group.label}>
+                              {group.options.map((metric) => (
+                                <option key={metric.key} value={metric.key}>
+                                  {metric.label} ({metric.origin.join(" / ")})
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
                         </select>
                       </label>
                     </>
