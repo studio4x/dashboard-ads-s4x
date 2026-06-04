@@ -37,9 +37,15 @@ const METRIC_KIND_OPTIONS: Array<{ value: TemplateMetricKind; label: string }> =
   { value: "composite", label: "Composta" },
 ];
 
-const SOURCE_PLATFORM_OPTIONS: Array<{ value: TemplateMetricSourcePlatform; label: string }> = [
+const SOURCE_PLATFORM_OPTIONS: Array<{ value: Exclude<TemplateMetricSourcePlatform, "mixed">; label: string }> = [
   { value: "google_ads", label: "Google Ads" },
   { value: "meta_ads", label: "Meta Ads" },
+];
+
+const COMPOSITE_SOURCE_OPTIONS: Array<{ value: TemplateMetricSourcePlatform; label: string }> = [
+  { value: "google_ads", label: "Google Ads" },
+  { value: "meta_ads", label: "Meta Ads" },
+  { value: "mixed", label: "Múltiplas origens" },
 ];
 
 const COMPOSITE_TYPE_OPTIONS: Array<{ value: TemplateMetricCompositeType; label: string }> = [
@@ -69,9 +75,12 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     preview: string;
     kind: TemplateMetricKind;
     sourcePlatform: TemplateMetricSourcePlatform;
+    primarySourcePlatform: TemplateMetricSourcePlatform;
+    secondarySourcePlatform: TemplateMetricSourcePlatform;
     compositeType: TemplateMetricCompositeType;
     primaryMetricKey: string;
     secondaryMetricKey: string;
+    suggestionKey: string;
     displayMode: MetricDisplayMode;
     enabled: boolean;
   }>>({});
@@ -111,6 +120,13 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     return ["Fonte importada"];
   };
 
+  const getSourceLabel = (sourcePlatform?: TemplateMetricSourcePlatform) => {
+    if (sourcePlatform === "google_ads") return "Google Ads";
+    if (sourcePlatform === "meta_ads") return "Meta Ads";
+    if (sourcePlatform === "mixed") return "Múltiplas origens";
+    return "Google Ads";
+  };
+
   const formatMetricSuggestionLabel = (item: MetricKeySuggestion) => {
     const origins = item.origin === "canonical" ? ["Sistema"] : getMetricKeyOrigins(item);
     return `${item.key} - ${item.label} (${origins.join(" / ")})`;
@@ -121,6 +137,12 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     const metaCanonical = new Set(["cost", "impressions", "reach", "clicks", "ctr", "cpc", "cpa", "conversions", "frequency", "postEngagement", "postComments", "postReactions", "postShares", "cpm"]);
 
     return metricKeySuggestions.filter((item) => {
+      if (sourcePlatform === "mixed") {
+        if (item.origin === "discovered") {
+          return !item.sourceRoles || item.sourceRoles.length === 0 || item.sourceRoles.includes("google_ads") || item.sourceRoles.includes("meta_ads");
+        }
+        return googleCanonical.has(item.key) || metaCanonical.has(item.key);
+      }
       if (item.origin === "discovered") {
         if (!item.sourceRoles || item.sourceRoles.length === 0) return true;
         return item.sourceRoles.includes(sourcePlatform);
@@ -264,9 +286,12 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         preview: prev[sectionKey]?.preview || "",
         kind: prev[sectionKey]?.kind || "standard",
         sourcePlatform: prev[sectionKey]?.sourcePlatform || "google_ads",
+        primarySourcePlatform: prev[sectionKey]?.primarySourcePlatform || "google_ads",
+        secondarySourcePlatform: prev[sectionKey]?.secondarySourcePlatform || "meta_ads",
         compositeType: prev[sectionKey]?.compositeType || "sum",
         primaryMetricKey: prev[sectionKey]?.primaryMetricKey || "",
         secondaryMetricKey: prev[sectionKey]?.secondaryMetricKey || "",
+        suggestionKey: prev[sectionKey]?.suggestionKey || "",
         displayMode: prev[sectionKey]?.displayMode || "card",
         enabled: prev[sectionKey]?.enabled ?? true,
         [field]: value,
@@ -281,11 +306,15 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     const preview = String(draft?.preview || "").trim();
     const kind = draft?.kind || "standard";
     const sourcePlatform = draft?.sourcePlatform || "google_ads";
+    const primarySourcePlatform = draft?.primarySourcePlatform || "google_ads";
+    const secondarySourcePlatform = draft?.secondarySourcePlatform || "meta_ads";
     const compositeType = draft?.compositeType || "sum";
     const primaryMetricKey = String(draft?.primaryMetricKey || "").trim();
     const secondaryMetricKey = String(draft?.secondaryMetricKey || "").trim();
+    const suggestionKey = String(draft?.suggestionKey || "").trim();
+    const resolvedKey = suggestionKey || key;
 
-    if (!label || !key) {
+    if (!label || !resolvedKey) {
       toast("Informe nome e chave da métrica.");
       return;
     }
@@ -298,17 +327,19 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
       if (!prev) return prev;
       const section = prev.sections[sectionKey];
       if (!section) return prev;
-      if (section.metrics.some((metric) => metric.key === key)) {
+      if (section.metrics.some((metric) => metric.key === resolvedKey)) {
         toast("Já existe uma métrica com essa chave nesta seção.");
         return prev;
       }
 
       const nextMetric: TemplateMetricItem = {
-        key,
+        key: resolvedKey,
         label,
         preview: preview || undefined,
         kind,
-        sourcePlatform,
+        sourcePlatform: kind === "composite" ? "mixed" : sourcePlatform,
+        primarySourcePlatform: kind === "composite" ? primarySourcePlatform : undefined,
+        secondarySourcePlatform: kind === "composite" ? secondarySourcePlatform : undefined,
         compositeType: kind === "composite" ? compositeType : undefined,
         primaryMetricKey: kind === "composite" ? primaryMetricKey : undefined,
         secondaryMetricKey: kind === "composite" ? secondaryMetricKey : undefined,
@@ -338,9 +369,12 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         preview: "",
         kind: "standard",
         sourcePlatform: "google_ads",
+        primarySourcePlatform: "google_ads",
+        secondarySourcePlatform: "meta_ads",
         compositeType: "sum",
         primaryMetricKey: "",
         secondaryMetricKey: "",
+        suggestionKey: "",
         displayMode: "card",
         enabled: true,
       },
@@ -397,6 +431,36 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   };
 
   const availablePageOptions = DASHBOARD_PAGES.filter((page) => !visiblePages.includes(page.key));
+
+  const getSuggestionOptionsForMetric = (sourcePlatform: TemplateMetricSourcePlatform, kind: TemplateMetricKind) => {
+    const baseSuggestions = filterSuggestionsBySource(sourcePlatform);
+    if (kind === "composite") return baseSuggestions;
+    return baseSuggestions;
+  };
+
+  const getMetricBaseOptions = (sectionKey: string, sourcePlatform: TemplateMetricSourcePlatform) => {
+    const section = config.sections?.[sectionKey];
+    const fromSection = (section?.metrics || [])
+      .filter((metric) => (metric.kind || "standard") === "standard")
+      .map((metric) => ({
+        key: metric.key,
+        label: getTemplateMetricLabel(baseTemplateId, metric, primaryObjective),
+        origin: metric.sourcePlatform === "mixed" ? ["Múltiplas origens"] : [getSourceLabel(metric.sourcePlatform)],
+      }));
+
+    const fromSuggestions = filterSuggestionsBySource(sourcePlatform).map((item) => ({
+      key: item.key,
+      label: item.label,
+      origin: item.origin === "canonical" ? ["Sistema"] : getMetricKeyOrigins(item),
+    }));
+
+    const merged = new Map<string, { key: string; label: string; origin: string[] }>();
+    [...fromSection, ...fromSuggestions].forEach((item) => {
+      if (!merged.has(item.key)) merged.set(item.key, item);
+    });
+
+    return Array.from(merged.values()).sort((a, b) => a.label.localeCompare(b.label));
+  };
 
   const addPageSection = () => {
     if (!newPageKey) {
@@ -637,7 +701,27 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Tipo</span>
                     <select
                       value={drafts[section.key]?.kind || "standard"}
-                      onChange={(e) => updateDraft(section.key, "kind", e.target.value as TemplateMetricKind)}
+                      onChange={(e) => {
+                        const nextKind = e.target.value as TemplateMetricKind;
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [section.key]: {
+                            label: prev[section.key]?.label || "",
+                            key: prev[section.key]?.key || "",
+                            preview: prev[section.key]?.preview || "",
+                            kind: nextKind,
+                            sourcePlatform: nextKind === "composite" ? "mixed" : "google_ads",
+                            primarySourcePlatform: prev[section.key]?.primarySourcePlatform || "google_ads",
+                            secondarySourcePlatform: prev[section.key]?.secondarySourcePlatform || "meta_ads",
+                            compositeType: nextKind === "composite" ? (prev[section.key]?.compositeType || "sum") : "sum",
+                            primaryMetricKey: nextKind === "composite" ? (prev[section.key]?.primaryMetricKey || "") : "",
+                            secondaryMetricKey: nextKind === "composite" ? (prev[section.key]?.secondaryMetricKey || "") : "",
+                            suggestionKey: "",
+                            displayMode: prev[section.key]?.displayMode || "card",
+                            enabled: prev[section.key]?.enabled ?? true,
+                          },
+                        }));
+                      }}
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     >
                       {METRIC_KIND_OPTIONS.map((option) => (
@@ -657,48 +741,80 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Origem da métrica</span>
                     <select
-                      value={drafts[section.key]?.sourcePlatform || "google_ads"}
-                      onChange={(e) => updateDraft(section.key, "sourcePlatform", e.target.value as TemplateMetricSourcePlatform)}
+                      value={drafts[section.key]?.sourcePlatform || ((drafts[section.key]?.kind || "standard") === "composite" ? "mixed" : "google_ads")}
+                      onChange={(e) => {
+                        const nextSource = e.target.value as TemplateMetricSourcePlatform;
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [section.key]: {
+                            label: prev[section.key]?.label || "",
+                            key: nextSource === "mixed" ? prev[section.key]?.key || "" : "",
+                            preview: prev[section.key]?.preview || "",
+                            kind: prev[section.key]?.kind || "standard",
+                            sourcePlatform: nextSource,
+                            primarySourcePlatform: prev[section.key]?.primarySourcePlatform || "google_ads",
+                            secondarySourcePlatform: prev[section.key]?.secondarySourcePlatform || "meta_ads",
+                            compositeType: prev[section.key]?.compositeType || "sum",
+                            primaryMetricKey: prev[section.key]?.primaryMetricKey || "",
+                            secondaryMetricKey: prev[section.key]?.secondaryMetricKey || "",
+                            suggestionKey: "",
+                            displayMode: prev[section.key]?.displayMode || "card",
+                            enabled: prev[section.key]?.enabled ?? true,
+                          },
+                        }));
+                      }}
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     >
-                      {SOURCE_PLATFORM_OPTIONS.map((option) => (
+                      {((drafts[section.key]?.kind || "standard") === "composite" ? COMPOSITE_SOURCE_OPTIONS : SOURCE_PLATFORM_OPTIONS).map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
                     <span style={{ fontSize: 10, color: "#64748B" }}>
-                      Use esta origem para filtrar as sugestões de chave e evitar puxar dados da plataforma errada.
+                      {(drafts[section.key]?.kind || "standard") === "composite"
+                        ? "A métrica composta pode cruzar Google Ads e Meta Ads. As bases abaixo usam origem própria."
+                        : "Use esta origem para filtrar as sugestões de chave e evitar puxar dados da plataforma errada."}
                     </span>
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Chave</span>
-                    <input
-                      value={drafts[section.key]?.key || ""}
-                      onChange={(e) => updateDraft(section.key, "key", e.target.value)}
-                      placeholder="Ex.: cost, impressions, custom_metric"
-                      style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
-                    />
-                    <span style={{ fontSize: 10, color: "#64748B" }}>
-                      {metricKeyLoading
-                        ? "Carregando chaves das fontes Google Sheets..."
-                        : "Identificador técnico usado para casar a métrica com a coluna/field importado do Google Sheets ou com um KPI calculado."}
-                    </span>
-                    {metricKeyError && (
-                      <span style={{ fontSize: 10, color: "#B45309" }}>
-                        Sugestões carregadas apenas com as chaves padrão: {metricKeyError}
-                      </span>
-                    )}
                   </label>
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Sugestões com origem</span>
                     <select
-                      value=""
+                      value={drafts[section.key]?.suggestionKey || ""}
                       onChange={(e) => {
-                        if (e.target.value) updateDraft(section.key, "key", e.target.value);
+                        const suggestionKey = e.target.value;
+                        const selectedSuggestion = getSuggestionOptionsForMetric(
+                          (drafts[section.key]?.kind || "standard") === "composite"
+                            ? (drafts[section.key]?.sourcePlatform || "mixed")
+                            : (drafts[section.key]?.sourcePlatform || "google_ads"),
+                          drafts[section.key]?.kind || "standard"
+                        ).find((item) => item.key === suggestionKey);
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [section.key]: {
+                            label: prev[section.key]?.label || selectedSuggestion?.label || "",
+                            key: suggestionKey || "",
+                            preview: prev[section.key]?.preview || "",
+                            kind: prev[section.key]?.kind || "standard",
+                            sourcePlatform: prev[section.key]?.sourcePlatform || "google_ads",
+                            primarySourcePlatform: prev[section.key]?.primarySourcePlatform || "google_ads",
+                            secondarySourcePlatform: prev[section.key]?.secondarySourcePlatform || "meta_ads",
+                            compositeType: prev[section.key]?.compositeType || "sum",
+                            primaryMetricKey: prev[section.key]?.primaryMetricKey || "",
+                            secondaryMetricKey: prev[section.key]?.secondaryMetricKey || "",
+                            suggestionKey,
+                            displayMode: prev[section.key]?.displayMode || "card",
+                            enabled: prev[section.key]?.enabled ?? true,
+                          },
+                        }));
                       }}
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     >
                       <option value="">{metricKeyLoading ? "Carregando sugestões..." : "Selecione uma chave sugerida"}</option>
-                      {filterSuggestionsBySource(drafts[section.key]?.sourcePlatform || "google_ads").map((item) => (
+                      {getSuggestionOptionsForMetric(
+                        (drafts[section.key]?.kind || "standard") === "composite"
+                          ? (drafts[section.key]?.sourcePlatform || "mixed")
+                          : (drafts[section.key]?.sourcePlatform || "google_ads"),
+                        drafts[section.key]?.kind || "standard"
+                      ).map((item) => (
                         <option key={`${item.key}-${item.origin}`} value={item.key}>
                           {formatMetricSuggestionLabel(item)}
                         </option>
@@ -708,6 +824,32 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       A lista combina chaves do sistema com métricas detectadas nas fontes já importadas.
                     </span>
                   </label>
+                  {!drafts[section.key]?.suggestionKey && (
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Chave</span>
+                      <input
+                        value={drafts[section.key]?.key || ""}
+                        onChange={(e) => updateDraft(section.key, "key", e.target.value)}
+                        placeholder="Ex.: cost, impressions, custom_metric"
+                        style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                      />
+                      <span style={{ fontSize: 10, color: "#64748B" }}>
+                        {metricKeyLoading
+                          ? "Carregando chaves das fontes Google Sheets..."
+                          : "Identificador técnico usado para casar a métrica com a coluna/field importado do Google Sheets ou com um KPI calculado."}
+                      </span>
+                      {metricKeyError && (
+                        <span style={{ fontSize: 10, color: "#B45309" }}>
+                          Sugestões carregadas apenas com as chaves padrão: {metricKeyError}
+                        </span>
+                      )}
+                    </label>
+                  )}
+                  {drafts[section.key]?.suggestionKey && (
+                    <div style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #D1FAE5", background: "#ECFDF5", color: "#166534", fontSize: 12, fontWeight: 600 }}>
+                      Chave preenchida automaticamente pela sugestão: <strong>{drafts[section.key]?.suggestionKey}</strong>
+                    </div>
+                  )}
                   {(drafts[section.key]?.kind || "standard") === "composite" && (
                     <>
                       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -723,6 +865,38 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                         </select>
                       </label>
                       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Origem da base 1</span>
+                        <select
+                          value={drafts[section.key]?.primarySourcePlatform || "google_ads"}
+                          onChange={(e) => {
+                            const nextSource = e.target.value as TemplateMetricSourcePlatform;
+                            setDrafts((prev) => ({
+                              ...prev,
+                              [section.key]: {
+                                label: prev[section.key]?.label || "",
+                                key: prev[section.key]?.key || "",
+                                preview: prev[section.key]?.preview || "",
+                                kind: prev[section.key]?.kind || "composite",
+                                sourcePlatform: prev[section.key]?.sourcePlatform || "mixed",
+                                primarySourcePlatform: nextSource,
+                                secondarySourcePlatform: prev[section.key]?.secondarySourcePlatform || "meta_ads",
+                                compositeType: prev[section.key]?.compositeType || "sum",
+                                primaryMetricKey: "",
+                                secondaryMetricKey: prev[section.key]?.secondaryMetricKey || "",
+                                suggestionKey: prev[section.key]?.suggestionKey || "",
+                                displayMode: prev[section.key]?.displayMode || "card",
+                                enabled: prev[section.key]?.enabled ?? true,
+                              },
+                            }));
+                          }}
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                        >
+                          {SOURCE_PLATFORM_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Métrica base 1</span>
                         <select
                           value={drafts[section.key]?.primaryMetricKey || ""}
@@ -730,13 +904,44 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                           style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                         >
                           <option value="">Selecione</option>
-                          {section.metrics
-                            .filter((metric) => (metric.kind || "standard") === "standard")
+                          {getMetricBaseOptions(section.key, drafts[section.key]?.primarySourcePlatform || "google_ads")
                             .map((metric) => (
                               <option key={metric.key} value={metric.key}>
-                                {getTemplateMetricLabel(baseTemplateId, metric, primaryObjective)}
+                                {metric.label} ({metric.origin.join(" / ")})
                               </option>
                             ))}
+                        </select>
+                      </label>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Origem da base 2</span>
+                        <select
+                          value={drafts[section.key]?.secondarySourcePlatform || "meta_ads"}
+                          onChange={(e) => {
+                            const nextSource = e.target.value as TemplateMetricSourcePlatform;
+                            setDrafts((prev) => ({
+                              ...prev,
+                              [section.key]: {
+                                label: prev[section.key]?.label || "",
+                                key: prev[section.key]?.key || "",
+                                preview: prev[section.key]?.preview || "",
+                                kind: prev[section.key]?.kind || "composite",
+                                sourcePlatform: prev[section.key]?.sourcePlatform || "mixed",
+                                primarySourcePlatform: prev[section.key]?.primarySourcePlatform || "google_ads",
+                                secondarySourcePlatform: nextSource,
+                                compositeType: prev[section.key]?.compositeType || "sum",
+                                primaryMetricKey: prev[section.key]?.primaryMetricKey || "",
+                                secondaryMetricKey: "",
+                                suggestionKey: prev[section.key]?.suggestionKey || "",
+                                displayMode: prev[section.key]?.displayMode || "card",
+                                enabled: prev[section.key]?.enabled ?? true,
+                              },
+                            }));
+                          }}
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                        >
+                          {SOURCE_PLATFORM_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
                         </select>
                       </label>
                       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -747,11 +952,10 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                           style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                         >
                           <option value="">Selecione</option>
-                          {section.metrics
-                            .filter((metric) => (metric.kind || "standard") === "standard")
+                          {getMetricBaseOptions(section.key, drafts[section.key]?.secondarySourcePlatform || "meta_ads")
                             .map((metric) => (
                               <option key={metric.key} value={metric.key}>
-                                {getTemplateMetricLabel(baseTemplateId, metric, primaryObjective)}
+                                {metric.label} ({metric.origin.join(" / ")})
                               </option>
                             ))}
                         </select>
@@ -843,13 +1047,18 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                           <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Chave: {metric.key} · Ordem {index + 1}</p>
                           {metric.sourcePlatform && (
                             <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>
-                              Origem: {metric.sourcePlatform === "google_ads" ? "Google Ads" : "Meta Ads"}
+                              Origem: {getSourceLabel(metric.sourcePlatform)}
                             </p>
                           )}
                           {(metric.kind || "standard") === "composite" && (
-                            <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>
-                              KPI composto ({metric.compositeType || "sum"}): {metric.primaryMetricKey || "?"} + {metric.secondaryMetricKey || "?"}
-                            </p>
+                            <>
+                              <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>
+                                KPI composto ({metric.compositeType || "sum"}): {metric.primaryMetricKey || "?"} + {metric.secondaryMetricKey || "?"}
+                              </p>
+                              <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>
+                                Bases: {getSourceLabel(metric.primarySourcePlatform)} / {getSourceLabel(metric.secondarySourcePlatform)}
+                              </p>
+                            </>
                           )}
                           <p style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
                             Preview: {metric.preview || (metric.displayMode === "table" ? "Tabela" : metric.displayMode === "chart" ? "Gráfico" : metric.displayMode === "text" ? "Texto" : "Card")}

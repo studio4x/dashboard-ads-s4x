@@ -4,7 +4,7 @@ import type { KpiSummary } from "@/types/entities";
 
 export type MetricDisplayMode = "card" | "text" | "chart" | "table";
 export type TemplateMetricKind = "standard" | "composite";
-export type TemplateMetricSourcePlatform = "google_ads" | "meta_ads";
+export type TemplateMetricSourcePlatform = "google_ads" | "meta_ads" | "mixed";
 export type TemplateMetricCompositeType =
   | "sum"
   | "subtract"
@@ -21,6 +21,8 @@ export interface TemplateMetricItem {
   preview?: string;
   kind?: TemplateMetricKind;
   sourcePlatform?: TemplateMetricSourcePlatform;
+  primarySourcePlatform?: TemplateMetricSourcePlatform;
+  secondarySourcePlatform?: TemplateMetricSourcePlatform;
   compositeType?: TemplateMetricCompositeType;
   primaryMetricKey?: string;
   secondaryMetricKey?: string;
@@ -68,6 +70,8 @@ function metricItem(key: string, order: number, options?: Partial<TemplateMetric
     preview: options?.preview,
     kind: options?.kind || "standard",
     sourcePlatform: options?.sourcePlatform,
+    primarySourcePlatform: options?.primarySourcePlatform,
+    secondarySourcePlatform: options?.secondarySourcePlatform,
     compositeType: options?.compositeType || "sum",
     primaryMetricKey: options?.primaryMetricKey,
     secondaryMetricKey: options?.secondaryMetricKey,
@@ -454,6 +458,8 @@ export function normalizeTemplateMetricConfig(
             preview: item.preview?.trim() || defaultMetric?.preview,
             kind: item.kind || defaultMetric?.kind || "standard",
             sourcePlatform: item.sourcePlatform || defaultMetric?.sourcePlatform,
+            primarySourcePlatform: item.primarySourcePlatform || defaultMetric?.primarySourcePlatform,
+            secondarySourcePlatform: item.secondarySourcePlatform || defaultMetric?.secondarySourcePlatform,
             compositeType: item.compositeType || defaultMetric?.compositeType || "sum",
             primaryMetricKey: item.primaryMetricKey?.trim() || defaultMetric?.primaryMetricKey,
             secondaryMetricKey: item.secondaryMetricKey?.trim() || defaultMetric?.secondaryMetricKey,
@@ -483,6 +489,8 @@ export function normalizeTemplateMetricConfig(
         preview: item.preview?.trim() || undefined,
         kind: item.kind || "standard",
         sourcePlatform: item.sourcePlatform || undefined,
+        primarySourcePlatform: item.primarySourcePlatform || undefined,
+        secondarySourcePlatform: item.secondarySourcePlatform || undefined,
         compositeType: item.compositeType || "sum",
         primaryMetricKey: item.primaryMetricKey?.trim() || undefined,
         secondaryMetricKey: item.secondaryMetricKey?.trim() || undefined,
