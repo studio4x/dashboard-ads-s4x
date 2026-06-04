@@ -633,6 +633,19 @@ function formatCompositeMetricValue(value: number, unit?: KpiSummary["unit"]) {
   return formatNumber(value);
 }
 
+function normalizeMetricKeyAlias(key?: string | null) {
+  const value = String(key || "").trim();
+  if (!value) return "";
+  return value.replace(/^(google_|meta_)/, "");
+}
+
+function matchesMetricKey(left?: string | null, right?: string | null) {
+  const leftExact = String(left || "").trim();
+  const rightExact = String(right || "").trim();
+  if (!leftExact || !rightExact) return false;
+  return leftExact === rightExact || normalizeMetricKeyAlias(leftExact) === normalizeMetricKeyAlias(rightExact);
+}
+
 function derivePreviousValue(currentValue: number, changePercent: number) {
   if (!Number.isFinite(currentValue)) return 0;
   if (!Number.isFinite(changePercent) || changePercent === -100) return currentValue;
@@ -857,7 +870,7 @@ export function getMetricDisplayMode(
   key: string
 ): MetricDisplayMode {
   const section = getTemplateMetricSection(config, sectionKey);
-  const metric = section?.metrics.find((item) => item.key === key);
+  const metric = section?.metrics.find((item) => matchesMetricKey(item.key, key));
   return metric?.displayMode || DEFAULT_DISPLAY[key] || "card";
 }
 
@@ -871,8 +884,8 @@ function buildCompositeKpi(
   metricConfig: TemplateMetricItem,
   baseMetrics: Array<KpiSummary & { metricKey?: string }>
 ): (KpiSummary & { metricKey: string }) | null {
-  const primary = baseMetrics.find((metric) => metric.metricKey === metricConfig.primaryMetricKey);
-  const secondary = baseMetrics.find((metric) => metric.metricKey === metricConfig.secondaryMetricKey);
+  const primary = baseMetrics.find((metric) => matchesMetricKey(metric.metricKey, metricConfig.primaryMetricKey));
+  const secondary = baseMetrics.find((metric) => matchesMetricKey(metric.metricKey, metricConfig.secondaryMetricKey));
   if (!primary || !secondary) return null;
 
   const primaryValue = Number(primary.value || 0);
@@ -920,15 +933,15 @@ export function applyTemplateMetricConfigToKpis(
   const section = getTemplateMetricSection(config, sectionKey);
   if (!section) return metrics;
 
-  const orderMap = new Map(section.metrics.map((metric) => [metric.key, metric]));
+  const orderMap = new Map(section.metrics.map((metric) => [normalizeMetricKeyAlias(metric.key), metric]));
   const filteredBaseMetrics = metrics
     .filter((metric) => {
-      const key = metric.metricKey || metric.label;
+      const key = normalizeMetricKeyAlias(metric.metricKey || metric.label);
       const configMetric = orderMap.get(key);
       return configMetric ? configMetric.enabled : false;
     })
     .map((metric) => {
-      const key = metric.metricKey || metric.label;
+      const key = normalizeMetricKeyAlias(metric.metricKey || metric.label);
       const configMetric = orderMap.get(key);
       return {
         ...metric,
@@ -937,8 +950,8 @@ export function applyTemplateMetricConfigToKpis(
       };
     })
     .sort((a, b) => {
-      const keyA = a.metricKey || a.label;
-      const keyB = b.metricKey || b.label;
+      const keyA = normalizeMetricKeyAlias(a.metricKey || a.label);
+      const keyB = normalizeMetricKeyAlias(b.metricKey || b.label);
       const orderA = orderMap.get(keyA)?.order ?? 999;
       const orderB = orderMap.get(keyB)?.order ?? 999;
       return orderA - orderB;
@@ -949,12 +962,12 @@ export function applyTemplateMetricConfigToKpis(
     .map((metric) => buildCompositeKpi(metric, metrics as Array<KpiSummary & { metricKey?: string }>))
     .filter(Boolean) as Array<KpiSummary & { metricKey: string }>;
 
-  const existingKeys = new Set(filteredBaseMetrics.map((metric) => metric.metricKey || metric.label));
-  const dedupedCompositeMetrics = compositeMetrics.filter((metric) => !existingKeys.has(metric.metricKey));
+  const existingAliasKeys = new Set(filteredBaseMetrics.map((metric) => normalizeMetricKeyAlias(metric.metricKey || metric.label)));
+  const fullyDedupedCompositeMetrics = compositeMetrics.filter((metric) => !existingAliasKeys.has(normalizeMetricKeyAlias(metric.metricKey)));
 
-  return [...filteredBaseMetrics, ...dedupedCompositeMetrics].sort((a, b) => {
-    const keyA = a.metricKey || a.label;
-    const keyB = b.metricKey || b.label;
+  return [...filteredBaseMetrics, ...fullyDedupedCompositeMetrics].sort((a, b) => {
+    const keyA = normalizeMetricKeyAlias(a.metricKey || a.label);
+    const keyB = normalizeMetricKeyAlias(b.metricKey || b.label);
     const orderA = orderMap.get(keyA)?.order ?? 999;
     const orderB = orderMap.get(keyB)?.order ?? 999;
     return orderA - orderB;
