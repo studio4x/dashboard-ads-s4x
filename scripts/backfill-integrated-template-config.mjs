@@ -121,7 +121,7 @@ async function replaceDashboardPages(dashboardId) {
 
 async function main() {
   const templateUpdate = {
-    base_template_id: "custom",
+    base_template_id: "google_meta_ads_s4x",
     platform: "custom",
     source_type: "mixed",
     required_sheets: [],
