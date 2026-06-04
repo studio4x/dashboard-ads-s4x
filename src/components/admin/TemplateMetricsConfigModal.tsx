@@ -81,6 +81,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     key: string;
     kind: "trend_chart" | "comparison_chart" | "device_donut";
     enabled: boolean;
+    widthPercent: string;
     primaryMetricKey: string;
     secondaryMetricKey: string;
   }>>({});
@@ -377,7 +378,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
 
   const updateWidgetDraft = (
     sectionKey: string,
-    field: "label" | "key" | "kind" | "enabled" | "primaryMetricKey" | "secondaryMetricKey",
+    field: "label" | "key" | "kind" | "enabled" | "widthPercent" | "primaryMetricKey" | "secondaryMetricKey",
     value: string | boolean
   ) => {
     setWidgetDrafts((prev) => ({
@@ -387,6 +388,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         key: prev[sectionKey]?.key || "",
         kind: prev[sectionKey]?.kind || "trend_chart",
         enabled: prev[sectionKey]?.enabled ?? true,
+        widthPercent: prev[sectionKey]?.widthPercent || "100",
         primaryMetricKey: prev[sectionKey]?.primaryMetricKey || "",
         secondaryMetricKey: prev[sectionKey]?.secondaryMetricKey || "",
         [field]: value,
@@ -399,6 +401,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     const label = String(draft?.label || "").trim();
     const key = String(draft?.key || "").trim();
     const kind = draft?.kind || "trend_chart";
+    const widthPercent = Math.max(10, Math.min(100, Number(draft?.widthPercent || 100) || 100));
     const primaryMetricKey = String(draft?.primaryMetricKey || "").trim();
     const secondaryMetricKey = String(draft?.secondaryMetricKey || "").trim();
 
@@ -426,6 +429,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         kind,
         enabled: draft?.enabled ?? true,
         order: ((section.widgets || []).length + 1) * 10,
+        widthPercent,
         primaryMetricKey: kind === "device_donut" ? undefined : primaryMetricKey,
         secondaryMetricKey: kind === "comparison_chart" ? secondaryMetricKey || undefined : undefined,
       };
@@ -449,6 +453,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         key: "",
         kind: "trend_chart",
         enabled: true,
+        widthPercent: "100",
         primaryMetricKey: "",
         secondaryMetricKey: "",
       },
@@ -1394,6 +1399,19 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                         />
                       </label>
                       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Largura do card (%)</span>
+                        <input
+                          type="number"
+                          min={10}
+                          max={100}
+                          step={5}
+                          value={widgetDrafts[section.key]?.widthPercent || "100"}
+                          onChange={(e) => updateWidgetDraft(section.key, "widthPercent", e.target.value)}
+                          placeholder="Ex.: 40"
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                        />
+                      </label>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Chave</span>
                         <input
                           value={widgetDrafts[section.key]?.key || ""}
@@ -1473,6 +1491,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                               <p style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>
                                 Tipo: {widget.kind === "trend_chart" ? "Evolução" : widget.kind === "comparison_chart" ? "Comparativo" : "Dispositivo"}
                               </p>
+                              <p style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>
+                                Largura: {widget.widthPercent ?? 100}%
+                              </p>
                               {widget.primaryMetricKey && (
                                 <p style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>
                                   Métrica base: {widget.primaryMetricKey}
@@ -1495,6 +1516,37 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                               value={widget.label || ""}
                               onChange={(e) => updateWidgetTitle(section.key, widget.key, e.target.value)}
                               placeholder="Título do gráfico"
+                              style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                            />
+                          </label>
+                          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Largura do card (%)</span>
+                            <input
+                              type="number"
+                              min={10}
+                              max={100}
+                              step={5}
+                              value={widget.widthPercent ?? 100}
+                              onChange={(e) => {
+                                const nextWidth = Math.max(10, Math.min(100, Number(e.target.value || 100) || 100));
+                                setConfig((prev) => {
+                                  if (!prev) return prev;
+                                  const sectionState = prev.sections[section.key];
+                                  if (!sectionState) return prev;
+                                  return {
+                                    ...prev,
+                                    sections: {
+                                      ...prev.sections,
+                                      [section.key]: {
+                                        ...sectionState,
+                                        widgets: (sectionState.widgets || []).map((item) =>
+                                          item.key === widget.key ? { ...item, widthPercent: nextWidth } : item
+                                        ),
+                                      },
+                                    },
+                                  };
+                                });
+                              }}
                               style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                             />
                           </label>

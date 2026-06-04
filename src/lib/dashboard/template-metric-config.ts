@@ -46,6 +46,7 @@ export interface TemplateWidgetItem {
   kind: TemplateWidgetKind;
   enabled: boolean;
   order: number;
+  widthPercent?: number;
   primaryMetricKey?: string;
   secondaryMetricKey?: string;
 }
@@ -126,6 +127,7 @@ function widgetItem(key: string, order: number, options?: Partial<TemplateWidget
     kind: options?.kind || "trend_chart",
     enabled: options?.enabled ?? true,
     order,
+    widthPercent: options?.widthPercent ?? 100,
     primaryMetricKey: options?.primaryMetricKey,
     secondaryMetricKey: options?.secondaryMetricKey,
   };
@@ -133,9 +135,9 @@ function widgetItem(key: string, order: number, options?: Partial<TemplateWidget
 
 function defaultExecutiveSummaryWidgets(): TemplateWidgetItem[] {
   return [
-    widgetItem("trend_chart", 10, { kind: "trend_chart", label: "Evolução diária de investimento e cliques", enabled: true, primaryMetricKey: "cost", secondaryMetricKey: "clicks" }),
-    widgetItem("comparison_chart", 20, { kind: "comparison_chart", label: "Comparativo: atual x anterior", enabled: true, primaryMetricKey: "cost", secondaryMetricKey: "impressions" }),
-    widgetItem("device_donut", 30, { kind: "device_donut", label: "Sessões por dispositivo", enabled: true }),
+    widgetItem("trend_chart", 10, { kind: "trend_chart", label: "Evolução diária de investimento e cliques", enabled: true, widthPercent: 40, primaryMetricKey: "cost", secondaryMetricKey: "clicks" }),
+    widgetItem("comparison_chart", 20, { kind: "comparison_chart", label: "Comparativo: atual x anterior", enabled: true, widthPercent: 35, primaryMetricKey: "cost", secondaryMetricKey: "impressions" }),
+    widgetItem("device_donut", 30, { kind: "device_donut", label: "Sessões por dispositivo", enabled: true, widthPercent: 25 }),
   ];
 }
 
@@ -767,6 +769,7 @@ export function normalizeTemplateMetricConfig(
           kind: item.kind || defaultWidgets.find((widget) => widget.key === item.key)?.kind || "trend_chart",
           enabled: item.enabled ?? defaultWidgets.find((widget) => widget.key === item.key)?.enabled ?? true,
           order: item.order ?? defaultWidgets.find((widget) => widget.key === item.key)?.order ?? (index + 1) * 10,
+          widthPercent: item.widthPercent ?? defaultWidgets.find((widget) => widget.key === item.key)?.widthPercent ?? 100,
           primaryMetricKey: item.primaryMetricKey?.trim() || defaultWidgets.find((widget) => widget.key === item.key)?.primaryMetricKey,
           secondaryMetricKey: item.secondaryMetricKey?.trim() || defaultWidgets.find((widget) => widget.key === item.key)?.secondaryMetricKey,
         } satisfies TemplateWidgetItem))
@@ -808,6 +811,7 @@ export function normalizeTemplateMetricConfig(
         kind: item.kind || "trend_chart",
         enabled: item.enabled ?? true,
         order: item.order ?? (index + 1) * 10,
+        widthPercent: typeof item.widthPercent === "number" ? item.widthPercent : 100,
         primaryMetricKey: item.primaryMetricKey?.trim() || undefined,
         secondaryMetricKey: item.secondaryMetricKey?.trim() || undefined,
       })).sort((a, b) => a.order - b.order),

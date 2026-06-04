@@ -652,70 +652,81 @@ export default function ExecutiveSummaryPage() {
 
   const renderWidgetCard = (widget: TemplateWidgetItem) => {
     const title = widget.label || getMetricLabel(data.templateId || "google_ads_s4x", widget.key, data.metaPrimaryObjective as any);
+    const widthPercent = Math.max(10, Math.min(100, widget.widthPercent ?? 100));
+    const wrapperStyle = {
+      flex: `0 0 ${widthPercent}%`,
+      maxWidth: `${widthPercent}%`,
+      minWidth: 280,
+      width: "100%",
+    } as const;
     if (widget.kind === "device_donut") {
       return (
-        <Card key={widget.key} className="p-6">
-          <h2 className="mb-6 text-lg font-bold text-slate-900">{title}</h2>
-          <div className="relative h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={deviceData}
-                  innerRadius={70}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                  stroke="#FFFFFF"
-                  strokeWidth={2}
-                >
-                  {deviceData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={index === 0 ? BLUE : index === 1 ? BLUE_LIGHT : MUTED} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center">
-                <div className="text-3xl font-extrabold text-slate-900">{totalDeviceValue}</div>
-                <div className="text-xs text-slate-500 uppercase font-medium">Total</div>
+        <div key={widget.key} style={wrapperStyle}>
+          <Card className="p-6 h-full">
+            <h2 className="mb-6 text-lg font-bold text-slate-900">{title}</h2>
+            <div className="relative h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={deviceData}
+                    innerRadius={70}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="#FFFFFF"
+                    strokeWidth={2}
+                  >
+                    {deviceData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 0 ? BLUE : index === 1 ? BLUE_LIGHT : MUTED} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="text-center">
+                  <div className="text-3xl font-extrabold text-slate-900">{totalDeviceValue}</div>
+                  <div className="text-xs text-slate-500 uppercase font-medium">Total</div>
+                 </div>
+              </div>
+              <div className="mt-4 flex flex-col gap-2">
+                 {deviceData.map((d, i) => (
+                   <div key={i} className="flex items-center justify-between text-xs">
+                     <div className="flex items-center gap-2">
+                       <div className="w-2 h-2 rounded-full" style={{ background: i === 0 ? BLUE : i === 1 ? BLUE_LIGHT : MUTED }} />
+                       <span className="font-medium text-slate-600">{d.name}</span>
+                     </div>
+                     <span className="font-bold text-slate-900">{((d.value / (totalDeviceValue || 1)) * 100).toFixed(1)}%</span>
+                   </div>
+                 ))}
               </div>
             </div>
-            <div className="mt-4 flex flex-col gap-2">
-               {deviceData.map((d, i) => (
-                 <div key={i} className="flex items-center justify-between text-xs">
-                   <div className="flex items-center gap-2">
-                     <div className="w-2 h-2 rounded-full" style={{ background: i === 0 ? BLUE : i === 1 ? BLUE_LIGHT : MUTED }} />
-                     <span className="font-medium text-slate-600">{d.name}</span>
-                   </div>
-                   <span className="font-bold text-slate-900">{((d.value / (totalDeviceValue || 1)) * 100).toFixed(1)}%</span>
-                 </div>
-               ))}
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       );
     }
 
     if (widget.kind === "comparison_chart") {
       const chartData = buildWidgetComparisonData(widget);
       return (
-        <Card key={widget.key} className="p-6">
-          <h2 className="mb-6 text-lg font-bold text-slate-900">{title}</h2>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: -15 }}>
-                <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="metrica" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
-                <YAxis tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip formatter={tooltipFormatter} />
-                <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
-                <Bar dataKey="atual" name="Período atual" fill={BLUE} radius={[4, 4, 0, 0]} barSize={24} />
-                <Bar dataKey="anterior" name="Anterior" fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={24} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+        <div key={widget.key} style={wrapperStyle}>
+          <Card className="p-6 h-full">
+            <h2 className="mb-6 text-lg font-bold text-slate-900">{title}</h2>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: -15 }}>
+                  <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="metrica" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
+                  <YAxis tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip formatter={tooltipFormatter} />
+                  <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
+                  <Bar dataKey="atual" name="Período atual" fill={BLUE} radius={[4, 4, 0, 0]} barSize={24} />
+                  <Bar dataKey="anterior" name="Anterior" fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={24} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
       );
     }
 
@@ -723,25 +734,27 @@ export default function ExecutiveSummaryPage() {
     const primaryLabel = getMetricLabel(data.templateId || "google_ads_s4x", widget.primaryMetricKey || "cost", data.metaPrimaryObjective as any);
     const secondaryLabel = widget.secondaryMetricKey ? getMetricLabel(data.templateId || "google_ads_s4x", widget.secondaryMetricKey, data.metaPrimaryObjective as any) : "Série";
     return (
-      <Card key={widget.key} className="p-6">
-        <h2 className="mb-6 text-lg font-bold text-slate-900">{title}</h2>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={trendData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
-              <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fill: TEXT, fontSize: 12 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
-              <YAxis yAxisId="left" tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} />
-              <Tooltip formatter={tooltipFormatter} />
-              <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
-              <Bar yAxisId="left" dataKey="primary" name={primaryLabel} fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={32} />
-              {widget.secondaryMetricKey && (
-                <Line yAxisId="right" type="monotone" dataKey="secondary" name={secondaryLabel} stroke={BLUE} strokeWidth={3} dot={{ r: 4, fill: BLUE }} />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
+      <div key={widget.key} style={wrapperStyle}>
+        <Card className="p-6 h-full">
+          <h2 className="mb-6 text-lg font-bold text-slate-900">{title}</h2>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={trendData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
+                <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fill: TEXT, fontSize: 12 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
+                <YAxis yAxisId="left" tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} />
+                <Tooltip formatter={tooltipFormatter} />
+                <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
+                <Bar yAxisId="left" dataKey="primary" name={primaryLabel} fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={32} />
+                {widget.secondaryMetricKey && (
+                  <Line yAxisId="right" type="monotone" dataKey="secondary" name={secondaryLabel} stroke={BLUE} strokeWidth={3} dot={{ r: 4, fill: BLUE }} />
+                )}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
     );
   };
 
@@ -840,7 +853,7 @@ export default function ExecutiveSummaryPage() {
 
         {/* Middle Charts Section */}
         {resolvedExecutiveWidgets.length > 0 && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap gap-5">
             {resolvedExecutiveWidgets.map((widget) => renderWidgetCard(widget))}
           </div>
         )}
