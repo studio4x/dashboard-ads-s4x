@@ -388,7 +388,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         key: prev[sectionKey]?.key || "",
         kind: prev[sectionKey]?.kind || "trend_chart",
         enabled: prev[sectionKey]?.enabled ?? true,
-        widthPercent: prev[sectionKey]?.widthPercent || "100",
+        widthPercent: prev[sectionKey]?.widthPercent || "",
         primaryMetricKey: prev[sectionKey]?.primaryMetricKey || "",
         secondaryMetricKey: prev[sectionKey]?.secondaryMetricKey || "",
         [field]: value,
@@ -401,12 +401,17 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     const label = String(draft?.label || "").trim();
     const key = String(draft?.key || "").trim();
     const kind = draft?.kind || "trend_chart";
-    const widthPercent = Math.max(10, Math.min(100, Number(draft?.widthPercent || 100) || 100));
+    const widthPercentRaw = String(draft?.widthPercent || "").trim();
+    const widthPercent = Number(widthPercentRaw.replace(",", "."));
     const primaryMetricKey = String(draft?.primaryMetricKey || "").trim();
     const secondaryMetricKey = String(draft?.secondaryMetricKey || "").trim();
 
     if (!label || !key) {
       toast("Informe título e chave do gráfico.");
+      return;
+    }
+    if (!widthPercentRaw || !Number.isFinite(widthPercent) || widthPercent <= 0 || widthPercent > 100) {
+      toast("Informe a largura do card em porcentagem. Ex.: 33.33");
       return;
     }
     if (kind !== "device_donut" && !primaryMetricKey) {
@@ -453,7 +458,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         key: "",
         kind: "trend_chart",
         enabled: true,
-        widthPercent: "100",
+        widthPercent: "",
         primaryMetricKey: "",
         secondaryMetricKey: "",
       },
@@ -1404,12 +1409,15 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                           type="number"
                           min={10}
                           max={100}
-                          step={5}
-                          value={widgetDrafts[section.key]?.widthPercent || "100"}
+                          step={0.01}
+                          value={widgetDrafts[section.key]?.widthPercent || ""}
                           onChange={(e) => updateWidgetDraft(section.key, "widthPercent", e.target.value)}
-                          placeholder="Ex.: 40"
+                          placeholder="Ex.: 33.33"
                           style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                         />
+                        <span style={{ fontSize: 10, color: "#64748B" }}>
+                          Preencha manualmente. Use valores exatos para encaixe perfeito entre os cards.
+                        </span>
                       </label>
                       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Chave</span>
@@ -1525,10 +1533,11 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                               type="number"
                               min={10}
                               max={100}
-                              step={5}
+                              step={0.01}
                               value={widget.widthPercent ?? 100}
                               onChange={(e) => {
-                                const nextWidth = Math.max(10, Math.min(100, Number(e.target.value || 100) || 100));
+                                const nextWidth = Number(String(e.target.value || "").replace(",", "."));
+                                if (!Number.isFinite(nextWidth) || nextWidth <= 0 || nextWidth > 100) return;
                                 setConfig((prev) => {
                                   if (!prev) return prev;
                                   const sectionState = prev.sections[section.key];
