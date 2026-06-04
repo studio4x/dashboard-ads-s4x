@@ -561,7 +561,7 @@ export function applyTemplateMetricConfigToKpis(
     .filter((metric) => {
       const key = metric.metricKey || metric.label;
       const configMetric = orderMap.get(key);
-      return configMetric ? configMetric.enabled : true;
+      return configMetric ? configMetric.enabled : false;
     })
     .map((metric) => {
       const key = metric.metricKey || metric.label;
