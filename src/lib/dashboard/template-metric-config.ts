@@ -126,6 +126,152 @@ function inferSectionSourcePlatform(templateId: string, sectionKey: string): Tem
   return undefined;
 }
 
+const LEGACY_INTEGRATED_SECTION_KEY_MAP: Record<string, Record<string, { key: string; label: string }>> = {
+  "google-ads": {
+    cost: { key: "google_cost", label: "Investimento Google Ads" },
+    impressions: { key: "google_impressions", label: "Impressões Google Ads" },
+    clicks: { key: "google_clicks", label: "Cliques Google Ads" },
+    ctr: { key: "google_ctr", label: "CTR Google Ads" },
+    cpc: { key: "google_cpc", label: "CPC Google Ads" },
+    cpa: { key: "google_cpa", label: "CPA Google Ads" },
+    roas: { key: "google_roas", label: "ROAS Google Ads" },
+    conversions: { key: "google_conversions", label: "Conversões Google Ads" },
+  },
+  "meta-ads": {
+    cost: { key: "meta_cost", label: "Investimento Meta Ads" },
+    impressions: { key: "meta_impressions", label: "Impressões Meta Ads" },
+    reach: { key: "meta_reach", label: "Alcance Meta Ads" },
+    clicks: { key: "meta_clicks", label: "Cliques Meta Ads" },
+    ctr: { key: "meta_ctr", label: "CTR Meta Ads" },
+    cpc: { key: "meta_cpc", label: "CPC Meta Ads" },
+    cpa: { key: "meta_cpa", label: "CPA Meta Ads" },
+    cpm: { key: "meta_cpm", label: "CPM Meta Ads" },
+    frequency: { key: "meta_frequency", label: "Frequência Meta Ads" },
+    postEngagement: { key: "meta_postEngagement", label: "Engajamentos Meta Ads" },
+    conversions: { key: "meta_conversions", label: "Conversões Meta Ads" },
+  },
+};
+
+function normalizeLegacyIntegratedMetricKey(sectionKey: string, metricKey: string) {
+  const mapped = LEGACY_INTEGRATED_SECTION_KEY_MAP[sectionKey]?.[metricKey];
+  return mapped?.key || metricKey;
+}
+
+function normalizeLegacyIntegratedMetricLabel(sectionKey: string, metricKey: string, currentLabel?: string) {
+  const mapped = LEGACY_INTEGRATED_SECTION_KEY_MAP[sectionKey]?.[metricKey];
+  return currentLabel?.trim() || mapped?.label || getMetricLabel("google_meta_ads_s4x", metricKey as any);
+}
+
+function migrateLegacyIntegratedTemplateConfig(
+  input: unknown,
+  templateId: string
+): unknown {
+  if (!input || typeof input !== "object") return input;
+  const raw = input as Record<string, any>;
+  const sections = raw.sections;
+  if (!sections || typeof sections !== "object") return input;
+
+  const relevantSections = ["google-ads", "meta-ads"];
+  const hasLegacySection = relevantSections.some((sectionKey) =>
+    Array.isArray(sections[sectionKey]?.metrics) &&
+    sections[sectionKey].metrics.some((metric: any) => typeof metric?.key === "string" && !metric.key.startsWith("google_") && !metric.key.startsWith("meta_"))
+  );
+
+  if (!hasLegacySection && templateId !== "google_meta_ads_s4x") return input;
+
+  const nextSections = { ...sections };
+  let changed = false;
+
+  relevantSections.forEach((sectionKey) => {
+    const section = sections[sectionKey];
+    const metrics = Array.isArray(section?.metrics) ? section.metrics : null;
+    if (!metrics) return;
+
+    const sourcePlatform: TemplateMetricSourcePlatform = sectionKey === "google-ads" ? "google_ads" : "meta_ads";
+    const nextMetrics = metrics.map((metric: any) => {
+      if (!metric || typeof metric !== "object") return metric;
+      const currentKey = String(metric.key || "");
+      const nextKey = normalizeLegacyIntegratedMetricKey(sectionKey, currentKey);
+      const nextPrimaryKey = metric.primaryMetricKey ? normalizeLegacyIntegratedMetricKey(sectionKey, String(metric.primaryMetricKey)) : metric.primaryMetricKey;
+      const nextSecondaryKey = metric.secondaryMetricKey ? normalizeLegacyIntegratedMetricKey(sectionKey, String(metric.secondaryMetricKey)) : metric.secondaryMetricKey;
+      const nextLabel = normalizeLegacyIntegratedMetricLabel(sectionKey, currentKey, metric.label);
+      if (
+        nextKey === currentKey &&
+        nextPrimaryKey === metric.primaryMetricKey &&
+        nextSecondaryKey === metric.secondaryMetricKey &&
+        nextLabel === metric.label &&
+        metric.sourcePlatform === sourcePlatform
+      ) {
+        return metric;
+      }
+      changed = true;
+      return {
+        ...metric,
+        key: nextKey,
+        label: nextLabel,
+        sourcePlatform,
+        primarySourcePlatform: metric.kind === "composite" ? (metric.primarySourcePlatform || sourcePlatform) : sourcePlatform,
+        secondarySourcePlatform: metric.kind === "composite" ? (metric.secondarySourcePlatform || sourcePlatform) : sourcePlatform,
+        primaryMetricKey: nextPrimaryKey,
+        secondaryMetricKey: nextSecondaryKey,
+      };
+    });
+
+    nextSections[sectionKey] = {
+      ...section,
+      metrics: nextMetrics,
+    };
+  });
+
+  if (!changed) return input;
+  return {
+    ...raw,
+    sections: nextSections,
+  };
+}
+
+function isLegacyMixedCustomTemplateConfig(input: unknown) {
+  if (!input || typeof input !== "object") return false;
+  const raw = input as Record<string, any>;
+  const sections = raw.sections;
+  if (!sections || typeof sections !== "object") return false;
+
+  const sectionKeys = Object.keys(sections);
+  if (sectionKeys.length !== 1 || !sections["executive-summary"]) return false;
+  if (sectionKeys.some((sectionKey) => sectionKey === "google-ads" || sectionKey === "meta-ads")) return false;
+
+  const summaryMetrics = Array.isArray(sections["executive-summary"]?.metrics) ? sections["executive-summary"].metrics : [];
+  if (summaryMetrics.length !== 1) return false;
+
+  const metric = summaryMetrics[0];
+  return (
+    metric?.kind === "composite" &&
+    String(metric?.key || "") === "cost" &&
+    metric?.sourcePlatform === "mixed" &&
+    String(metric?.primaryMetricKey || "") === "cost" &&
+    String(metric?.secondaryMetricKey || "") === "cost"
+  );
+}
+
+function migrateLegacyMixedCustomTemplateConfig(
+  input: unknown,
+  templateId: string,
+  primaryObjective: MetaAdsObjectiveId | null
+): unknown {
+  if (templateId !== "custom" || !isLegacyMixedCustomTemplateConfig(input)) return input;
+  const raw = input as Record<string, any>;
+  const objectives = normalizeMetaAdsObjectives(raw.objectives || []);
+  const normalizedPrimary = normalizeMetaAdsObjectives([raw.primaryObjective])[0] || primaryObjective || objectives[0] || null;
+
+  return {
+    version: 1,
+    templateId: raw.templateId && raw.templateId !== "custom" ? raw.templateId : "g_ads_e_m_ads",
+    objectives,
+    primaryObjective: normalizedPrimary,
+    sections: integratedDefaults(normalizedPrimary),
+  };
+}
+
 function objectiveMetrics(objective: MetaAdsObjectiveId | null) {
   switch (objective) {
     case "leads":
@@ -535,7 +681,9 @@ export function normalizeTemplateMetricConfig(
     return defaults;
   }
 
-  const raw = input as Partial<DashboardTemplateMetricConfig> & { sections?: Record<string, Partial<TemplateMetricSectionConfig>> };
+  const migratedInput = migrateLegacyIntegratedTemplateConfig(input, templateId);
+  const migratedCustomInput = migrateLegacyMixedCustomTemplateConfig(migratedInput, templateId, defaults.primaryObjective);
+  const raw = migratedCustomInput as Partial<DashboardTemplateMetricConfig> & { sections?: Record<string, Partial<TemplateMetricSectionConfig>> };
   const mergedSections: Record<string, TemplateMetricSectionConfig> = {};
 
   Object.entries(defaults.sections).forEach(([sectionKey, defaultSection]) => {
