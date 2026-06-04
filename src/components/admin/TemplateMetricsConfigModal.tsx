@@ -100,6 +100,11 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     return ["Fonte importada"];
   };
 
+  const formatMetricSuggestionLabel = (item: MetricKeySuggestion) => {
+    const origins = item.origin === "canonical" ? ["Sistema"] : getMetricKeyOrigins(item);
+    return `${item.key} - ${item.label} (${origins.join(" / ")})`;
+  };
+
   useEffect(() => {
     if (!open || !template) return;
     setConfig(
@@ -478,7 +483,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                 </button>
               </div>
               <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ border: "1px dashed #CBD5E1", borderRadius: 12, padding: 12, background: "#F8FAFC", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, alignItems: "end" }}>
+                <div style={{ border: "1px dashed #CBD5E1", borderRadius: 12, padding: 14, background: "#F8FAFC", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Tipo</span>
                     <select
@@ -506,14 +511,8 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       value={drafts[section.key]?.key || ""}
                       onChange={(e) => updateDraft(section.key, "key", e.target.value)}
                       placeholder="Ex.: cost, impressions, custom_metric"
-                      list={`metric-key-suggestions-${section.key}`}
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     />
-                    <datalist id={`metric-key-suggestions-${section.key}`}>
-                      {metricKeySuggestions.map((item) => (
-                        <option key={item.key} value={item.key} label={`${item.key} — ${item.label}`} />
-                      ))}
-                    </datalist>
                     <span style={{ fontSize: 10, color: "#64748B" }}>
                       {metricKeyLoading
                         ? "Carregando chaves das fontes Google Sheets..."
@@ -525,57 +524,26 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       </span>
                     )}
                   </label>
-                  <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Sugestões com origem</span>
-                      <span style={{ fontSize: 10, color: "#64748B" }}>Clique para preencher a chave</span>
-                    </div>
-                    <div style={{ maxHeight: 160, overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 8, paddingRight: 4 }}>
-                      {metricKeySuggestions.slice(0, 24).map((item) => {
-                        const origins = getMetricKeyOrigins(item);
-                        const isCanonical = item.origin === "canonical";
-                        return (
-                          <button
-                            key={`${item.key}-${item.origin}`}
-                            type="button"
-                            onClick={() => updateDraft(section.key, "key", item.key)}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 8,
-                              padding: "8px 10px",
-                              borderRadius: 999,
-                              border: isCanonical ? "1px solid #BFDBFE" : "1px solid #BBF7D0",
-                              background: isCanonical ? "#EFF6FF" : "#F0FDF4",
-                              color: "#0F172A",
-                              cursor: "pointer",
-                              fontSize: 12,
-                              fontWeight: 700,
-                              textAlign: "left",
-                            }}
-                          >
-                            <span>{item.key}</span>
-                            <span style={{ fontWeight: 600, color: "#64748B" }}>·</span>
-                            <span style={{ fontWeight: 600, color: "#334155" }}>{item.label}</span>
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                padding: "2px 8px",
-                                borderRadius: 999,
-                                fontSize: 10,
-                                fontWeight: 700,
-                                background: isCanonical ? "#DBEAFE" : "#DCFCE7",
-                                color: isCanonical ? "#1D4ED8" : "#166534",
-                              }}
-                            >
-                              {isCanonical ? "Sistema" : origins.join(" · ")}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Sugestões com origem</span>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) updateDraft(section.key, "key", e.target.value);
+                      }}
+                      style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                    >
+                      <option value="">{metricKeyLoading ? "Carregando sugestões..." : "Selecione uma chave sugerida"}</option>
+                      {metricKeySuggestions.map((item) => (
+                        <option key={`${item.key}-${item.origin}`} value={item.key}>
+                          {formatMetricSuggestionLabel(item)}
+                        </option>
+                      ))}
+                    </select>
+                    <span style={{ fontSize: 10, color: "#64748B" }}>
+                      A lista combina chaves do sistema com métricas detectadas nas fontes já importadas.
+                    </span>
+                  </label>
                   {(drafts[section.key]?.kind || "standard") === "composite" && (
                     <>
                       <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>

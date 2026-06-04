@@ -146,6 +146,7 @@ export default function ExecutiveSummaryPage() {
   // Mapeamento de KPIs (7 principais da referência)
   const kpis = [
     {
+      metricKey: "cost",
       label: "Investimento",
       value: formatCurrency(current.total_spend || 0),
       delta: `${(changes.total_spend || 0).toFixed(1)}%`,
@@ -154,6 +155,7 @@ export default function ExecutiveSummaryPage() {
       tooltip: "Valor total investido em mídia paga no período selecionado.",
     },
     {
+      metricKey: "impressions",
       label: "Impressões",
       value: formatNumber(current.total_impressions || 0),
       delta: `${(changes.total_impressions || 0).toFixed(1)}%`,
@@ -162,6 +164,7 @@ export default function ExecutiveSummaryPage() {
       tooltip: "Quantidade total de vezes que os anúncios foram exibidos.",
     },
     {
+      metricKey: "reach",
       label: "Alcance",
       value: formatNumber(current.total_reach || current.reach || 0),
       delta: `${(changes.reach || 0).toFixed(1)}%`,
@@ -170,6 +173,7 @@ export default function ExecutiveSummaryPage() {
       tooltip: "Número de pessoas únicas impactadas pelos anúncios.",
     },
     {
+      metricKey: "clicks",
       label: "Cliques",
       value: formatNumber(current.total_clicks || 0),
       delta: `${(changes.total_clicks || 0).toFixed(1)}%`,
@@ -178,6 +182,7 @@ export default function ExecutiveSummaryPage() {
       tooltip: "Quantidade de cliques recebidos nos anúncios.",
     },
     {
+      metricKey: "ctr",
       label: "CTR",
       value: `${(current.ctr || 0).toFixed(2)}%`,
       delta: `${(changes.ctr || 0).toFixed(1)}%`,
@@ -186,6 +191,7 @@ export default function ExecutiveSummaryPage() {
       tooltip: "Taxa de cliques: percentual de impressões que viraram clique.",
     },
     {
+      metricKey: "cpc",
       label: "CPC médio",
       value: formatCurrency(current.cpc || 0),
       delta: `${(changes.cpc || 0).toFixed(1)}%`,
@@ -194,6 +200,7 @@ export default function ExecutiveSummaryPage() {
       tooltip: "Custo médio pago por clique no período.",
     },
     {
+      metricKey: resultMetric === "postEngagement" ? "postEngagement" : resultMetric === "clicks" ? "clicks" : resultMetric === "reach" ? "reach" : "conversions",
       label: conversionLabel,
       value: formatNumber(resultCurrentValue),
       delta: `${resultChangeValue.toFixed(1)}%`,
@@ -202,6 +209,7 @@ export default function ExecutiveSummaryPage() {
       tooltip: "Quantidade total de conversões (resultado principal da campanha).",
     },
     {
+      metricKey: "postEngagement",
       label: "Engajamentos",
       value: formatNumber(current.postEngagement || current.total_engagement || 0),
       delta: `${(changes.postEngagement || changes.engagement || 0).toFixed(1)}%`,
@@ -209,6 +217,7 @@ export default function ExecutiveSummaryPage() {
       icon: BarChart3,
     },
     {
+      metricKey: costMetric === "cpc" ? "cpc" : costMetric === "cpm" ? "cpm" : "cpa",
       label: costLabel,
       value: formatCurrency(costMetric === "cpc" ? (current.cpc || 0) : costMetric === "cpm" ? (current.avgCpm || current.cpm || 0) : (current.cpa || 0)),
       delta: `${(costMetric === "cpc" ? (changes.cpc || 0) : costMetric === "cpm" ? (changes.avgCpm || changes.cpm || 0) : (changes.cpa || 0)).toFixed(1)}%`,
