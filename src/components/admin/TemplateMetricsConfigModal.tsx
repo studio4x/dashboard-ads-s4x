@@ -3,16 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, GripVertical, Loader2, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { DASHBOARD_PAGES } from "@/lib/constants";
 import {
   getDefaultTemplateMetricConfig,
   getTemplateMetricLabel,
-  listTemplateMetricSections,
   normalizeTemplateMetricConfig,
   type TemplateMetricCompositeType,
   type DashboardTemplateMetricConfig,
   type MetricDisplayMode,
   type TemplateMetricKind,
   type TemplateMetricItem,
+  type TemplateMetricSourcePlatform,
 } from "@/lib/dashboard/template-metric-config";
 import { CANONICAL_METRIC_KEY_SUGGESTIONS, type MetricKeySuggestion } from "@/lib/dashboard/metric-key-catalog";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
@@ -36,6 +37,11 @@ const METRIC_KIND_OPTIONS: Array<{ value: TemplateMetricKind; label: string }> =
   { value: "composite", label: "Composta" },
 ];
 
+const SOURCE_PLATFORM_OPTIONS: Array<{ value: TemplateMetricSourcePlatform; label: string }> = [
+  { value: "google_ads", label: "Google Ads" },
+  { value: "meta_ads", label: "Meta Ads" },
+];
+
 const COMPOSITE_TYPE_OPTIONS: Array<{ value: TemplateMetricCompositeType; label: string }> = [
   { value: "sum", label: "Soma" },
   { value: "subtract", label: "Subtracao" },
@@ -55,11 +61,14 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   const [metricKeySuggestions, setMetricKeySuggestions] = useState<MetricKeySuggestion[]>(CANONICAL_METRIC_KEY_SUGGESTIONS);
   const [metricKeyLoading, setMetricKeyLoading] = useState(false);
   const [metricKeyError, setMetricKeyError] = useState<string | null>(null);
+  const [visiblePages, setVisiblePages] = useState<string[]>([]);
+  const [newPageKey, setNewPageKey] = useState("");
   const [drafts, setDrafts] = useState<Record<string, {
     label: string;
     key: string;
     preview: string;
     kind: TemplateMetricKind;
+    sourcePlatform: TemplateMetricSourcePlatform;
     compositeType: TemplateMetricCompositeType;
     primaryMetricKey: string;
     secondaryMetricKey: string;
@@ -71,6 +80,8 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   const baseTemplateId = template?.baseTemplateId || template?.sheetTemplateId || templateId;
   const templateName = template?.name || "Template";
   const isMetaTemplate = baseTemplateId === "meta_ads_s4x" || baseTemplateId === "google_meta_ads_s4x";
+  const isCustomTemplate = Boolean(template?.isCustom);
+  const isBaselessTemplate = !template?.baseTemplateId && baseTemplateId === "custom";
   const rawMetricConfig = template?.metric_config || template?.metricConfig || null;
 
   const templateObjectives = useMemo(
@@ -105,16 +116,32 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     return `${item.key} - ${item.label} (${origins.join(" / ")})`;
   };
 
+  const filterSuggestionsBySource = (sourcePlatform: TemplateMetricSourcePlatform) => {
+    const googleCanonical = new Set(["cost", "impressions", "clicks", "ctr", "cpc", "cpa", "roas", "conversions"]);
+    const metaCanonical = new Set(["cost", "impressions", "reach", "clicks", "ctr", "cpc", "cpa", "conversions", "frequency", "postEngagement", "postComments", "postReactions", "postShares", "cpm"]);
+
+    return metricKeySuggestions.filter((item) => {
+      if (item.origin === "discovered") {
+        if (!item.sourceRoles || item.sourceRoles.length === 0) return true;
+        return item.sourceRoles.includes(sourcePlatform);
+      }
+      return sourcePlatform === "google_ads"
+        ? googleCanonical.has(item.key)
+        : metaCanonical.has(item.key);
+    });
+  };
+
   useEffect(() => {
     if (!open || !template) return;
-    setConfig(
-      normalizeTemplateMetricConfig(
-        rawMetricConfig,
-        baseTemplateId,
-        templateObjectives,
-        primaryObjective
-      )
+    const nextConfig = normalizeTemplateMetricConfig(
+      rawMetricConfig,
+      baseTemplateId,
+      templateObjectives,
+      primaryObjective
     );
+    setConfig(nextConfig);
+    setVisiblePages(Array.isArray(template?.visiblePages) ? template.visiblePages : Object.keys(nextConfig.sections || {}));
+    setNewPageKey("");
   }, [open, template, baseTemplateId, rawMetricConfig, templateObjectives, primaryObjective]);
 
   useEffect(() => {
@@ -162,7 +189,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   if (!open || !template || !config) return null;
 
   const resetToDefaults = () => {
-    setConfig(getDefaultTemplateMetricConfig(baseTemplateId, templateObjectives, primaryObjective));
+    const defaults = getDefaultTemplateMetricConfig(baseTemplateId, templateObjectives, primaryObjective);
+    setConfig(defaults);
+    setVisiblePages(Object.keys(defaults.sections || {}));
   };
 
   const updateMetric = (sectionKey: string, metricKey: string, updater: (metric: any) => any) => {
@@ -224,7 +253,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
 
   const updateDraft = (
     sectionKey: string,
-    field: "label" | "key" | "preview" | "kind" | "compositeType" | "primaryMetricKey" | "secondaryMetricKey" | "displayMode" | "enabled",
+    field: "label" | "key" | "preview" | "kind" | "sourcePlatform" | "compositeType" | "primaryMetricKey" | "secondaryMetricKey" | "displayMode" | "enabled",
     value: string | boolean
   ) => {
     setDrafts((prev) => ({
@@ -234,6 +263,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         key: prev[sectionKey]?.key || "",
         preview: prev[sectionKey]?.preview || "",
         kind: prev[sectionKey]?.kind || "standard",
+        sourcePlatform: prev[sectionKey]?.sourcePlatform || "google_ads",
         compositeType: prev[sectionKey]?.compositeType || "sum",
         primaryMetricKey: prev[sectionKey]?.primaryMetricKey || "",
         secondaryMetricKey: prev[sectionKey]?.secondaryMetricKey || "",
@@ -250,6 +280,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     const key = String(draft?.key || "").trim();
     const preview = String(draft?.preview || "").trim();
     const kind = draft?.kind || "standard";
+    const sourcePlatform = draft?.sourcePlatform || "google_ads";
     const compositeType = draft?.compositeType || "sum";
     const primaryMetricKey = String(draft?.primaryMetricKey || "").trim();
     const secondaryMetricKey = String(draft?.secondaryMetricKey || "").trim();
@@ -277,6 +308,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         label,
         preview: preview || undefined,
         kind,
+        sourcePlatform,
         compositeType: kind === "composite" ? compositeType : undefined,
         primaryMetricKey: kind === "composite" ? primaryMetricKey : undefined,
         secondaryMetricKey: kind === "composite" ? secondaryMetricKey : undefined,
@@ -305,6 +337,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         key: "",
         preview: "",
         kind: "standard",
+        sourcePlatform: "google_ads",
         compositeType: "sum",
         primaryMetricKey: "",
         secondaryMetricKey: "",
@@ -363,6 +396,51 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     });
   };
 
+  const availablePageOptions = DASHBOARD_PAGES.filter((page) => !visiblePages.includes(page.key));
+
+  const addPageSection = () => {
+    if (!newPageKey) {
+      toast("Selecione uma aba para adicionar.");
+      return;
+    }
+    const page = DASHBOARD_PAGES.find((item) => item.key === newPageKey);
+    if (!page) {
+      toast("Aba inválida.");
+      return;
+    }
+
+    setVisiblePages((prev) => [...prev, page.key]);
+    setConfig((prev) => {
+      if (!prev || prev.sections[page.key]) return prev;
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [page.key]: {
+            key: page.key,
+            label: page.label,
+            metrics: [],
+          },
+        },
+      };
+    });
+    setNewPageKey("");
+  };
+
+  const removePageSection = (sectionKey: string) => {
+    if (!window.confirm(`Remover a aba "${sectionKey}" deste template?`)) return;
+    setVisiblePages((prev) => prev.filter((key) => key !== sectionKey));
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const nextSections = { ...prev.sections };
+      delete nextSections[sectionKey];
+      return {
+        ...prev,
+        sections: nextSections,
+      };
+    });
+  };
+
   const saveConfig = async () => {
     setIsSaving(true);
     try {
@@ -373,6 +451,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
           action: "save_config",
           templateId: template.id,
           metric_config: config,
+          visible_pages: visiblePages,
         }),
       });
       const result = await response.json();
@@ -397,7 +476,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     }
   };
 
-  const sections = listTemplateMetricSections(config);
+  const sections = visiblePages
+    .map((pageKey) => config.sections?.[pageKey])
+    .filter(Boolean);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.58)", zIndex: 100, padding: 20, overflowY: "auto" }}>
@@ -462,6 +543,62 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
             </div>
           )}
 
+          {isCustomTemplate && (
+            <div style={{ borderRadius: 10, border: "1px solid #E2E8F0", background: "#FFFFFF", padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>Abas do template</p>
+                <p style={{ fontSize: 12, color: "#64748B", marginTop: 4, lineHeight: 1.5 }}>
+                  {isBaselessTemplate
+                    ? "Este template foi criado sem base. Adicione as abas primeiro e depois configure as métricas de cada uma."
+                    : "Você pode complementar a estrutura do template adicionando abas já suportadas pela plataforma."}
+                </p>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(240px, 1fr) auto", gap: 10, alignItems: "end" }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Adicionar aba</span>
+                  <select
+                    value={newPageKey}
+                    onChange={(e) => setNewPageKey(e.target.value)}
+                    style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                  >
+                    <option value="">Selecione uma aba</option>
+                    {availablePageOptions.map((page) => (
+                      <option key={page.key} value={page.key}>
+                        {page.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={addPageSection}
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 38, padding: "9px 12px", borderRadius: 8, border: "1px solid #BFDBFE", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                >
+                  <Plus size={14} />
+                  Adicionar aba
+                </button>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {visiblePages.length > 0 ? visiblePages.map((pageKey) => {
+                  const page = DASHBOARD_PAGES.find((item) => item.key === pageKey);
+                  return (
+                    <span key={pageKey} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 999, background: "#F8FAFC", border: "1px solid #E2E8F0", color: "#334155", fontSize: 12, fontWeight: 600 }}>
+                      {page?.label || pageKey}
+                    </span>
+                  );
+                }) : (
+                  <span style={{ fontSize: 12, color: "#64748B" }}>Nenhuma aba adicionada ainda.</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {sections.length === 0 && (
+            <div style={{ padding: 18, borderRadius: 14, border: "1px dashed #CBD5E1", background: "#F8FAFC", color: "#64748B", fontSize: 13 }}>
+              Nenhuma aba configurada ainda. Adicione pelo menos uma aba para começar a montar este template.
+            </div>
+          )}
+
           {sections.map((section) => (
             <div key={section.key} style={{ border: "1px solid #E2E8F0", borderRadius: 14, background: "#FFFFFF", overflow: "hidden", flexShrink: 0 }}>
               <div style={{ padding: "14px 16px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: "#F8FAFC" }}>
@@ -474,13 +611,25 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                     {section.metrics.length} métricas nesta seção
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={resetToDefaults}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 8, border: "1px solid #E2E8F0", background: "#FFFFFF", color: "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                >
-                  <RotateCcw size={14} /> Restaurar defaults
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={resetToDefaults}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 8, border: "1px solid #E2E8F0", background: "#FFFFFF", color: "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    <RotateCcw size={14} /> Restaurar defaults
+                  </button>
+                  {isCustomTemplate && (
+                    <button
+                      type="button"
+                      onClick={() => removePageSection(section.key)}
+                      style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 8, border: "1px solid #FECACA", background: "#FEF2F2", color: "#DC2626", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      <Trash2 size={14} />
+                      Remover aba
+                    </button>
+                  )}
+                </div>
               </div>
               <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ border: "1px dashed #CBD5E1", borderRadius: 12, padding: 14, background: "#F8FAFC", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
@@ -504,6 +653,21 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       placeholder="Ex.: Ticket Médio"
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Origem da métrica</span>
+                    <select
+                      value={drafts[section.key]?.sourcePlatform || "google_ads"}
+                      onChange={(e) => updateDraft(section.key, "sourcePlatform", e.target.value as TemplateMetricSourcePlatform)}
+                      style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                    >
+                      {SOURCE_PLATFORM_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                    <span style={{ fontSize: 10, color: "#64748B" }}>
+                      Use esta origem para filtrar as sugestões de chave e evitar puxar dados da plataforma errada.
+                    </span>
                   </label>
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Chave</span>
@@ -534,7 +698,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     >
                       <option value="">{metricKeyLoading ? "Carregando sugestões..." : "Selecione uma chave sugerida"}</option>
-                      {metricKeySuggestions.map((item) => (
+                      {filterSuggestionsBySource(drafts[section.key]?.sourcePlatform || "google_ads").map((item) => (
                         <option key={`${item.key}-${item.origin}`} value={item.key}>
                           {formatMetricSuggestionLabel(item)}
                         </option>
@@ -677,6 +841,11 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                             )}
                           </div>
                           <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Chave: {metric.key} · Ordem {index + 1}</p>
+                          {metric.sourcePlatform && (
+                            <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>
+                              Origem: {metric.sourcePlatform === "google_ads" ? "Google Ads" : "Meta Ads"}
+                            </p>
+                          )}
                           {(metric.kind || "standard") === "composite" && (
                             <p style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>
                               KPI composto ({metric.compositeType || "sum"}): {metric.primaryMetricKey || "?"} + {metric.secondaryMetricKey || "?"}

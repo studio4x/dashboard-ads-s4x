@@ -45,7 +45,8 @@ export async function POST(request: Request) {
 
     if (action === "create") {
       const name = requireString(body, "name", { min: 3, max: 120 });
-      const baseTemplateId = requireString(body, "base_template_id", { min: 3, max: 80 });
+      const baseTemplateIdRaw = typeof body.base_template_id === "string" ? body.base_template_id.trim() : "custom";
+      const baseTemplateId = baseTemplateIdRaw || "custom";
       const templateIdInput = requireString(body, "template_id", { min: 3, max: 80 });
       if (!name) {
         return NextResponse.json({ error: "Nome do template inválido." }, { status: 400 });
@@ -69,28 +70,46 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "ID do template inválido." }, { status: 400 });
       }
 
-      const base = await DashboardTemplateCatalogService.getTemplateDefinition(baseTemplateId);
-      if (!base) {
+      const base = baseTemplateId === "custom"
+        ? null
+        : await DashboardTemplateCatalogService.getTemplateDefinition(baseTemplateId);
+      if (baseTemplateId !== "custom" && !base) {
         return NextResponse.json({ error: "Template base não encontrado." }, { status: 404 });
       }
+      const baseSheetTemplateId = base?.sheetTemplateId || "custom";
 
       const metricConfig = normalizeTemplateMetricConfig(
-        body.metric_config || getDefaultTemplateMetricConfig(base.sheetTemplateId),
-        base.sheetTemplateId
+        body.metric_config || getDefaultTemplateMetricConfig(baseSheetTemplateId),
+        baseSheetTemplateId
       );
+
+      const visiblePages = Array.isArray(body.visible_pages)
+        ? body.visible_pages.map((item: unknown) => String(item).trim()).filter(Boolean)
+        : (baseTemplateId === "custom" ? [] : (base?.visiblePages || []));
+
+      const requiredSheets = Array.isArray(body.required_sheets)
+        ? body.required_sheets.map((item: unknown) => String(item).trim()).filter(Boolean)
+        : (baseTemplateId === "custom" ? [] : (base?.requiredSheets || []));
+
+      const optionalSheets = Array.isArray(body.optional_sheets)
+        ? body.optional_sheets.map((item: unknown) => String(item).trim()).filter(Boolean)
+        : (baseTemplateId === "custom" ? [] : (base?.optionalSheets || []));
+
+      const platformValue = baseTemplateId === "custom" ? "custom" : (platform as any || base?.platform);
+      const sourceTypeValue = baseTemplateId === "custom" ? "mixed" : (sourceType as any || base?.sourceType);
 
       const created = await DashboardTemplateCatalogService.createCustomTemplate({
         templateId,
-        baseTemplateId: base.sheetTemplateId,
+        baseTemplateId,
         name,
         description,
         version,
         status: status as "active" | "coming_soon" | "deprecated",
-        platform: platform as any || base.platform,
-        sourceType: sourceType as any || base.sourceType,
-        requiredSheets: Array.isArray(body.required_sheets) ? body.required_sheets.map((item: unknown) => String(item).trim()).filter(Boolean) : base.requiredSheets,
-        optionalSheets: Array.isArray(body.optional_sheets) ? body.optional_sheets.map((item: unknown) => String(item).trim()).filter(Boolean) : base.optionalSheets,
-        visiblePages: Array.isArray(body.visible_pages) ? body.visible_pages.map((item: unknown) => String(item).trim()).filter(Boolean) : base.visiblePages,
+        platform: platformValue as any,
+        sourceType: sourceTypeValue as any,
+        requiredSheets,
+        optionalSheets,
+        visiblePages,
         metricConfig: metricConfig as unknown as Record<string, unknown>,
       });
 
@@ -110,6 +129,9 @@ export async function POST(request: Request) {
 
     const templateId = requireString(body, "templateId", { min: 3, max: 80 });
     const metricConfig = body.metric_config;
+    const visiblePages = Array.isArray(body.visible_pages)
+      ? body.visible_pages.map((item: unknown) => String(item).trim()).filter(Boolean)
+      : undefined;
     if (!templateId) {
       return NextResponse.json({ error: "Template inválido." }, { status: 400 });
     }
@@ -124,7 +146,11 @@ export async function POST(request: Request) {
       resolvedTemplate.sheetTemplateId
     );
 
-    const saved = await DashboardTemplateCatalogService.saveTemplateMetricConfig(templateId, normalized as unknown as Record<string, unknown>);
+    const saved = await DashboardTemplateCatalogService.saveTemplateMetricConfig(
+      templateId,
+      normalized as unknown as Record<string, unknown>,
+      visiblePages
+    );
     const normalizedTemplate = await DashboardTemplateCatalogService.getTemplateDefinition(templateId);
     return NextResponse.json({ success: true, template: normalizedTemplate || saved, normalized });
   } catch (error: any) {

@@ -4,6 +4,7 @@ import type { KpiSummary } from "@/types/entities";
 
 export type MetricDisplayMode = "card" | "text" | "chart" | "table";
 export type TemplateMetricKind = "standard" | "composite";
+export type TemplateMetricSourcePlatform = "google_ads" | "meta_ads";
 export type TemplateMetricCompositeType =
   | "sum"
   | "subtract"
@@ -19,6 +20,7 @@ export interface TemplateMetricItem {
   label?: string;
   preview?: string;
   kind?: TemplateMetricKind;
+  sourcePlatform?: TemplateMetricSourcePlatform;
   compositeType?: TemplateMetricCompositeType;
   primaryMetricKey?: string;
   secondaryMetricKey?: string;
@@ -65,6 +67,7 @@ function metricItem(key: string, order: number, options?: Partial<TemplateMetric
     label: options?.label,
     preview: options?.preview,
     kind: options?.kind || "standard",
+    sourcePlatform: options?.sourcePlatform,
     compositeType: options?.compositeType || "sum",
     primaryMetricKey: options?.primaryMetricKey,
     secondaryMetricKey: options?.secondaryMetricKey,
@@ -77,6 +80,10 @@ function metricItem(key: string, order: number, options?: Partial<TemplateMetric
 
 function section(key: string, label: string, metrics: TemplateMetricItem[]): TemplateMetricSectionConfig {
   return { key, label, metrics };
+}
+
+function customDefaults(): Record<string, TemplateMetricSectionConfig> {
+  return {};
 }
 
 function objectiveMetrics(objective: MetaAdsObjectiveId | null) {
@@ -405,6 +412,8 @@ export function getDefaultTemplateMetricConfig(
     sections = metaDefaults(normalizedPrimary);
   } else if (templateId === "google_meta_ads_s4x") {
     sections = integratedDefaults(normalizedPrimary);
+  } else if (templateId === "custom") {
+    sections = customDefaults();
   } else {
     sections = googleAdsDefaults();
   }
@@ -444,6 +453,7 @@ export function normalizeTemplateMetricConfig(
             label: item.label?.trim() || defaultMetric?.label,
             preview: item.preview?.trim() || defaultMetric?.preview,
             kind: item.kind || defaultMetric?.kind || "standard",
+            sourcePlatform: item.sourcePlatform || defaultMetric?.sourcePlatform,
             compositeType: item.compositeType || defaultMetric?.compositeType || "sum",
             primaryMetricKey: item.primaryMetricKey?.trim() || defaultMetric?.primaryMetricKey,
             secondaryMetricKey: item.secondaryMetricKey?.trim() || defaultMetric?.secondaryMetricKey,
@@ -458,6 +468,29 @@ export function normalizeTemplateMetricConfig(
     mergedSections[sectionKey] = {
       ...defaultSection,
       metrics: mergedMetrics.sort((a, b) => a.order - b.order),
+    };
+  });
+
+  Object.entries(raw.sections || {}).forEach(([sectionKey, rawSection]) => {
+    if (mergedSections[sectionKey]) return;
+    const rawMetrics = Array.isArray(rawSection?.metrics) ? rawSection.metrics : [];
+    mergedSections[sectionKey] = {
+      key: sectionKey,
+      label: rawSection?.label?.trim() || sectionKey,
+      metrics: rawMetrics.map((item, index) => ({
+        key: item.key,
+        label: item.label?.trim() || getMetricLabel(templateId, item.key, primaryObjective),
+        preview: item.preview?.trim() || undefined,
+        kind: item.kind || "standard",
+        sourcePlatform: item.sourcePlatform || undefined,
+        compositeType: item.compositeType || "sum",
+        primaryMetricKey: item.primaryMetricKey?.trim() || undefined,
+        secondaryMetricKey: item.secondaryMetricKey?.trim() || undefined,
+        enabled: item.enabled ?? true,
+        displayMode: item.displayMode || DEFAULT_DISPLAY[item.key] || "card",
+        order: item.order ?? (index + 1) * 10,
+        recommended: item.recommended ?? false,
+      })).sort((a, b) => a.order - b.order),
     };
   });
 

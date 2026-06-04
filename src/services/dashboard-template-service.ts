@@ -1,9 +1,22 @@
 import { getDefaultTemplateMetricConfig, normalizeTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
+import { DASHBOARD_PAGES } from "@/lib/constants";
 import { DashboardTemplateConfigService } from "@/services/dashboard-template-config-service";
 import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
 import { normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 
 export type DashboardTemplateType = string;
+
+function resolvePageCatalog(templatePageKeys: string[], fallbackPages: { key: string; title: string; sort: number }[]) {
+  return templatePageKeys.map((pageKey, index) => {
+    const fallback = fallbackPages.find((page) => page.key === pageKey);
+    const knownPage = DASHBOARD_PAGES.find((page) => page.key === pageKey);
+    return fallback || {
+      key: pageKey,
+      title: knownPage?.label || pageKey,
+      sort: (index + 1) * 10,
+    };
+  });
+}
 
 const TEMPLATE_PAGES: Record<string, { key: string; title: string; sort: number }[]> = {
   google_meta_ads_s4x: [
@@ -90,12 +103,12 @@ export class DashboardTemplateService {
       normalizedObjectives as any,
       (options?.metaPrimaryObjective || normalizedObjectives[0] || null) as any
     );
-    const basePages = TEMPLATE_PAGES[sheetTemplateId] || TEMPLATE_PAGES["google_ads"];
+    const basePages = TEMPLATE_PAGES[sheetTemplateId] || (sheetTemplateId === "custom" ? [] : TEMPLATE_PAGES["google_ads"]);
     const visiblePageKeys = Array.isArray(template.visiblePages) && template.visiblePages.length > 0
       ? template.visiblePages
       : [];
     const pagesToCreate = visiblePageKeys.length > 0
-      ? visiblePageKeys.map((pageKey) => basePages.find((page) => page.key === pageKey) || { key: pageKey, title: pageKey, sort: 999 })
+      ? resolvePageCatalog(visiblePageKeys, basePages)
       : basePages;
 
     const { error: updateError } = await supabase
@@ -167,12 +180,12 @@ export class DashboardTemplateService {
       (options?.metaObjectives || []) as any,
       (options?.metaPrimaryObjective || null) as any
     );
-    const basePages = TEMPLATE_PAGES[sheetTemplateId] || TEMPLATE_PAGES["google_ads"];
+    const basePages = TEMPLATE_PAGES[sheetTemplateId] || (sheetTemplateId === "custom" ? [] : TEMPLATE_PAGES["google_ads"]);
     const visiblePageKeys = Array.isArray(template?.visiblePages) && template.visiblePages.length > 0
       ? template.visiblePages
       : [];
     const pagesToCreate = visiblePageKeys.length > 0
-      ? visiblePageKeys.map((pageKey) => basePages.find((page) => page.key === pageKey) || { key: pageKey, title: pageKey, sort: 999 })
+      ? resolvePageCatalog(visiblePageKeys, basePages)
       : basePages;
 
     // 1. Criar Dashboard

@@ -50,6 +50,10 @@ function isMissingRelationError(error: any) {
   return message.includes("does not exist") || message.includes("relation") || message.includes("not exist");
 }
 
+function isBaselessTemplate(baseTemplateId?: string | null) {
+  return !baseTemplateId || baseTemplateId === "custom";
+}
+
 async function reprocessDashboardsForTemplate(templateId: string) {
   const supabase = await createAdminClient({ actor: "admin", action: "template-catalog:reprocess-linked-dashboards" });
   const { data: dashboards, error: dashboardsError } = await supabase
@@ -195,13 +199,19 @@ export const DashboardTemplateCatalogService = {
     const sheetTemplateId = row.base_template_id || base?.sheetTemplateId || templateId;
     const visiblePages = toStringArray(row.visible_pages).length > 0
       ? toStringArray(row.visible_pages)
-      : base?.visiblePages || [];
+      : isBaselessTemplate(row.base_template_id)
+        ? []
+        : base?.visiblePages || [];
     const requiredSheets = toStringArray(row.required_sheets).length > 0
       ? toStringArray(row.required_sheets)
-      : base?.requiredSheets || [];
+      : isBaselessTemplate(row.base_template_id)
+        ? []
+        : base?.requiredSheets || [];
     const optionalSheets = toStringArray(row.optional_sheets).length > 0
       ? toStringArray(row.optional_sheets)
-      : base?.optionalSheets || [];
+      : isBaselessTemplate(row.base_template_id)
+        ? []
+        : base?.optionalSheets || [];
 
     return {
       id: row.template_id,
@@ -219,7 +229,7 @@ export const DashboardTemplateCatalogService = {
         sheetTemplateId
       ),
       isCustom: true,
-      baseTemplateId: row.base_template_id,
+      baseTemplateId: isBaselessTemplate(row.base_template_id) ? null : row.base_template_id,
       sheetTemplateId,
     };
   },
@@ -247,7 +257,9 @@ export const DashboardTemplateCatalogService = {
       const sheetTemplateId = row.base_template_id || base?.sheetTemplateId || row.template_id;
       const visiblePages = toStringArray(row.visible_pages).length > 0
         ? toStringArray(row.visible_pages)
-        : base?.visiblePages || [];
+        : isBaselessTemplate(row.base_template_id)
+          ? []
+          : base?.visiblePages || [];
 
       return {
         id: row.template_id,
@@ -257,15 +269,15 @@ export const DashboardTemplateCatalogService = {
         status: row.status,
         sourceType: row.source_type,
         description: row.description,
-        requiredSheets: toStringArray(row.required_sheets).length > 0 ? toStringArray(row.required_sheets) : (base?.requiredSheets || []),
-        optionalSheets: toStringArray(row.optional_sheets).length > 0 ? toStringArray(row.optional_sheets) : (base?.optionalSheets || []),
+        requiredSheets: toStringArray(row.required_sheets).length > 0 ? toStringArray(row.required_sheets) : (isBaselessTemplate(row.base_template_id) ? [] : (base?.requiredSheets || [])),
+        optionalSheets: toStringArray(row.optional_sheets).length > 0 ? toStringArray(row.optional_sheets) : (isBaselessTemplate(row.base_template_id) ? [] : (base?.optionalSheets || [])),
         visiblePages,
         metricConfig: normalizeTemplateMetricConfig(
           row.metric_config || getDefaultTemplateMetricConfig(sheetTemplateId),
           sheetTemplateId
         ),
         isCustom: true,
-        baseTemplateId: row.base_template_id,
+        baseTemplateId: isBaselessTemplate(row.base_template_id) ? null : row.base_template_id,
         sheetTemplateId,
         hasCustomConfig: true,
       } satisfies DashboardTemplateCatalogDefinition;
@@ -277,7 +289,7 @@ export const DashboardTemplateCatalogService = {
     });
   },
 
-  async saveTemplateMetricConfig(templateId: string, metricConfig: Record<string, unknown>) {
+  async saveTemplateMetricConfig(templateId: string, metricConfig: Record<string, unknown>, visiblePages?: string[]) {
     const custom = await this.getTemplateDefinition(templateId).catch(() => null);
     if (custom?.isCustom) {
       const supabase = await createAdminClient({ actor: "admin", action: "template-catalog:update-custom" });
@@ -285,6 +297,7 @@ export const DashboardTemplateCatalogService = {
         .from("dashboard_custom_templates")
         .update({
           metric_config: metricConfig,
+          ...(Array.isArray(visiblePages) ? { visible_pages: visiblePages } : {}),
           updated_at: new Date().toISOString(),
         })
         .eq("template_id", templateId)
@@ -300,6 +313,9 @@ export const DashboardTemplateCatalogService = {
         .eq("dashboard_type", templateId);
 
       if (dashboardUpdateError) throw dashboardUpdateError;
+      if (Array.isArray(visiblePages)) {
+        await this.syncDashboardPagesForTemplate(templateId, metricConfig, visiblePages);
+      }
       const reprocess = await reprocessDashboardsForTemplate(templateId).catch(() => null);
       return { ...data, reprocess } as CustomTemplateRow & { reprocess?: unknown };
     }
@@ -332,7 +348,9 @@ export const DashboardTemplateCatalogService = {
     visiblePages?: string[];
     metricConfig?: Record<string, unknown>;
   }) {
-    const base = await this.getTemplateDefinition(params.baseTemplateId);
+    const base = params.baseTemplateId === "custom"
+      ? getSystemTemplateDefinition("custom")
+      : await this.getTemplateDefinition(params.baseTemplateId);
     if (!base) {
       throw new Error("Template base não encontrado.");
     }
@@ -353,10 +371,10 @@ export const DashboardTemplateCatalogService = {
         status: params.status || "active",
         source_type: params.sourceType || base.sourceType,
         description: params.description || base.description,
-        required_sheets: params.requiredSheets || base.requiredSheets,
-        optional_sheets: params.optionalSheets || base.optionalSheets,
-        visible_pages: params.visiblePages || base.visiblePages,
-        metric_config: params.metricConfig || base.metricConfig,
+        required_sheets: params.requiredSheets || (isBaselessTemplate(params.baseTemplateId) ? [] : base.requiredSheets),
+        optional_sheets: params.optionalSheets || (isBaselessTemplate(params.baseTemplateId) ? [] : base.optionalSheets),
+        visible_pages: params.visiblePages || (isBaselessTemplate(params.baseTemplateId) ? [] : base.visiblePages),
+        metric_config: params.metricConfig || (isBaselessTemplate(params.baseTemplateId) ? getDefaultTemplateMetricConfig("custom") : base.metricConfig),
         updated_at: new Date().toISOString(),
       })
       .select()
@@ -391,5 +409,30 @@ export const DashboardTemplateCatalogService = {
       templateId,
       linkedDashboards: count || 0,
     };
+  },
+
+  async syncDashboardPagesForTemplate(templateId: string, metricConfig: Record<string, any>, visiblePages?: string[]) {
+    const pageKeys = Array.isArray(visiblePages) ? visiblePages : [];
+    const supabase = await createAdminClient({ actor: "admin", action: "template-catalog:sync-dashboard-pages" });
+    const { data: dashboards, error } = await supabase
+      .from("dashboards")
+      .select("id")
+      .eq("dashboard_type", templateId);
+
+    if (error) throw error;
+
+    for (const dashboard of dashboards || []) {
+      await supabase.from("dashboard_pages").delete().eq("dashboard_id", dashboard.id);
+      if (pageKeys.length === 0) continue;
+      const rows = pageKeys.map((pageKey, index) => ({
+        dashboard_id: dashboard.id,
+        page_key: pageKey,
+        title: metricConfig?.sections?.[pageKey]?.label || pageKey,
+        sort_order: (index + 1) * 10,
+        is_enabled: true,
+      }));
+      const { error: insertError } = await supabase.from("dashboard_pages").insert(rows);
+      if (insertError) throw insertError;
+    }
   },
 };

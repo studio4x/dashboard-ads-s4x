@@ -33,23 +33,31 @@ export function CreateTemplateModal({ open, templates, onClose, onCreated }: Cre
   const [form, setForm] = useState({
     name: "",
     templateId: "",
-    baseTemplateId: "google_ads_s4x",
+    baseTemplateId: "custom",
     description: "",
     version: "1.0",
   });
 
+  const templateBaseOptions = useMemo(
+    () => [
+      { id: "custom", name: "Nenhum template base", description: "Cria um template vazio. Depois você define abas, métricas e estrutura manualmente." },
+      ...templates,
+    ],
+    [templates]
+  );
+
   const baseTemplate = useMemo(
-    () => templates.find((template) => template.id === form.baseTemplateId) || templates[0] || null,
-    [templates, form.baseTemplateId]
+    () => templateBaseOptions.find((template) => template.id === form.baseTemplateId) || templateBaseOptions[0] || null,
+    [templateBaseOptions, form.baseTemplateId]
   );
 
   useEffect(() => {
     if (!open) return;
     setForm((prev) => ({
       ...prev,
-      baseTemplateId: templates.find((template) => template.id === prev.baseTemplateId)?.id || templates[0]?.id || "google_ads_s4x",
+      baseTemplateId: templateBaseOptions.find((template) => template.id === prev.baseTemplateId)?.id || "custom",
     }));
-  }, [open, templates]);
+  }, [open, templateBaseOptions]);
 
   if (!open) return null;
 
@@ -69,11 +77,11 @@ export function CreateTemplateModal({ open, templates, onClose, onCreated }: Cre
       const response = await fetch("/api/admin/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "create",
-          name: form.name.trim(),
-          template_id: form.templateId.trim(),
-          base_template_id: form.baseTemplateId,
+          body: JSON.stringify({
+            action: "create",
+            name: form.name.trim(),
+            template_id: form.templateId.trim(),
+            base_template_id: form.baseTemplateId,
           description: form.description.trim(),
           version: form.version.trim() || "1.0",
         }),
@@ -89,7 +97,7 @@ export function CreateTemplateModal({ open, templates, onClose, onCreated }: Cre
       setForm({
         name: "",
         templateId: "",
-        baseTemplateId: templates[0]?.id || "google_ads_s4x",
+        baseTemplateId: "custom",
         description: "",
         version: "1.0",
       });
@@ -107,7 +115,7 @@ export function CreateTemplateModal({ open, templates, onClose, onCreated }: Cre
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0F172A" }}>Criar Template</h2>
             <p style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>
-              O template novo será baseado em um modelo existente e herdará a estrutura de páginas e validação da base.
+              Você pode criar um template a partir de uma base existente ou começar sem base para montar abas e métricas manualmente.
             </p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer" }}>
@@ -143,9 +151,9 @@ export function CreateTemplateModal({ open, templates, onClose, onCreated }: Cre
               onChange={(e) => setForm((prev) => ({ ...prev, baseTemplateId: e.target.value }))}
               style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 14, background: "#fff" }}
             >
-              {templates.map((template) => (
+              {templateBaseOptions.map((template) => (
                 <option key={template.id} value={template.id}>
-                  {template.name} ({template.id})
+                  {template.id === "custom" ? template.name : `${template.name} (${template.id})`}
                 </option>
               ))}
             </select>
@@ -153,10 +161,12 @@ export function CreateTemplateModal({ open, templates, onClose, onCreated }: Cre
 
           {baseTemplate && (
             <div style={{ padding: 12, borderRadius: 10, border: "1px solid #DBEAFE", background: "#EFF6FF" }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8" }}>Base selecionada</p>
+              <p style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8" }}>{form.baseTemplateId === "custom" ? "Sem template base" : "Base selecionada"}</p>
               <p style={{ fontSize: 13, color: "#1E3A8A", marginTop: 4 }}>{baseTemplate.name}</p>
               <p style={{ fontSize: 12, color: "#1D4ED8", marginTop: 2, lineHeight: 1.5 }}>
-                O template criado vai seguir a mesma estrutura de validação da base. Depois de criado, você pode abrir a configuração de métricas e ajustar o padrão.
+                {form.baseTemplateId === "custom"
+                  ? "O template será criado vazio. Depois de criar, abra a configuração para adicionar abas, selecionar a origem das métricas e montar a estrutura manualmente."
+                  : "O template criado vai seguir a mesma estrutura de validação da base. Depois de criado, você pode abrir a configuração de métricas e ajustar o padrão."}
               </p>
             </div>
           )}
