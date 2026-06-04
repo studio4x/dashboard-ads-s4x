@@ -36,7 +36,7 @@ import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters"
 import { cn } from "@/lib/utils";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
-import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateSectionWidgets, type TemplateWidgetKind } from "@/lib/dashboard/template-metric-config";
+import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateSectionWidgets, getMetricLabel, type TemplateWidgetItem } from "@/lib/dashboard/template-metric-config";
 import type { KpiSummary } from "@/types/entities";
 
 // Cores da referência
@@ -119,8 +119,9 @@ export default function ExecutiveSummaryPage() {
   const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x", objectives as any, data.metaPrimaryObjective as any);
   const defaultExecutiveWidgets = getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x", objectives as any, data.metaPrimaryObjective as any).sections["executive-summary"]?.widgets || [];
   const executiveSummaryWidgets = getTemplateSectionWidgets(templateConfig, "executive-summary");
-  const resolvedExecutiveWidgets = (executiveSummaryWidgets.length > 0 ? executiveSummaryWidgets : defaultExecutiveWidgets).filter((widget) => widget.enabled);
-  const getWidget = (kind: TemplateWidgetKind) => resolvedExecutiveWidgets.find((widget) => widget.kind === kind) || defaultExecutiveWidgets.find((widget) => widget.kind === kind);
+  const resolvedExecutiveWidgets = (executiveSummaryWidgets.length > 0 ? executiveSummaryWidgets : defaultExecutiveWidgets)
+    .filter((widget) => widget.enabled)
+    .sort((a, b) => a.order - b.order);
   const availableMetrics = data?.diagnostics?.availableMetrics?.fields || null;
   const resolvedObjectivePresentation = resolveMetaObjectivePresentation({
     primaryObjective: data.metaPrimaryObjective,
@@ -526,29 +527,223 @@ export default function ExecutiveSummaryPage() {
   });
 
   // Gráfico de Evolução (Investimento e Cliques)
-  const evolutionData = overview.map((row: any) => ({
-    date: formatDateShort(row.date),
-    investimento: row.cost || row.total_spend || 0,
-    cliques: row.clicks || row.total_clicks || 0,
-  }));
+  const resolveExecutiveMetricValue = (key?: string | null, row?: any) => {
+    if (!key) return 0;
+    const sourceRow = row || current;
+    if (key.startsWith("google_")) {
+      const googleCurrent = googleAdsSummary?.current || {};
+      switch (key) {
+        case "google_cost":
+          return Number(googleCurrent.total_spend || googleCurrent.cost || 0);
+        case "google_revenue":
+          return Number(googleCurrent.total_revenue || googleCurrent.conversionValue || 0);
+        case "google_impressions":
+          return Number(googleCurrent.total_impressions || 0);
+        case "google_clicks":
+          return Number(googleCurrent.total_clicks || 0);
+        case "google_ctr":
+          return Number(googleCurrent.ctr || 0);
+        case "google_cpc":
+          return Number(googleCurrent.cpc || 0);
+        case "google_cpa":
+          return Number(googleCurrent.cpa || 0);
+        case "google_roas":
+          return Number(googleCurrent.roas || 0);
+        case "google_conversions":
+          return Number(googleCurrent.total_conversions || 0);
+        default:
+          return Number(googleCurrent[key.replace(/^google_/, "")] || 0);
+      }
+    }
+    if (key.startsWith("meta_")) {
+      const metaCurrent = metaAdsSummary?.current || {};
+      switch (key) {
+        case "meta_cost":
+          return Number(metaCurrent.total_spend || metaCurrent.cost || 0);
+        case "meta_revenue":
+          return Number(metaCurrent.total_revenue || metaCurrent.conversionValue || 0);
+        case "meta_impressions":
+          return Number(metaCurrent.total_impressions || 0);
+        case "meta_reach":
+          return Number(metaCurrent.reach || metaCurrent.total_reach || 0);
+        case "meta_clicks":
+          return Number(metaCurrent.total_clicks || 0);
+        case "meta_ctr":
+          return Number(metaCurrent.ctr || 0);
+        case "meta_cpc":
+          return Number(metaCurrent.cpc || 0);
+        case "meta_cpa":
+          return Number(metaCurrent.cpa || 0);
+        case "meta_cpm":
+          return Number(metaCurrent.avgCpm || metaCurrent.cpm || 0);
+        case "meta_frequency":
+          return Number(metaCurrent.frequency || 0);
+        case "meta_postEngagement":
+          return Number(metaCurrent.postEngagement || metaCurrent.total_engagement || 0);
+        case "meta_conversions":
+          return Number(metaCurrent.total_conversions || 0);
+        default:
+          return Number(metaCurrent[key.replace(/^meta_/, "")] || 0);
+      }
+    }
+    switch (key) {
+      case "cost":
+      case "cost_total":
+        return Number(sourceRow.total_spend || sourceRow.cost || sourceRow.value || 0);
+      case "revenue":
+        return Number(sourceRow.total_revenue || sourceRow.conversionValue || sourceRow.revenue || 0);
+      case "impressions":
+        return Number(sourceRow.total_impressions || sourceRow.impressions || 0);
+      case "reach":
+        return Number(sourceRow.total_reach || sourceRow.reach || 0);
+      case "clicks":
+        return Number(sourceRow.total_clicks || sourceRow.clicks || 0);
+      case "ctr":
+        return Number(sourceRow.ctr || 0);
+      case "cpc":
+        return Number(sourceRow.cpc || 0);
+      case "cpa":
+        return Number(sourceRow.cpa || 0);
+      case "roas":
+        return Number(sourceRow.roas || 0);
+      case "frequency":
+        return Number(sourceRow.frequency || 0);
+      case "postEngagement":
+        return Number(sourceRow.postEngagement || sourceRow.total_engagement || 0);
+      default:
+        return Number(sourceRow[key] || 0);
+    }
+  };
 
-  // Gráfico Comparativo (Atual x Anterior)
-  const comparisonChartData = [
-    { metrica: "Investimento", atual: current.total_spend, anterior: summary?.previous?.total_spend || 0 },
-    { metrica: "Impressões", atual: current.total_impressions, anterior: summary?.previous?.total_impressions || 0 },
-    { metrica: "Cliques", atual: current.total_clicks, anterior: summary?.previous?.total_clicks || 0 },
-    {
-      metrica: conversionLabel,
-      atual: resultCurrentValue,
-      anterior: resultMetric === "postEngagement"
-        ? Number(summary?.previous?.postEngagement || summary?.previous?.total_engagement || 0)
-        : resultMetric === "clicks"
-          ? Number(summary?.previous?.total_clicks || 0)
-          : resultMetric === "reach"
-            ? Number(summary?.previous?.reach || 0)
-            : Number(summary?.previous?.total_conversions || 0),
-    },
-  ];
+  const resolveMetricPreviousValue = (key?: string | null) => {
+    if (!key) return 0;
+    const currentValue = resolveExecutiveMetricValue(key);
+    const changeKey = key.replace(/^google_/, "").replace(/^meta_/, "");
+    const changePercent =
+      key.startsWith("google_")
+        ? Number((googleAdsSummary?.change as any)?.[changeKey] ?? (googleAdsSummary?.change as any)?.[key.replace(/^google_/, "")] ?? 0)
+        : key.startsWith("meta_")
+          ? Number((metaAdsSummary?.change as any)?.[changeKey] ?? (metaAdsSummary?.change as any)?.[key.replace(/^meta_/, "")] ?? 0)
+          : Number((changes as any)?.[changeKey] ?? (changes as any)?.[key] ?? 0);
+    if (!Number.isFinite(changePercent) || changePercent === -100) return currentValue;
+    const factor = 1 + changePercent / 100;
+    if (factor === 0) return currentValue;
+    return currentValue / factor;
+  };
+
+  const buildWidgetTrendData = (widget: TemplateWidgetItem) => {
+    const primaryKey = widget.primaryMetricKey || "cost";
+    const secondaryKey = widget.secondaryMetricKey || "clicks";
+    return overview.map((row: any) => ({
+      date: formatDateShort(row.date),
+      primary: resolveExecutiveMetricValue(primaryKey, row),
+      secondary: secondaryKey ? resolveExecutiveMetricValue(secondaryKey, row) : 0,
+    }));
+  };
+
+  const buildWidgetComparisonData = (widget: TemplateWidgetItem) => {
+    const metricKeys = [widget.primaryMetricKey, widget.secondaryMetricKey].filter(Boolean) as string[];
+    return metricKeys.map((metricKey) => ({
+      metrica: getMetricLabel(data.templateId || "google_ads_s4x", metricKey as any, data.metaPrimaryObjective as any),
+      atual: resolveExecutiveMetricValue(metricKey),
+      anterior: resolveMetricPreviousValue(metricKey),
+    }));
+  };
+
+  const renderWidgetCard = (widget: TemplateWidgetItem) => {
+    const title = widget.label || getMetricLabel(data.templateId || "google_ads_s4x", widget.key, data.metaPrimaryObjective as any);
+    if (widget.kind === "device_donut") {
+      return (
+        <Card key={widget.key} className="p-6">
+          <h2 className="mb-6 text-lg font-bold text-slate-900">{title}</h2>
+          <div className="relative h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={deviceData}
+                  innerRadius={70}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                  stroke="#FFFFFF"
+                  strokeWidth={2}
+                >
+                  {deviceData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={index === 0 ? BLUE : index === 1 ? BLUE_LIGHT : MUTED} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center">
+                <div className="text-3xl font-extrabold text-slate-900">{totalDeviceValue}</div>
+                <div className="text-xs text-slate-500 uppercase font-medium">Total</div>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-col gap-2">
+               {deviceData.map((d, i) => (
+                 <div key={i} className="flex items-center justify-between text-xs">
+                   <div className="flex items-center gap-2">
+                     <div className="w-2 h-2 rounded-full" style={{ background: i === 0 ? BLUE : i === 1 ? BLUE_LIGHT : MUTED }} />
+                     <span className="font-medium text-slate-600">{d.name}</span>
+                   </div>
+                   <span className="font-bold text-slate-900">{((d.value / (totalDeviceValue || 1)) * 100).toFixed(1)}%</span>
+                 </div>
+               ))}
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    if (widget.kind === "comparison_chart") {
+      const chartData = buildWidgetComparisonData(widget);
+      return (
+        <Card key={widget.key} className="p-6">
+          <h2 className="mb-6 text-lg font-bold text-slate-900">{title}</h2>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: -15 }}>
+                <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="metrica" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
+                <YAxis tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} />
+                <Tooltip formatter={tooltipFormatter} />
+                <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
+                <Bar dataKey="atual" name="Período atual" fill={BLUE} radius={[4, 4, 0, 0]} barSize={24} />
+                <Bar dataKey="anterior" name="Anterior" fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={24} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      );
+    }
+
+    const trendData = buildWidgetTrendData(widget);
+    const primaryLabel = getMetricLabel(data.templateId || "google_ads_s4x", widget.primaryMetricKey || "cost", data.metaPrimaryObjective as any);
+    const secondaryLabel = widget.secondaryMetricKey ? getMetricLabel(data.templateId || "google_ads_s4x", widget.secondaryMetricKey, data.metaPrimaryObjective as any) : "Série";
+    return (
+      <Card key={widget.key} className="p-6">
+        <h2 className="mb-6 text-lg font-bold text-slate-900">{title}</h2>
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={trendData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
+              <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
+              <XAxis dataKey="date" tick={{ fill: TEXT, fontSize: 12 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
+              <YAxis yAxisId="left" tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} />
+              <Tooltip formatter={tooltipFormatter} />
+              <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
+              <Bar yAxisId="left" dataKey="primary" name={primaryLabel} fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={32} />
+              {widget.secondaryMetricKey && (
+                <Line yAxisId="right" type="monotone" dataKey="secondary" name={secondaryLabel} stroke={BLUE} strokeWidth={3} dot={{ r: 4, fill: BLUE }} />
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    );
+  };
 
   // Dispositivos
   const deviceData = audience.length > 0 
@@ -644,106 +839,9 @@ export default function ExecutiveSummaryPage() {
         </div>
 
         {/* Middle Charts Section */}
-        {(getWidget("trend_chart") || getWidget("comparison_chart") || getWidget("device_donut")) && (
-          <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr_0.9fr] gap-5">
-            {getWidget("trend_chart") && (
-              <Card className="p-6">
-                <h2 className="mb-6 text-lg font-bold text-slate-900">{getWidget("trend_chart")?.label || "Evolução diária de investimento e cliques"}</h2>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={evolutionData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
-                      <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fill: TEXT, fontSize: 12 }}
-                        tickLine={false}
-                        axisLine={{ stroke: "#E2E8F0" }}
-                      />
-                      <YAxis
-                        yAxisId="left"
-                        tick={{ fill: MUTED, fontSize: 11 }}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(v) => `R$${v}`}
-                      />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        tick={{ fill: MUTED, fontSize: 11 }}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <Tooltip formatter={tooltipFormatter} />
-                      <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
-                      <Bar yAxisId="left" dataKey="investimento" name="Investimento (R$)" fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={32} />
-                      <Line yAxisId="right" type="monotone" dataKey="cliques" name="Cliques" stroke={BLUE} strokeWidth={3} dot={{ r: 4, fill: BLUE }} />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            )}
-
-            {getWidget("comparison_chart") && (
-              <Card className="p-6">
-                <h2 className="mb-6 text-lg font-bold text-slate-900">{getWidget("comparison_chart")?.label || "Comparativo: atual x anterior"}</h2>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={comparisonChartData} margin={{ top: 10, right: 10, bottom: 0, left: -15 }}>
-                      <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
-                      <XAxis dataKey="metrica" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
-                      <YAxis tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} />
-                      <Tooltip formatter={tooltipFormatter} />
-                      <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
-                      <Bar dataKey="atual" name="Período atual" fill={BLUE} radius={[4, 4, 0, 0]} barSize={24} />
-                      <Bar dataKey="anterior" name="Anterior" fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={24} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            )}
-
-            {getWidget("device_donut") && (
-              <Card className="p-6">
-                <h2 className="mb-6 text-lg font-bold text-slate-900">{getWidget("device_donut")?.label || "Sessões por dispositivo"}</h2>
-                <div className="relative h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={deviceData}
-                        innerRadius={70}
-                        outerRadius={100}
-                        paddingAngle={5}
-                        dataKey="value"
-                        stroke="#FFFFFF"
-                        strokeWidth={2}
-                      >
-                        {deviceData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? BLUE : index === 1 ? BLUE_LIGHT : MUTED} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center">
-                      <div className="text-3xl font-extrabold text-slate-900">{totalDeviceValue}</div>
-                      <div className="text-xs text-slate-500 uppercase font-medium">Total</div>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-col gap-2">
-                     {deviceData.map((d, i) => (
-                       <div key={i} className="flex items-center justify-between text-xs">
-                         <div className="flex items-center gap-2">
-                           <div className="w-2 h-2 rounded-full" style={{ background: i === 0 ? BLUE : i === 1 ? BLUE_LIGHT : MUTED }} />
-                           <span className="font-medium text-slate-600">{d.name}</span>
-                         </div>
-                         <span className="font-bold text-slate-900">{((d.value / (totalDeviceValue || 1)) * 100).toFixed(1)}%</span>
-                       </div>
-                     ))}
-                  </div>
-                </div>
-              </Card>
-            )}
+        {resolvedExecutiveWidgets.length > 0 && (
+          <div className="flex flex-col gap-5">
+            {resolvedExecutiveWidgets.map((widget) => renderWidgetCard(widget))}
           </div>
         )}
 

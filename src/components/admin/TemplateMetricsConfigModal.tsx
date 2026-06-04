@@ -60,6 +60,12 @@ const COMPOSITE_TYPE_OPTIONS: Array<{ value: TemplateMetricCompositeType; label:
   { value: "per_thousand_currency", label: "CPM" },
 ];
 
+const WIDGET_KIND_OPTIONS: Array<{ value: "trend_chart" | "comparison_chart" | "device_donut"; label: string }> = [
+  { value: "trend_chart", label: "Evolução" },
+  { value: "comparison_chart", label: "Comparativo" },
+  { value: "device_donut", label: "Dispositivo" },
+];
+
 export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }: TemplateMetricsConfigModalProps) {
   const { toast } = useToast();
   const [config, setConfig] = useState<DashboardTemplateMetricConfig | null>(null);
@@ -70,6 +76,14 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   const [metricKeyError, setMetricKeyError] = useState<string | null>(null);
   const [visiblePages, setVisiblePages] = useState<string[]>([]);
   const [newPageKey, setNewPageKey] = useState("");
+  const [widgetDrafts, setWidgetDrafts] = useState<Record<string, {
+    label: string;
+    key: string;
+    kind: "trend_chart" | "comparison_chart" | "device_donut";
+    enabled: boolean;
+    primaryMetricKey: string;
+    secondaryMetricKey: string;
+  }>>({});
   const [drafts, setDrafts] = useState<Record<string, {
     label: string;
     key: string;
@@ -253,6 +267,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   useEffect(() => {
     if (!open) return;
     setDrafts({});
+    setWidgetDrafts({});
   }, [open, templateId]);
 
   if (!open || !template || !config) return null;
@@ -354,6 +369,108 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
           [sectionKey]: {
             ...section,
             widgets: widgets.map((widget) => widget.key === widgetKey ? { ...widget, label } : widget),
+          },
+        },
+      };
+    });
+  };
+
+  const updateWidgetDraft = (
+    sectionKey: string,
+    field: "label" | "key" | "kind" | "enabled" | "primaryMetricKey" | "secondaryMetricKey",
+    value: string | boolean
+  ) => {
+    setWidgetDrafts((prev) => ({
+      ...prev,
+      [sectionKey]: {
+        label: prev[sectionKey]?.label || "",
+        key: prev[sectionKey]?.key || "",
+        kind: prev[sectionKey]?.kind || "trend_chart",
+        enabled: prev[sectionKey]?.enabled ?? true,
+        primaryMetricKey: prev[sectionKey]?.primaryMetricKey || "",
+        secondaryMetricKey: prev[sectionKey]?.secondaryMetricKey || "",
+        [field]: value,
+      },
+    }));
+  };
+
+  const addWidget = (sectionKey: string) => {
+    const draft = widgetDrafts[sectionKey];
+    const label = String(draft?.label || "").trim();
+    const key = String(draft?.key || "").trim();
+    const kind = draft?.kind || "trend_chart";
+    const primaryMetricKey = String(draft?.primaryMetricKey || "").trim();
+    const secondaryMetricKey = String(draft?.secondaryMetricKey || "").trim();
+
+    if (!label || !key) {
+      toast("Informe título e chave do gráfico.");
+      return;
+    }
+    if (kind !== "device_donut" && !primaryMetricKey) {
+      toast("Selecione ao menos uma métrica base para o gráfico.");
+      return;
+    }
+
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const section = prev.sections[sectionKey];
+      if (!section) return prev;
+      if ((section.widgets || []).some((widget) => widget.key === key)) {
+        toast("Já existe um gráfico com essa chave nesta seção.");
+        return prev;
+      }
+
+      const nextWidget: TemplateWidgetItem = {
+        key,
+        label,
+        kind,
+        enabled: draft?.enabled ?? true,
+        order: ((section.widgets || []).length + 1) * 10,
+        primaryMetricKey: kind === "device_donut" ? undefined : primaryMetricKey,
+        secondaryMetricKey: kind === "comparison_chart" ? secondaryMetricKey || undefined : undefined,
+      };
+
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionKey]: {
+            ...section,
+            widgets: [...(section.widgets || []), nextWidget],
+          },
+        },
+      };
+    });
+
+    setWidgetDrafts((prev) => ({
+      ...prev,
+      [sectionKey]: {
+        label: "",
+        key: "",
+        kind: "trend_chart",
+        enabled: true,
+        primaryMetricKey: "",
+        secondaryMetricKey: "",
+      },
+    }));
+  };
+
+  const deleteWidget = (sectionKey: string, widgetKey: string) => {
+    if (!window.confirm(`Excluir o gráfico "${widgetKey}"?`)) return;
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const section = prev.sections[sectionKey];
+      if (!section) return prev;
+      const widgets = Array.isArray(section.widgets) ? section.widgets : [];
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionKey]: {
+            ...section,
+            widgets: widgets
+              .filter((widget) => widget.key !== widgetKey)
+              .map((widget, index) => ({ ...widget, order: (index + 1) * 10 })),
           },
         },
       };
@@ -518,6 +635,16 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   };
 
   const availablePageOptions = DASHBOARD_PAGES.filter((page) => !visiblePages.includes(page.key));
+
+  const getWidgetMetricOptions = (sectionKey: string) => {
+    const section = config.sections?.[sectionKey];
+    return (section?.metrics || [])
+      .filter((metric) => metric.enabled)
+      .map((metric) => ({
+        key: metric.key,
+        label: getTemplateMetricLabel(baseTemplateId, metric, primaryObjective),
+      }));
+  };
 
   const getMetricBaseOptions = (sourcePlatform: TemplateMetricSourcePlatform) => {
     const fromSections = Object.values(config.sections || {})
@@ -796,50 +923,6 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                 </div>
               </div>
               <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                {section.key === "executive-summary" && (
-                  <div style={{ border: "1px solid #DBEAFE", borderRadius: 12, padding: 14, background: "#EFF6FF", display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>Gráficos do Resumo Executivo</p>
-                      <p style={{ fontSize: 12, color: "#475569", marginTop: 4, lineHeight: 1.5 }}>
-                        Ative ou desative os gráficos exibidos no dashboard. O layout do resumo executivo passa a seguir esta configuração.
-                      </p>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-                      {(Array.isArray(section.widgets) ? section.widgets : []).map((widget: TemplateWidgetItem) => (
-                        <div key={widget.key} style={{ border: "1px solid #BFDBFE", borderRadius: 10, background: "#FFFFFF", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                          <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{ minWidth: 0 }}>
-                              <p style={{ fontSize: 12, fontWeight: 800, color: "#0F172A" }}>{widget.label || widget.key}</p>
-                              <p style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>Tipo: {widget.kind === "trend_chart" ? "Evolução" : widget.kind === "comparison_chart" ? "Comparativo" : "Dispositivo"}</p>
-                            </div>
-                            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#1E3A8A" }}>
-                              <input
-                                type="checkbox"
-                                checked={widget.enabled}
-                                onChange={() => toggleWidget(section.key, widget.key)}
-                              />
-                              Ativo
-                            </label>
-                          </div>
-                          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Título</span>
-                            <input
-                              value={widget.label || ""}
-                              onChange={(e) => updateWidgetTitle(section.key, widget.key, e.target.value)}
-                              placeholder={widget.kind === "trend_chart"
-                                ? "Evolução diária de investimento e cliques"
-                                : widget.kind === "comparison_chart"
-                                  ? "Comparativo: atual x anterior"
-                                  : "Sessões por dispositivo"}
-                              style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
-                            />
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 <div style={{ border: "1px dashed #CBD5E1", borderRadius: 12, padding: 14, background: "#F8FAFC", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Tipo</span>
@@ -1276,6 +1359,164 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                 ) : (
                   <div style={{ padding: 16, borderRadius: 12, border: "1px dashed #CBD5E1", background: "#F8FAFC", color: "#64748B", fontSize: 13 }}>
                     Nenhuma métrica configurada nesta seção. Use “Restaurar defaults” para recuperar a estrutura padrão.
+                  </div>
+                )}
+
+                {section.key === "executive-summary" && (
+                  <div style={{ border: "1px solid #DBEAFE", borderRadius: 12, padding: 14, background: "#EFF6FF", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>Gráficos do Resumo Executivo</p>
+                      <p style={{ fontSize: 12, color: "#475569", marginTop: 4, lineHeight: 1.5 }}>
+                        Os gráficos ficam abaixo da lista de métricas. Você pode adicionar novos gráficos baseados nas métricas da seção.
+                      </p>
+                    </div>
+
+                    <div style={{ border: "1px dashed #BFDBFE", borderRadius: 12, padding: 14, background: "#FFFFFF", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Tipo do gráfico</span>
+                        <select
+                          value={widgetDrafts[section.key]?.kind || "trend_chart"}
+                          onChange={(e) => updateWidgetDraft(section.key, "kind", e.target.value)}
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                        >
+                          {WIDGET_KIND_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Título</span>
+                        <input
+                          value={widgetDrafts[section.key]?.label || ""}
+                          onChange={(e) => updateWidgetDraft(section.key, "label", e.target.value)}
+                          placeholder="Ex.: Evolução diária de investimento e cliques"
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                        />
+                      </label>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Chave</span>
+                        <input
+                          value={widgetDrafts[section.key]?.key || ""}
+                          onChange={(e) => updateWidgetDraft(section.key, "key", e.target.value)}
+                          placeholder="Ex.: trend_cost_clicks"
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                        />
+                      </label>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Métrica base principal</span>
+                        <select
+                          value={widgetDrafts[section.key]?.primaryMetricKey || ""}
+                          onChange={(e) => updateWidgetDraft(section.key, "primaryMetricKey", e.target.value)}
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                        >
+                          <option value="">Selecione</option>
+                          {getWidgetMetricOptions(section.key).map((metric) => (
+                            <option key={metric.key} value={metric.key}>
+                              {metric.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Métrica base secundária</span>
+                        <select
+                          value={widgetDrafts[section.key]?.secondaryMetricKey || ""}
+                          onChange={(e) => updateWidgetDraft(section.key, "secondaryMetricKey", e.target.value)}
+                          disabled={widgetDrafts[section.key]?.kind === "device_donut"}
+                          style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: widgetDrafts[section.key]?.kind === "device_donut" ? "#F8FAFC" : "#FFFFFF" }}
+                        >
+                          <option value="">{widgetDrafts[section.key]?.kind === "comparison_chart" ? "Opcional" : "Selecione"}</option>
+                          {getWidgetMetricOptions(section.key)
+                            .filter((metric) => metric.key !== widgetDrafts[section.key]?.primaryMetricKey)
+                            .map((metric) => (
+                              <option key={metric.key} value={metric.key}>
+                                {metric.label}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 38, fontSize: 12, fontWeight: 600, color: "#334155" }}>
+                        <input
+                          type="checkbox"
+                          checked={widgetDrafts[section.key]?.enabled ?? true}
+                          onChange={(e) => updateWidgetDraft(section.key, "enabled", e.target.checked)}
+                        />
+                        Ativo
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => addWidget(section.key)}
+                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 38, padding: "9px 12px", borderRadius: 8, border: "1px solid #BFDBFE", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        <Plus size={14} />
+                        Adicionar gráfico
+                      </button>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {(Array.isArray(section.widgets) ? section.widgets : []).map((widget: TemplateWidgetItem, widgetIndex: number) => (
+                        <div
+                          key={widget.key}
+                          style={{
+                            border: "1px solid #BFDBFE",
+                            borderRadius: 10,
+                            background: "#FFFFFF",
+                            padding: 12,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: 8 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontSize: 12, fontWeight: 800, color: "#0F172A" }}>{widget.label || widget.key}</p>
+                              <p style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>
+                                Tipo: {widget.kind === "trend_chart" ? "Evolução" : widget.kind === "comparison_chart" ? "Comparativo" : "Dispositivo"}
+                              </p>
+                              {widget.primaryMetricKey && (
+                                <p style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>
+                                  Métrica base: {widget.primaryMetricKey}
+                                  {widget.secondaryMetricKey ? ` / ${widget.secondaryMetricKey}` : ""}
+                                </p>
+                              )}
+                            </div>
+                            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#1E3A8A" }}>
+                              <input
+                                type="checkbox"
+                                checked={widget.enabled}
+                                onChange={() => toggleWidget(section.key, widget.key)}
+                              />
+                              Ativo
+                            </label>
+                          </div>
+                          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Título</span>
+                            <input
+                              value={widget.label || ""}
+                              onChange={(e) => updateWidgetTitle(section.key, widget.key, e.target.value)}
+                              placeholder="Título do gráfico"
+                              style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                            />
+                          </label>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 11, color: "#64748B" }}>Ordem {widgetIndex + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => deleteWidget(section.key, widget.key)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: 8, border: "1px solid #FECACA", background: "#FEF2F2", color: "#DC2626", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                            >
+                              <Trash2 size={14} />
+                              Excluir gráfico
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {(Array.isArray(section.widgets) ? section.widgets : []).length === 0 && (
+                        <div style={{ padding: 14, borderRadius: 10, border: "1px dashed #BFDBFE", background: "#FFFFFF", color: "#64748B", fontSize: 12 }}>
+                          Nenhum gráfico configurado nesta seção.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
