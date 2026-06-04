@@ -128,6 +128,11 @@ export default function ExecutiveSummaryPage() {
   const costLabel = resolvedObjectivePresentation?.costLabel || getMetaCostLabel(data.metaPrimaryObjective);
   const costMetric = resolvedObjectivePresentation?.costMetric || getMetaCostMetric(data.metaPrimaryObjective);
   const resultMetric = resolvedObjectivePresentation?.resultMetric || getMetaResultMetric(data.metaPrimaryObjective);
+  const currentFrequency = Number(
+    current.frequency
+    || (current.total_impressions && current.reach ? current.total_impressions / current.reach : 0)
+    || 0
+  );
   const resultCurrentValue =
     resultMetric === "postEngagement" ? Number(current.postEngagement || current.total_engagement || 0)
       : resultMetric === "clicks" ? Number(current.total_clicks || 0)
@@ -141,7 +146,7 @@ export default function ExecutiveSummaryPage() {
   const hasMetric = (metric: string) => {
     if (metric.startsWith("google_")) return Boolean(googleAdsSummary?.current);
     if (metric.startsWith("meta_")) return Boolean(metaAdsSummary?.current);
-    if (["cost", "revenue", "impressions", "reach", "clicks", "ctr", "cpc", "conversions", "postEngagement", "cpa", "roas", "frequency"].includes(metric)) {
+    if (["cost", "cost_total", "revenue", "impressions", "reach", "clicks", "ctr", "cpc", "conversions", "postEngagement", "cpa", "roas", "frequency"].includes(metric)) {
       return Boolean(summary?.current || overview.length > 0);
     }
     if (!availableMetrics) return true;
@@ -158,6 +163,24 @@ export default function ExecutiveSummaryPage() {
       positive: (changes.total_spend || 0) <= 0,
       icon: DollarSign,
       tooltip: "Valor total investido em mídia paga no período selecionado.",
+    },
+    {
+      metricKey: "cost_total",
+      label: "Investimento Total",
+      value: formatCurrency(current.total_spend || 0),
+      delta: `${(changes.total_spend || 0).toFixed(1)}%`,
+      positive: (changes.total_spend || 0) <= 0,
+      icon: DollarSign,
+      tooltip: "Investimento consolidado de todas as fontes no período selecionado.",
+    },
+    {
+      metricKey: "revenue",
+      label: "Receita",
+      value: formatCurrency(current.total_revenue || current.conversionValue || 0),
+      delta: `${(changes.total_revenue || changes.conversionValue || 0).toFixed(1)}%`,
+      positive: (changes.total_revenue || changes.conversionValue || 0) >= 0,
+      icon: TrendingUp,
+      tooltip: "Receita total atribuída no período selecionado.",
     },
     {
       metricKey: "impressions",
@@ -203,6 +226,24 @@ export default function ExecutiveSummaryPage() {
       positive: (changes.cpc || 0) <= 0,
       icon: DollarSign,
       tooltip: "Custo médio pago por clique no período.",
+    },
+    {
+      metricKey: "frequency",
+      label: "Frequência",
+      value: `${currentFrequency.toFixed(2)}x`,
+      delta: `${(changes.frequency || 0).toFixed(1)}%`,
+      positive: (changes.frequency || 0) >= 0,
+      icon: BarChart3,
+      tooltip: "Frequência média de exposição dos anúncios no período.",
+    },
+    {
+      metricKey: "roas",
+      label: "ROAS",
+      value: `${Number(current.roas || 0).toFixed(2)}x`,
+      delta: `${(changes.roas || 0).toFixed(1)}%`,
+      positive: (changes.roas || 0) >= 0,
+      icon: TrendingUp,
+      tooltip: "Retorno sobre o investimento em mídia paga no período.",
     },
     {
       metricKey: resultMetric === "postEngagement" ? "postEngagement" : resultMetric === "clicks" ? "clicks" : resultMetric === "reach" ? "reach" : "conversions",
@@ -427,28 +468,44 @@ export default function ExecutiveSummaryPage() {
   ];
 
   const filteredKpis = kpis.filter((kpi) => {
-    if (kpi.label === "Investimento") return hasMetric("cost");
-    if (kpi.label === "Impressões") return hasMetric("impressions");
-    if (kpi.label === "Alcance") return hasMetric("reach");
-    if (kpi.label === "Cliques") return hasMetric("clicks");
-    if (kpi.label === "CTR") return hasMetric("ctr");
-    if (kpi.label === "CPC médio") return hasMetric("cpc");
-    if (kpi.label === conversionLabel) {
-      if (resultMetric === "postEngagement") return hasMetric("postEngagement");
-      if (resultMetric === "clicks") return hasMetric("clicks");
-      if (resultMetric === "reach") return hasMetric("reach");
-      return hasMetric("conversions");
+    switch (kpi.metricKey) {
+      case "cost":
+        return hasMetric("cost");
+      case "cost_total":
+        return hasMetric("cost_total") || (hasMetric("cost") && hasMetric("google_cost") && hasMetric("meta_cost"));
+      case "revenue":
+        return hasMetric("revenue");
+      case "impressions":
+        return hasMetric("impressions");
+      case "reach":
+        return hasMetric("reach");
+      case "clicks":
+        return hasMetric("clicks");
+      case "ctr":
+        return hasMetric("ctr");
+      case "cpc":
+        return hasMetric("cpc");
+      case "frequency":
+        return hasMetric("frequency");
+      case "roas":
+        return hasMetric("roas");
+      case resultMetric === "postEngagement" ? "postEngagement" : resultMetric === "clicks" ? "clicks" : resultMetric === "reach" ? "reach" : "conversions":
+        if (resultMetric === "postEngagement") return hasMetric("postEngagement");
+        if (resultMetric === "clicks") return hasMetric("clicks");
+        if (resultMetric === "reach") return hasMetric("reach");
+        return hasMetric("conversions");
+      case "postEngagement":
+        return hasMetric("postEngagement");
+      case costMetric === "cpc" ? "cpc" : costMetric === "cpm" ? "cpm" : "cpa":
+        if (costMetric === "cpc") return hasMetric("cost") && hasMetric("clicks");
+        if (costMetric === "cpm") return hasMetric("cost") && hasMetric("impressions");
+        if (resultMetric === "postEngagement") return hasMetric("cost") && hasMetric("postEngagement");
+        if (resultMetric === "clicks") return hasMetric("cost") && hasMetric("clicks");
+        if (resultMetric === "reach") return hasMetric("cost") && hasMetric("reach");
+        return hasMetric("cost") && hasMetric("conversions");
+      default:
+        return true;
     }
-    if (kpi.label === "Engajamentos") return hasMetric("postEngagement");
-    if (kpi.label === costLabel) {
-      if (costMetric === "cpc") return hasMetric("cost") && hasMetric("clicks");
-      if (costMetric === "cpm") return hasMetric("cost") && hasMetric("impressions");
-      if (resultMetric === "postEngagement") return hasMetric("cost") && hasMetric("postEngagement");
-      if (resultMetric === "clicks") return hasMetric("cost") && hasMetric("clicks");
-      if (resultMetric === "reach") return hasMetric("cost") && hasMetric("reach");
-      return hasMetric("cost") && hasMetric("conversions");
-    }
-    return true;
   });
 
   const configuredKpis = applyTemplateMetricConfigToKpis(
@@ -460,8 +517,8 @@ export default function ExecutiveSummaryPage() {
   ) as KpiSummary[];
 
   const deduplicatedKpis = configuredKpis.filter((kpi, index, arr) => {
-    const label = String(kpi.label || "").trim().toLowerCase();
-    return arr.findIndex((item) => String(item.label || "").trim().toLowerCase() === label) === index;
+    const key = String(kpi.metricKey || kpi.label || "").trim().toLowerCase();
+    return arr.findIndex((item) => String(item.metricKey || item.label || "").trim().toLowerCase() === key) === index;
   });
 
   // Gráfico de Evolução (Investimento e Cliques)

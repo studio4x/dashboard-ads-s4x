@@ -221,7 +221,7 @@ export async function getDashboardData(
         metaObjectives: dashboard?.meta_objectives || data?.metaObjectives || [],
         metaPrimaryObjective: dashboard?.meta_primary_objective || data?.metaPrimaryObjective || null,
         templateConfig: normalizeTemplateMetricConfig(
-          dashboard?.template_config || templateDefinition?.metricConfig || data?.templateConfig,
+          templateDefinition?.metricConfig || dashboard?.template_config || data?.templateConfig,
           templateBaseId,
           dashboard?.meta_objectives || data?.metaObjectives || [],
           dashboard?.meta_primary_objective || data?.metaPrimaryObjective || null
@@ -344,7 +344,7 @@ export async function getDashboardData(
       templateBaseId,
       templateVersion: "1.0",
       platform: dashboard?.platform || (templateId.includes("google_meta") ? "mixed" : templateId.includes("meta") ? "meta_ads" : "google_ads"),
-      templateConfig: dashboard?.template_config || getDefaultTemplateMetricConfig(templateBaseId as any),
+      templateConfig: templateDefinition?.metricConfig || dashboard?.template_config || getDefaultTemplateMetricConfig(templateBaseId as any),
       templatePageKeys,
     } as any;
 

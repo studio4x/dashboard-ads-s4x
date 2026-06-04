@@ -48,6 +48,8 @@ export interface DashboardTemplateMetricConfig {
 
 const DEFAULT_DISPLAY: Record<string, MetricDisplayMode> = {
   cost: "card",
+  cost_total: "card",
+  revenue: "card",
   impressions: "card",
   reach: "card",
   clicks: "card",
@@ -482,6 +484,10 @@ export function getMetricLabel(templateId: string, metricKey: string, primaryObj
     switch (baseKey) {
       case "cost":
         return "Investimento Google Ads";
+      case "cost_total":
+        return "Investimento Total Google Ads";
+      case "revenue":
+        return "Receita Google Ads";
       case "impressions":
         return "Impressões Google Ads";
       case "clicks":
@@ -506,6 +512,10 @@ export function getMetricLabel(templateId: string, metricKey: string, primaryObj
     switch (baseKey) {
       case "cost":
         return "Investimento Meta Ads";
+      case "cost_total":
+        return "Investimento Total Meta Ads";
+      case "revenue":
+        return "Receita Meta Ads";
       case "impressions":
         return "Impressões Meta Ads";
       case "reach":
@@ -536,6 +546,10 @@ export function getMetricLabel(templateId: string, metricKey: string, primaryObj
   switch (metricKey) {
     case "cost":
       return "Investimento";
+    case "cost_total":
+      return "Investimento Total";
+    case "revenue":
+      return "Receita";
     case "impressions":
       return "Impressões";
     case "reach":
@@ -867,7 +881,10 @@ export function applyTemplateMetricConfigToKpis(
     .map((metric) => buildCompositeKpi(metric, metrics as Array<KpiSummary & { metricKey?: string }>))
     .filter(Boolean) as Array<KpiSummary & { metricKey: string }>;
 
-  return [...filteredBaseMetrics, ...compositeMetrics].sort((a, b) => {
+  const existingKeys = new Set(filteredBaseMetrics.map((metric) => metric.metricKey || metric.label));
+  const dedupedCompositeMetrics = compositeMetrics.filter((metric) => !existingKeys.has(metric.metricKey));
+
+  return [...filteredBaseMetrics, ...dedupedCompositeMetrics].sort((a, b) => {
     const keyA = a.metricKey || a.label;
     const keyB = b.metricKey || b.label;
     const orderA = orderMap.get(keyA)?.order ?? 999;
