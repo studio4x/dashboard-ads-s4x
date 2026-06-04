@@ -122,6 +122,30 @@ export default function ExecutiveSummaryPage() {
   const resolvedExecutiveWidgets = (executiveSummaryWidgets.length > 0 ? executiveSummaryWidgets : defaultExecutiveWidgets)
     .filter((widget) => widget.enabled)
     .sort((a, b) => a.order - b.order);
+  const executiveWidgetRows = (() => {
+    const rows: TemplateWidgetItem[][] = [];
+    let currentRow: TemplateWidgetItem[] = [];
+    let currentSum = 0;
+    resolvedExecutiveWidgets.forEach((widget) => {
+      const width = Math.max(10, Math.min(100, widget.widthPercent ?? 100));
+      const nextSum = currentSum + width;
+      if (currentRow.length > 0 && nextSum > 100.01) {
+        rows.push(currentRow);
+        currentRow = [widget];
+        currentSum = width;
+        return;
+      }
+      currentRow.push(widget);
+      currentSum = nextSum;
+      if (currentSum >= 99.5) {
+        rows.push(currentRow);
+        currentRow = [];
+        currentSum = 0;
+      }
+    });
+    if (currentRow.length > 0) rows.push(currentRow);
+    return rows;
+  })();
   const availableMetrics = data?.diagnostics?.availableMetrics?.fields || null;
   const resolvedObjectivePresentation = resolveMetaObjectivePresentation({
     primaryObjective: data.metaPrimaryObjective,
@@ -650,13 +674,15 @@ export default function ExecutiveSummaryPage() {
     }));
   };
 
-  const renderWidgetCard = (widget: TemplateWidgetItem) => {
+  const renderWidgetCard = (widget: TemplateWidgetItem, rowCardCount: number) => {
     const title = widget.label || getMetricLabel(data.templateId || "google_ads_s4x", widget.key, data.metaPrimaryObjective as any);
     const widthPercent = Math.max(10, Math.min(100, widget.widthPercent ?? 100));
+    const rowGapPx = 20;
+    const rowGapTotal = Math.max(0, rowCardCount - 1) * rowGapPx;
     const wrapperStyle = {
-      flex: `0 0 ${widthPercent}%`,
-      maxWidth: `${widthPercent}%`,
-      minWidth: 280,
+      flex: `0 0 calc((100% - ${rowGapTotal}px) * ${widthPercent / 100})`,
+      maxWidth: `calc((100% - ${rowGapTotal}px) * ${widthPercent / 100})`,
+      minWidth: 0,
       width: "100%",
     } as const;
     if (widget.kind === "device_donut") {
@@ -852,9 +878,13 @@ export default function ExecutiveSummaryPage() {
         </div>
 
         {/* Middle Charts Section */}
-        {resolvedExecutiveWidgets.length > 0 && (
-          <div className="flex flex-wrap gap-5">
-            {resolvedExecutiveWidgets.map((widget) => renderWidgetCard(widget))}
+        {executiveWidgetRows.length > 0 && (
+          <div className="flex flex-col gap-5">
+            {executiveWidgetRows.map((row, rowIndex) => (
+              <div key={`executive-widget-row-${rowIndex}`} className="flex flex-nowrap gap-5 w-full">
+                {row.map((widget) => renderWidgetCard(widget, row.length))}
+              </div>
+            ))}
           </div>
         )}
 
