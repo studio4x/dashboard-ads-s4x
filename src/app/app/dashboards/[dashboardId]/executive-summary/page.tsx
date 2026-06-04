@@ -36,7 +36,7 @@ import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters"
 import { cn } from "@/lib/utils";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
-import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
+import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateSectionWidgets, type TemplateWidgetKind } from "@/lib/dashboard/template-metric-config";
 import type { KpiSummary } from "@/types/entities";
 
 // Cores da referência
@@ -117,6 +117,10 @@ export default function ExecutiveSummaryPage() {
   const changes = summary?.change || {};
   const objectives = Array.isArray(data.metaObjectives) ? data.metaObjectives : [];
   const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x", objectives as any, data.metaPrimaryObjective as any);
+  const defaultExecutiveWidgets = getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x", objectives as any, data.metaPrimaryObjective as any).sections["executive-summary"]?.widgets || [];
+  const executiveSummaryWidgets = getTemplateSectionWidgets(templateConfig, "executive-summary");
+  const resolvedExecutiveWidgets = (executiveSummaryWidgets.length > 0 ? executiveSummaryWidgets : defaultExecutiveWidgets).filter((widget) => widget.enabled);
+  const getWidget = (kind: TemplateWidgetKind) => resolvedExecutiveWidgets.find((widget) => widget.kind === kind) || defaultExecutiveWidgets.find((widget) => widget.kind === kind);
   const availableMetrics = data?.diagnostics?.availableMetrics?.fields || null;
   const resolvedObjectivePresentation = resolveMetaObjectivePresentation({
     primaryObjective: data.metaPrimaryObjective,
@@ -640,100 +644,108 @@ export default function ExecutiveSummaryPage() {
         </div>
 
         {/* Middle Charts Section */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr_0.9fr] gap-5">
-          <Card className="p-6">
-            <h2 className="mb-6 text-lg font-bold text-slate-900">Evolução diária de investimento e cliques</h2>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={evolutionData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
-                  <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fill: TEXT, fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={{ stroke: "#E2E8F0" }}
-                  />
-                  <YAxis
-                    yAxisId="left"
-                    tick={{ fill: MUTED, fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v) => `R$${v}`}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tick={{ fill: MUTED, fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip formatter={tooltipFormatter} />
-                  <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
-                  <Bar yAxisId="left" dataKey="investimento" name="Investimento (R$)" fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={32} />
-                  <Line yAxisId="right" type="monotone" dataKey="cliques" name="Cliques" stroke={BLUE} strokeWidth={3} dot={{ r: 4, fill: BLUE }} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="mb-6 text-lg font-bold text-slate-900">Comparativo: atual x anterior</h2>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={comparisonChartData} margin={{ top: 10, right: 10, bottom: 0, left: -15 }}>
-                  <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="metrica" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
-                  <YAxis tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <Tooltip formatter={tooltipFormatter} />
-                  <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
-                  <Bar dataKey="atual" name="Período atual" fill={BLUE} radius={[4, 4, 0, 0]} barSize={24} />
-                  <Bar dataKey="anterior" name="Anterior" fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={24} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="mb-6 text-lg font-bold text-slate-900">Sessões por dispositivo</h2>
-            <div className="relative h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={deviceData}
-                    innerRadius={70}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="#FFFFFF"
-                    strokeWidth={2}
-                  >
-                    {deviceData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? BLUE : index === 1 ? BLUE_LIGHT : MUTED} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="text-center">
-                  <div className="text-3xl font-extrabold text-slate-900">{totalDeviceValue}</div>
-                  <div className="text-xs text-slate-500 uppercase font-medium">Total</div>
+        {(getWidget("trend_chart") || getWidget("comparison_chart") || getWidget("device_donut")) && (
+          <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr_0.9fr] gap-5">
+            {getWidget("trend_chart") && (
+              <Card className="p-6">
+                <h2 className="mb-6 text-lg font-bold text-slate-900">{getWidget("trend_chart")?.label || "Evolução diária de investimento e cliques"}</h2>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={evolutionData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
+                      <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fill: TEXT, fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={{ stroke: "#E2E8F0" }}
+                      />
+                      <YAxis
+                        yAxisId="left"
+                        tick={{ fill: MUTED, fontSize: 11 }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v) => `R$${v}`}
+                      />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        tick={{ fill: MUTED, fontSize: 11 }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip formatter={tooltipFormatter} />
+                      <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
+                      <Bar yAxisId="left" dataKey="investimento" name="Investimento (R$)" fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={32} />
+                      <Line yAxisId="right" type="monotone" dataKey="cliques" name="Cliques" stroke={BLUE} strokeWidth={3} dot={{ r: 4, fill: BLUE }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
                 </div>
-              </div>
-              <div className="mt-4 flex flex-col gap-2">
-                 {deviceData.map((d, i) => (
-                   <div key={i} className="flex items-center justify-between text-xs">
-                     <div className="flex items-center gap-2">
-                       <div className="w-2 h-2 rounded-full" style={{ background: i === 0 ? BLUE : i === 1 ? BLUE_LIGHT : MUTED }} />
-                       <span className="font-medium text-slate-600">{d.name}</span>
-                     </div>
-                     <span className="font-bold text-slate-900">{((d.value / (totalDeviceValue || 1)) * 100).toFixed(1)}%</span>
-                   </div>
-                 ))}
-              </div>
-            </div>
-          </Card>
-        </div>
+              </Card>
+            )}
+
+            {getWidget("comparison_chart") && (
+              <Card className="p-6">
+                <h2 className="mb-6 text-lg font-bold text-slate-900">{getWidget("comparison_chart")?.label || "Comparativo: atual x anterior"}</h2>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={comparisonChartData} margin={{ top: 10, right: 10, bottom: 0, left: -15 }}>
+                      <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
+                      <XAxis dataKey="metrica" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
+                      <YAxis tick={{ fill: MUTED, fontSize: 11 }} tickLine={false} axisLine={false} />
+                      <Tooltip formatter={tooltipFormatter} />
+                      <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 20 }} />
+                      <Bar dataKey="atual" name="Período atual" fill={BLUE} radius={[4, 4, 0, 0]} barSize={24} />
+                      <Bar dataKey="anterior" name="Anterior" fill={BLUE_LIGHT} radius={[4, 4, 0, 0]} barSize={24} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            )}
+
+            {getWidget("device_donut") && (
+              <Card className="p-6">
+                <h2 className="mb-6 text-lg font-bold text-slate-900">{getWidget("device_donut")?.label || "Sessões por dispositivo"}</h2>
+                <div className="relative h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={deviceData}
+                        innerRadius={70}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="#FFFFFF"
+                        strokeWidth={2}
+                      >
+                        {deviceData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? BLUE : index === 1 ? BLUE_LIGHT : MUTED} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="text-center">
+                      <div className="text-3xl font-extrabold text-slate-900">{totalDeviceValue}</div>
+                      <div className="text-xs text-slate-500 uppercase font-medium">Total</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-col gap-2">
+                     {deviceData.map((d, i) => (
+                       <div key={i} className="flex items-center justify-between text-xs">
+                         <div className="flex items-center gap-2">
+                           <div className="w-2 h-2 rounded-full" style={{ background: i === 0 ? BLUE : i === 1 ? BLUE_LIGHT : MUTED }} />
+                           <span className="font-medium text-slate-600">{d.name}</span>
+                         </div>
+                         <span className="font-bold text-slate-900">{((d.value / (totalDeviceValue || 1)) * 100).toFixed(1)}%</span>
+                       </div>
+                     ))}
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+        )}
 
         {/* Bottom Insights Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

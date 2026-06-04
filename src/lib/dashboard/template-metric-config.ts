@@ -5,6 +5,7 @@ import type { KpiSummary } from "@/types/entities";
 export type MetricDisplayMode = "card" | "text" | "chart" | "table";
 export type TemplateMetricKind = "standard" | "composite";
 export type TemplateMetricSourcePlatform = "google_ads" | "meta_ads" | "mixed";
+export type TemplateWidgetKind = "trend_chart" | "comparison_chart" | "device_donut";
 export type TemplateMetricCompositeType =
   | "sum"
   | "subtract"
@@ -36,6 +37,15 @@ export interface TemplateMetricSectionConfig {
   key: string;
   label: string;
   metrics: TemplateMetricItem[];
+  widgets?: TemplateWidgetItem[];
+}
+
+export interface TemplateWidgetItem {
+  key: string;
+  label?: string;
+  kind: TemplateWidgetKind;
+  enabled: boolean;
+  order: number;
 }
 
 export interface DashboardTemplateMetricConfig {
@@ -104,7 +114,25 @@ function metricItem(key: string, order: number, options?: Partial<TemplateMetric
 }
 
 function section(key: string, label: string, metrics: TemplateMetricItem[]): TemplateMetricSectionConfig {
-  return { key, label, metrics };
+  return { key, label, metrics, widgets: key === "executive-summary" ? defaultExecutiveSummaryWidgets() : [] };
+}
+
+function widgetItem(key: string, order: number, options?: Partial<TemplateWidgetItem>): TemplateWidgetItem {
+  return {
+    key,
+    label: options?.label,
+    kind: options?.kind || "trend_chart",
+    enabled: options?.enabled ?? true,
+    order,
+  };
+}
+
+function defaultExecutiveSummaryWidgets(): TemplateWidgetItem[] {
+  return [
+    widgetItem("trend_chart", 10, { kind: "trend_chart", label: "Evolução diária de investimento e cliques", enabled: true }),
+    widgetItem("comparison_chart", 20, { kind: "comparison_chart", label: "Comparativo: atual x anterior", enabled: true }),
+    widgetItem("device_donut", 30, { kind: "device_donut", label: "Sessões por dispositivo", enabled: true }),
+  ];
 }
 
 function customDefaults(): Record<string, TemplateMetricSectionConfig> {
@@ -703,6 +731,7 @@ export function normalizeTemplateMetricConfig(
   Object.entries(defaults.sections).forEach(([sectionKey, defaultSection]) => {
     const rawSection = raw.sections?.[sectionKey];
     const rawMetrics = Array.isArray(rawSection?.metrics) ? rawSection.metrics : null;
+    const rawWidgets = Array.isArray(rawSection?.widgets) ? rawSection.widgets : null;
     const mergedMetrics = rawMetrics && rawMetrics.length > 0
       ? rawMetrics.map((item, index) => {
           const defaultMetric = defaultSection.metrics.find((metric) => metric.key === item.key);
@@ -725,16 +754,29 @@ export function normalizeTemplateMetricConfig(
           } satisfies TemplateMetricItem;
         })
       : defaultSection.metrics.map((metric) => ({ ...metric }));
+    const defaultWidgets = Array.isArray(defaultSection.widgets) ? defaultSection.widgets : [];
+    const mergedWidgets = rawWidgets && rawWidgets.length > 0
+      ? rawWidgets.map((item, index) => ({
+          ...(defaultWidgets.find((widget) => widget.key === item.key) || {}),
+          key: item.key,
+          label: item.label?.trim() || defaultWidgets.find((widget) => widget.key === item.key)?.label,
+          kind: item.kind || defaultWidgets.find((widget) => widget.key === item.key)?.kind || "trend_chart",
+          enabled: item.enabled ?? defaultWidgets.find((widget) => widget.key === item.key)?.enabled ?? true,
+          order: item.order ?? defaultWidgets.find((widget) => widget.key === item.key)?.order ?? (index + 1) * 10,
+        } satisfies TemplateWidgetItem))
+      : defaultWidgets.map((widget) => ({ ...widget }));
 
     mergedSections[sectionKey] = {
       ...defaultSection,
       metrics: mergedMetrics.sort((a, b) => a.order - b.order),
+      widgets: mergedWidgets.sort((a, b) => a.order - b.order),
     };
   });
 
   Object.entries(raw.sections || {}).forEach(([sectionKey, rawSection]) => {
     if (mergedSections[sectionKey]) return;
     const rawMetrics = Array.isArray(rawSection?.metrics) ? rawSection.metrics : [];
+    const rawWidgets = Array.isArray(rawSection?.widgets) ? rawSection.widgets : [];
     mergedSections[sectionKey] = {
       key: sectionKey,
       label: rawSection?.label?.trim() || sectionKey,
@@ -754,6 +796,13 @@ export function normalizeTemplateMetricConfig(
         order: item.order ?? (index + 1) * 10,
         recommended: item.recommended ?? false,
       })).sort((a, b) => a.order - b.order),
+      widgets: rawWidgets.map((item, index) => ({
+        key: item.key,
+        label: item.label?.trim() || item.key,
+        kind: item.kind || "trend_chart",
+        enabled: item.enabled ?? true,
+        order: item.order ?? (index + 1) * 10,
+      })).sort((a, b) => a.order - b.order),
     };
   });
 
@@ -772,6 +821,13 @@ export function getTemplateMetricSection(
 ): TemplateMetricSectionConfig | null {
   if (!config?.sections?.[sectionKey]) return null;
   return config.sections[sectionKey];
+}
+
+export function getTemplateSectionWidgets(
+  config: DashboardTemplateMetricConfig | null | undefined,
+  sectionKey: string
+): TemplateWidgetItem[] {
+  return getTemplateMetricSection(config, sectionKey)?.widgets || [];
 }
 
 export function getEnabledMetricKeys(

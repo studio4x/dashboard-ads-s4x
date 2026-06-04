@@ -14,6 +14,7 @@ import {
   type TemplateMetricKind,
   type TemplateMetricItem,
   type TemplateMetricSourcePlatform,
+  type TemplateWidgetItem,
 } from "@/lib/dashboard/template-metric-config";
 import { CANONICAL_METRIC_KEY_SUGGESTIONS, type MetricKeySuggestion } from "@/lib/dashboard/metric-key-catalog";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
@@ -319,6 +320,46 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     });
   };
 
+  const toggleWidget = (sectionKey: string, widgetKey: string) => {
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const section = prev.sections[sectionKey];
+      if (!section) return prev;
+
+      const widgets = Array.isArray(section.widgets) ? section.widgets : [];
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionKey]: {
+            ...section,
+            widgets: widgets.map((widget) => widget.key === widgetKey ? { ...widget, enabled: !widget.enabled } : widget),
+          },
+        },
+      };
+    });
+  };
+
+  const updateWidgetTitle = (sectionKey: string, widgetKey: string, label: string) => {
+    setConfig((prev) => {
+      if (!prev) return prev;
+      const section = prev.sections[sectionKey];
+      if (!section) return prev;
+
+      const widgets = Array.isArray(section.widgets) ? section.widgets : [];
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionKey]: {
+            ...section,
+            widgets: widgets.map((widget) => widget.key === widgetKey ? { ...widget, label } : widget),
+          },
+        },
+      };
+    });
+  };
+
   const updateDraft = (
     sectionKey: string,
     field: "label" | "key" | "preview" | "kind" | "sourcePlatform" | "compositeType" | "primaryMetricKey" | "secondaryMetricKey" | "displayMode" | "enabled",
@@ -540,6 +581,9 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
             key: page.key,
             label: page.label,
             metrics: [],
+            widgets: page.key === "executive-summary"
+              ? (getDefaultTemplateMetricConfig(baseTemplateId, templateObjectives, primaryObjective).sections["executive-summary"]?.widgets || [])
+              : [],
           },
         },
       };
@@ -752,6 +796,50 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                 </div>
               </div>
               <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                {section.key === "executive-summary" && (
+                  <div style={{ border: "1px solid #DBEAFE", borderRadius: 12, padding: 14, background: "#EFF6FF", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>Gráficos do Resumo Executivo</p>
+                      <p style={{ fontSize: 12, color: "#475569", marginTop: 4, lineHeight: 1.5 }}>
+                        Ative ou desative os gráficos exibidos no dashboard. O layout do resumo executivo passa a seguir esta configuração.
+                      </p>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+                      {(Array.isArray(section.widgets) ? section.widgets : []).map((widget: TemplateWidgetItem) => (
+                        <div key={widget.key} style={{ border: "1px solid #BFDBFE", borderRadius: 10, background: "#FFFFFF", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                          <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: 8 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontSize: 12, fontWeight: 800, color: "#0F172A" }}>{widget.label || widget.key}</p>
+                              <p style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>Tipo: {widget.kind === "trend_chart" ? "Evolução" : widget.kind === "comparison_chart" ? "Comparativo" : "Dispositivo"}</p>
+                            </div>
+                            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#1E3A8A" }}>
+                              <input
+                                type="checkbox"
+                                checked={widget.enabled}
+                                onChange={() => toggleWidget(section.key, widget.key)}
+                              />
+                              Ativo
+                            </label>
+                          </div>
+                          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Título</span>
+                            <input
+                              value={widget.label || ""}
+                              onChange={(e) => updateWidgetTitle(section.key, widget.key, e.target.value)}
+                              placeholder={widget.kind === "trend_chart"
+                                ? "Evolução diária de investimento e cliques"
+                                : widget.kind === "comparison_chart"
+                                  ? "Comparativo: atual x anterior"
+                                  : "Sessões por dispositivo"}
+                              style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
+                            />
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ border: "1px dashed #CBD5E1", borderRadius: 12, padding: 14, background: "#F8FAFC", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Tipo</span>
