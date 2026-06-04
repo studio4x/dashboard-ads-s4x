@@ -17,6 +17,15 @@ import { isDateInRange } from "./date-utils";
 import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
 import { getVisiblePages } from "@/lib/dashboard/templates";
 
+function resolveTemplateBaseId(dashboard: any, templateDefinition: any) {
+  return (
+    templateDefinition?.sheetTemplateId
+    || dashboard?.template_config?.templateId
+    || dashboard?.dashboard_type
+    || "google_ads_s4x"
+  );
+}
+
 function extractAvailableDateRange(data: any): { from: string; to: string } | null {
   const candidates = [
     data?.dailyPerformance,
@@ -182,7 +191,7 @@ export async function getDashboardData(
       // 2. Busca informações do dashboard para o template
       const dashboard = await DashboardService.getDashboardById(dashboardId, { bypassRls: options?.bypassRls });
       const templateDefinition = await DashboardTemplateCatalogService.getTemplateDefinition(dashboard?.dashboard_type || "google_ads_s4x").catch(() => null);
-      const templateBaseId = templateDefinition?.sheetTemplateId || dashboard?.dashboard_type || "google_ads_s4x";
+      const templateBaseId = resolveTemplateBaseId(dashboard, templateDefinition);
       const templatePageKeys = templateDefinition?.visiblePages?.length ? templateDefinition.visiblePages : getVisiblePages(templateBaseId);
 
       return {
@@ -232,7 +241,7 @@ export async function getDashboardData(
     const dashboard = await DashboardService.getDashboardById(dashboardId, { bypassRls: options?.bypassRls }).catch(() => null);
     const templateId = dashboard?.dashboard_type || "google_ads_s4x";
     const templateDefinition = await DashboardTemplateCatalogService.getTemplateDefinition(templateId).catch(() => null);
-    const templateBaseId = templateDefinition?.sheetTemplateId || templateId;
+    const templateBaseId = resolveTemplateBaseId(dashboard, templateDefinition);
     const templatePageKeys = templateDefinition?.visiblePages?.length ? templateDefinition.visiblePages : getVisiblePages(templateBaseId);
 
     if (templateId === "google_ads_s4x") {

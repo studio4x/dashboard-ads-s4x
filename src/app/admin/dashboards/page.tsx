@@ -92,6 +92,8 @@ export default function AdminDashboardsPage() {
     fetchData();
   }, []);
 
+  const availableTemplateIds = new Set(templates.map((template: any) => template.id));
+
   async function fetchData() {
     setIsLoading(true);
     try {
@@ -742,6 +744,7 @@ export default function AdminDashboardsPage() {
                 color: "#475569",
                 border: "#E2E8F0",
               };
+              const isOrphanTemplate = Boolean(d.dashboard_type) && !availableTemplateIds.has(d.dashboard_type);
               return (
             <div 
               key={d.id} 
@@ -834,6 +837,23 @@ export default function AdminDashboardsPage() {
                   </button>
                 </div>
               </div>
+
+              {isOrphanTemplate && (
+                <div
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "1px solid #FDE68A",
+                    background: "#FFFBEB",
+                    color: "#92400E",
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Este dashboard está órfão de template. O template vinculado `{d.dashboard_type}` não existe mais. O dashboard continua usando a configuração salva, mas precisa ser vinculado a um template ativo quando houver nova revisão.
+                </div>
+              )}
 
               {isCardExpanded && (
               <>

@@ -98,6 +98,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, template: normalizedTemplate || created });
     }
 
+    if (action === "delete") {
+      const templateId = requireString(body, "templateId", { min: 3, max: 80 });
+      if (!templateId) {
+        return NextResponse.json({ error: "Template inválido." }, { status: 400 });
+      }
+
+      const deleted = await DashboardTemplateCatalogService.deleteCustomTemplate(templateId);
+      return NextResponse.json({ success: true, deleted });
+    }
+
     const templateId = requireString(body, "templateId", { min: 3, max: 80 });
     const metricConfig = body.metric_config;
     if (!templateId) {

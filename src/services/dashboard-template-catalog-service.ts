@@ -365,4 +365,31 @@ export const DashboardTemplateCatalogService = {
     if (error) throw error;
     return data as CustomTemplateRow;
   },
+
+  async deleteCustomTemplate(templateId: string) {
+    const template = await this.getTemplateDefinition(templateId).catch(() => null);
+    if (!template?.isCustom) {
+      throw new Error("Somente templates personalizados podem ser excluídos.");
+    }
+
+    const supabase = await createAdminClient({ actor: "admin", action: "template-catalog:delete-custom" });
+    const { count, error: countError } = await supabase
+      .from("dashboards")
+      .select("id", { count: "exact", head: true })
+      .eq("dashboard_type", templateId);
+
+    if (countError) throw countError;
+
+    const { error } = await supabase
+      .from("dashboard_custom_templates")
+      .delete()
+      .eq("template_id", templateId);
+
+    if (error) throw error;
+
+    return {
+      templateId,
+      linkedDashboards: count || 0,
+    };
+  },
 };

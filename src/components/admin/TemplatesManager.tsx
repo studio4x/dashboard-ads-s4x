@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, Circle, FileSpreadsheet, Layers, Plus, Settings2 } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Circle, FileSpreadsheet, Layers, Plus, Settings2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
 import { TemplateMetricsConfigModal } from "@/components/admin/TemplateMetricsConfigModal";
@@ -31,6 +31,8 @@ export function TemplatesManager() {
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [createTemplateOpen, setCreateTemplateOpen] = useState(false);
+  const [customExpanded, setCustomExpanded] = useState(true);
+  const [systemExpanded, setSystemExpanded] = useState(false);
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -57,6 +59,79 @@ export function TemplatesManager() {
   const customTemplates = useMemo(
     () => templates.filter((template) => template.isCustom),
     [templates]
+  );
+
+  const handleDeleteTemplate = async (template: TemplateItem) => {
+    if (!template.isCustom) return;
+    const confirmed = window.confirm(`Excluir o template "${template.name}"? Dashboards vinculados ficarão órfãos de template, mas manterão a configuração já salva no dashboard.`);
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch("/api/admin/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", templateId: template.id }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result?.success) {
+        throw new Error(result?.error || "Erro ao excluir template.");
+      }
+      if (selectedTemplate?.id === template.id) {
+        setSelectedTemplate(null);
+      }
+      await fetchTemplates();
+      const linkedDashboards = Number(result?.deleted?.linkedDashboards || 0);
+      toast(
+        linkedDashboards > 0
+          ? `Template excluído. ${linkedDashboards} dashboard(s) ficaram órfãos de template.`
+          : "Template excluído."
+      );
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Erro ao excluir template.");
+    }
+  };
+
+  const renderAccordionSection = (
+    params: {
+      title: string;
+      expanded: boolean;
+      onToggle: () => void;
+      children: ReactNode;
+    }
+  ) => (
+    <section
+      style={{
+        border: "1px solid #E2E8F0",
+        borderRadius: 16,
+        background: "#FFFFFF",
+        overflow: "hidden",
+      }}
+    >
+      <button
+        type="button"
+        onClick={params.onToggle}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          padding: "16px 18px",
+          background: "#F8FAFC",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 800, color: "#0F172A" }}>{params.title}</span>
+        {params.expanded ? <ChevronUp size={18} color="#475569" /> : <ChevronDown size={18} color="#475569" />}
+      </button>
+      {params.expanded && (
+        <div style={{ padding: 18 }}>
+          {params.children}
+        </div>
+      )}
+    </section>
   );
 
   const renderTemplateCard = (template: TemplateItem) => {
@@ -143,6 +218,28 @@ export function TemplatesManager() {
           >
             Configurar template
           </button>
+          {isCustom && (
+            <button
+              type="button"
+              onClick={() => handleDeleteTemplate(template)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1px solid #FECACA",
+                background: "#FEF2F2",
+                color: "#DC2626",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              <Trash2 size={14} />
+              Excluir template
+            </button>
+          )}
         </div>
 
         <hr style={{ border: 0, borderTop: "1px solid #F1F5F9", marginBottom: 20 }} />
@@ -289,16 +386,11 @@ export function TemplatesManager() {
           <div style={{ padding: 24, color: "#64748B" }}>Carregando templates...</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-            <section>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: "#0F172A", marginBottom: 14 }}>Templates do sistema</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                {activeSystemTemplates.map(renderTemplateCard)}
-              </div>
-            </section>
-
-            <section>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: "#0F172A", marginBottom: 14 }}>Templates personalizados</h2>
-              {customTemplates.length > 0 ? (
+            {renderAccordionSection({
+              title: `Templates personalizados (${customTemplates.length})`,
+              expanded: customExpanded,
+              onToggle: () => setCustomExpanded((prev) => !prev),
+              children: customTemplates.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                   {customTemplates.map(renderTemplateCard)}
                 </div>
@@ -306,8 +398,19 @@ export function TemplatesManager() {
                 <div style={{ padding: 18, borderRadius: 14, border: "1px dashed #CBD5E1", background: "#F8FAFC", color: "#64748B", fontSize: 14 }}>
                   Nenhum template personalizado ainda. Use “Novo template” para criar um clone configurável de um modelo existente.
                 </div>
-              )}
-            </section>
+              ),
+            })}
+
+            {renderAccordionSection({
+              title: `Templates do sistema (${activeSystemTemplates.length})`,
+              expanded: systemExpanded,
+              onToggle: () => setSystemExpanded((prev) => !prev),
+              children: (
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                  {activeSystemTemplates.map(renderTemplateCard)}
+                </div>
+              ),
+            })}
           </div>
         )}
       </div>
