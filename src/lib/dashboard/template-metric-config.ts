@@ -434,42 +434,30 @@ export function normalizeTemplateMetricConfig(
 
   Object.entries(defaults.sections).forEach(([sectionKey, defaultSection]) => {
     const rawSection = raw.sections?.[sectionKey];
-    const mergedMetrics = defaultSection.metrics.map((metric) => {
-      const found = rawSection?.metrics?.find((item) => item.key === metric.key);
-      return {
-        ...metric,
-        label: found?.label?.trim() || metric.label,
-        preview: found?.preview?.trim() || metric.preview,
-        kind: found?.kind || metric.kind || "standard",
-        compositeType: found?.compositeType || metric.compositeType || "sum",
-        primaryMetricKey: found?.primaryMetricKey?.trim() || metric.primaryMetricKey,
-        secondaryMetricKey: found?.secondaryMetricKey?.trim() || metric.secondaryMetricKey,
-        enabled: found?.enabled ?? metric.enabled,
-        displayMode: found?.displayMode || metric.displayMode,
-        order: found?.order ?? metric.order,
-        recommended: found?.recommended ?? metric.recommended,
-      };
-    });
-
-    const extraMetrics = (rawSection?.metrics || [])
-      .filter((item) => !defaultSection.metrics.some((metric) => metric.key === item.key))
-      .map((item) => ({
-        key: item.key,
-        label: item.label?.trim() || undefined,
-        preview: item.preview?.trim() || undefined,
-        kind: item.kind || "standard",
-        compositeType: item.compositeType || "sum",
-        primaryMetricKey: item.primaryMetricKey?.trim() || undefined,
-        secondaryMetricKey: item.secondaryMetricKey?.trim() || undefined,
-        enabled: item.enabled ?? true,
-        displayMode: item.displayMode || "card",
-        order: item.order ?? 999,
-        recommended: item.recommended ?? false,
-      }));
+    const rawMetrics = Array.isArray(rawSection?.metrics) ? rawSection.metrics : null;
+    const mergedMetrics = rawMetrics && rawMetrics.length > 0
+      ? rawMetrics.map((item, index) => {
+          const defaultMetric = defaultSection.metrics.find((metric) => metric.key === item.key);
+          return {
+            ...(defaultMetric || {}),
+            key: item.key,
+            label: item.label?.trim() || defaultMetric?.label,
+            preview: item.preview?.trim() || defaultMetric?.preview,
+            kind: item.kind || defaultMetric?.kind || "standard",
+            compositeType: item.compositeType || defaultMetric?.compositeType || "sum",
+            primaryMetricKey: item.primaryMetricKey?.trim() || defaultMetric?.primaryMetricKey,
+            secondaryMetricKey: item.secondaryMetricKey?.trim() || defaultMetric?.secondaryMetricKey,
+            enabled: item.enabled ?? defaultMetric?.enabled ?? true,
+            displayMode: item.displayMode || defaultMetric?.displayMode || DEFAULT_DISPLAY[item.key] || "card",
+            order: item.order ?? defaultMetric?.order ?? (index + 1) * 10,
+            recommended: item.recommended ?? defaultMetric?.recommended ?? false,
+          } satisfies TemplateMetricItem;
+        })
+      : defaultSection.metrics.map((metric) => ({ ...metric }));
 
     mergedSections[sectionKey] = {
       ...defaultSection,
-      metrics: [...mergedMetrics, ...extraMetrics].sort((a, b) => a.order - b.order),
+      metrics: mergedMetrics.sort((a, b) => a.order - b.order),
     };
   });
 

@@ -225,10 +225,28 @@ export const DashboardTemplateCatalogService = {
         .single();
 
       if (error) throw error;
+      const { error: dashboardUpdateError } = await supabase
+        .from("dashboards")
+        .update({
+          template_config: metricConfig,
+        })
+        .eq("dashboard_type", templateId);
+
+      if (dashboardUpdateError) throw dashboardUpdateError;
       return data as CustomTemplateRow;
     }
 
-    return DashboardTemplateConfigService.upsertTemplateConfig(templateId, metricConfig);
+    const saved = await DashboardTemplateConfigService.upsertTemplateConfig(templateId, metricConfig);
+    const supabase = await createAdminClient({ actor: "admin", action: "template-catalog:propagate-system-config" });
+    const { error: dashboardUpdateError } = await supabase
+      .from("dashboards")
+      .update({
+        template_config: metricConfig,
+      })
+      .eq("dashboard_type", templateId);
+
+    if (dashboardUpdateError) throw dashboardUpdateError;
+    return saved;
   },
 
   async createCustomTemplate(params: {
