@@ -14,12 +14,38 @@ import { normalizeGoogleAdsRowsToPeriod } from "@/lib/dashboard/google-ads-perio
 import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
 import type { KpiSummary } from "@/types/entities";
 
+function mapIntegratedGoogleMetricKeys(metrics: KpiSummary[]): KpiSummary[] {
+  return metrics.map((kpi) => {
+    switch (kpi.metricKey) {
+      case "cost":
+        return { ...kpi, metricKey: "google_cost", label: kpi.label === "Investimento" ? "Investimento Google Ads" : kpi.label };
+      case "impressions":
+        return { ...kpi, metricKey: "google_impressions", label: kpi.label === "Impressões" ? "Impressões Google Ads" : kpi.label };
+      case "clicks":
+        return { ...kpi, metricKey: "google_clicks", label: kpi.label === "Cliques" ? "Cliques Google Ads" : kpi.label };
+      case "ctr":
+        return { ...kpi, metricKey: "google_ctr", label: kpi.label === "CTR Médio" ? "CTR Google Ads" : kpi.label };
+      case "cpc":
+        return { ...kpi, metricKey: "google_cpc", label: kpi.label === "CPC Médio" ? "CPC Google Ads" : kpi.label };
+      case "cpa":
+        return { ...kpi, metricKey: "google_cpa", label: kpi.label === "CPA Médio" ? "CPA Google Ads" : kpi.label };
+      case "roas":
+        return { ...kpi, metricKey: "google_roas", label: kpi.label === "ROAS" ? "ROAS Google Ads" : kpi.label };
+      case "conversions":
+        return { ...kpi, metricKey: "google_conversions", label: kpi.label === "Conversões" ? "Conversões Google Ads" : kpi.label };
+      default:
+        return kpi;
+    }
+  });
+}
+
 export default function GoogleAdsPage() {
   const { data } = useDashboard();
 
   if (!data) return null;
 
   const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x");
+  const isIntegratedTemplate = data.templateId === "google_meta_ads_s4x";
   const hasData = data.google_ads && data.google_ads.length > 0;
   
   if (!hasData && data.source !== "mock") {
@@ -34,7 +60,9 @@ export default function GoogleAdsPage() {
   }
 
   const kpis = applyTemplateMetricConfigToKpis(
-    generateGoogleAdsKpis(data.google_ads, data.google_ads_summary),
+    isIntegratedTemplate
+      ? mapIntegratedGoogleMetricKeys(generateGoogleAdsKpis(data.google_ads, data.google_ads_summary))
+      : generateGoogleAdsKpis(data.google_ads, data.google_ads_summary),
     templateConfig,
     "google-ads",
     data.templateId || "google_ads_s4x"

@@ -37,7 +37,7 @@ export function generateExecutiveKpis(
   };
 
   return [
-    { 
+    {
       metricKey: "cost",
       label: "Investimento Total", 
       value: current.total_spend, 
@@ -47,7 +47,7 @@ export function generateExecutiveKpis(
       unit: "currency", 
       description: summary ? "vs. período anterior" : "Todas as fontes" 
     }, 
-    { 
+    {
       metricKey: "revenue",
       label: "Receita Gerada", 
       value: current.total_revenue, 
@@ -67,7 +67,7 @@ export function generateExecutiveKpis(
       unit: "number",
       description: summary ? "vs. período anterior" : "Pessoas únicas alcançadas",
     },
-    { 
+    {
       metricKey: "roas",
       label: "ROAS Médio", 
       value: roas, 
@@ -301,6 +301,7 @@ export function generateGoogleAdsKpis(adsRows: any[], summary?: any): KpiSummary
   const roas = summary ? summary.current.roas : (current.total_spend > 0 ? current.total_revenue / current.total_spend : 0);
   const cpa = summary ? summary.current.cpa : (current.total_conversions > 0 ? current.total_spend / current.total_conversions : 0);
   const ctr = summary ? summary.current.ctr : (current.total_impressions > 0 ? (current.total_clicks / current.total_impressions) * 100 : 0);
+  const cpc = summary ? summary.current.cpc : (current.total_clicks > 0 ? current.total_spend / current.total_clicks : 0);
   
   const changes = summary?.change || {};
   const getDirection = (value: number, inverse = false): KpiSummary["change_direction"] => {
@@ -312,10 +313,13 @@ export function generateGoogleAdsKpis(adsRows: any[], summary?: any): KpiSummary
   return [
     { metricKey: "cost", label: "Investimento", value: current.total_spend, formatted_value: formatCurrency(current.total_spend, true), change_percent: changes.total_spend || 0, change_direction: getDirection(changes.total_spend || 0), unit: "currency", description: "vs. período anterior" },
     { metricKey: "revenue", label: "Receita", value: current.total_revenue, formatted_value: formatCurrency(current.total_revenue, true), change_percent: changes.total_revenue || 0, change_direction: getDirection(changes.total_revenue || 0), unit: "currency", description: "vs. período anterior" },
+    { metricKey: "impressions", label: "Impressões", value: current.total_impressions, formatted_value: formatNumber(current.total_impressions), change_percent: changes.total_impressions || 0, change_direction: getDirection(changes.total_impressions || 0), unit: "number", description: "vs. período anterior" },
+    { metricKey: "clicks", label: "Cliques", value: current.total_clicks, formatted_value: formatNumber(current.total_clicks), change_percent: changes.total_clicks || 0, change_direction: getDirection(changes.total_clicks || 0), unit: "number", description: "vs. período anterior" },
+    { metricKey: "ctr", label: "CTR Médio", value: ctr, formatted_value: `${ctr.toFixed(2)}%`, change_percent: changes.ctr || 0, change_direction: getDirection(changes.ctr || 0), unit: "percent", description: "vs. período anterior" },
+    { metricKey: "cpc", label: "CPC Médio", value: cpc, formatted_value: formatCurrency(cpc), change_percent: changes.cpc || 0, change_direction: getDirection(changes.cpc || 0, true), unit: "currency", description: "vs. período anterior" },
     { metricKey: "roas", label: "ROAS", value: roas, formatted_value: `${roas.toFixed(2)}x`, change_percent: changes.roas || 0, change_direction: getDirection(changes.roas || 0), unit: "ratio", description: "vs. período anterior" },
     { metricKey: "conversions", label: "Conversões", value: current.total_conversions, formatted_value: formatNumber(current.total_conversions), change_percent: changes.total_conversions || 0, change_direction: getDirection(changes.total_conversions || 0), unit: "number", description: "vs. período anterior" },
     { metricKey: "cpa", label: "CPA Médio", value: cpa, formatted_value: formatCurrency(cpa), change_percent: changes.cpa || 0, change_direction: getDirection(changes.cpa || 0, true), unit: "currency", description: "vs. período anterior" },
-    { metricKey: "ctr", label: "CTR Médio", value: ctr, formatted_value: `${ctr.toFixed(2)}%`, change_percent: changes.ctr || 0, change_direction: getDirection(changes.ctr || 0), unit: "percent", description: "vs. período anterior" },
   ];
 }
 
@@ -380,11 +384,15 @@ export function generateMetaAdsS4XKpisWithLabels(
       : resultMetric === "clicks" ? (changes.total_clicks || changes.clicks || 0)
       : resultMetric === "reach" ? (changes.reach || 0)
       : (changes.total_conversions || changes.conversions || 0);
+  const impressions = summary?.current?.total_impressions !== undefined ? Number(summary.current.total_impressions) : Number(current.total_impressions || 0);
+  const ctrValue = summary?.current?.ctr !== undefined ? Number(summary.current.ctr) : (impressions > 0 ? (Number(current.total_clicks || 0) / impressions) * 100 : 0);
+  const cpcValue = summary?.current?.cpc !== undefined ? Number(summary.current.cpc) : (Number(current.total_clicks || 0) > 0 ? Number(current.total_spend || 0) / Number(current.total_clicks || 0) : 0);
+  const cpmValue = summary?.current?.avgCpm !== undefined ? Number(summary.current.avgCpm) : (impressions > 0 ? (Number(current.total_spend || 0) / impressions) * 1000 : 0);
   const costMetricValue =
     costMetric === "cpc"
-      ? (summary?.current?.cpc ?? (current.total_clicks > 0 ? current.total_spend / current.total_clicks : 0))
+      ? cpcValue
       : costMetric === "cpm"
-        ? (summary?.current?.avgCpm ?? (current.total_impressions > 0 ? (current.total_spend / current.total_impressions) * 1000 : 0))
+        ? cpmValue
         : cpa;
   const costMetricChange =
     costMetric === "cpc" ? (changes.cpc || 0)
@@ -423,14 +431,64 @@ export function generateMetaAdsS4XKpisWithLabels(
       description: "Custo médio por resultado" 
     },
     { 
+      metricKey: "impressions",
+      label: "Impressões",
+      value: impressions,
+      formatted_value: formatNumber(impressions),
+      change_percent: changes.total_impressions || changes.impressions || 0,
+      change_direction: getDirection(changes.total_impressions || changes.impressions || 0),
+      unit: "number",
+      description: "Volume de exibições",
+    },
+    {
+      metricKey: "ctr",
+      label: "CTR",
+      value: ctrValue,
+      formatted_value: `${Number(ctrValue || 0).toFixed(2)}%`,
+      change_percent: changes.ctr || 0,
+      change_direction: getDirection(changes.ctr || 0),
+      unit: "percent",
+      description: "Taxa de cliques",
+    },
+    {
+      metricKey: "cpc",
+      label: "CPC",
+      value: cpcValue,
+      formatted_value: formatCurrency(cpcValue),
+      change_percent: changes.cpc || 0,
+      change_direction: getDirection(changes.cpc || 0, true),
+      unit: "currency",
+      description: "Custo por clique",
+    },
+    {
+      metricKey: "cpm",
+      label: "CPM",
+      value: cpmValue,
+      formatted_value: formatCurrency(cpmValue),
+      change_percent: changes.avgCpm || changes.cpm || 0,
+      change_direction: getDirection(changes.avgCpm || changes.cpm || 0, true),
+      unit: "currency",
+      description: "Custo por mil impressões",
+    },
+    {
+      metricKey: "postEngagement",
+      label: "Engajamentos",
+      value: Number(summary?.current?.postEngagement ?? current.postEngagement ?? 0),
+      formatted_value: formatNumber(Number(summary?.current?.postEngagement ?? current.postEngagement ?? 0)),
+      change_percent: changes.postEngagement || changes.engagement || 0,
+      change_direction: getDirection(changes.postEngagement || changes.engagement || 0),
+      unit: "number",
+      description: "Interações com a publicação",
+    },
+    {
       metricKey: "reach",
-      label: "Alcance", 
-      value: reachValue, 
-      formatted_value: formatNumber(reachValue), 
-      change_percent: changes.reach || 0, 
-      change_direction: getDirection(changes.reach || 0), 
-      unit: "number", 
-      description: "Usuários únicos alcançados" 
+      label: "Alcance",
+      value: reachValue,
+      formatted_value: formatNumber(reachValue),
+      change_percent: changes.reach || 0,
+      change_direction: getDirection(changes.reach || 0),
+      unit: "number",
+      description: "Usuários únicos alcançados"
     },
     { 
       metricKey: "frequency",

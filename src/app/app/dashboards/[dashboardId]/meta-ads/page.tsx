@@ -16,6 +16,37 @@ import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaObj
 import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
 import type { KpiSummary } from "@/types/entities";
 
+function mapIntegratedMetaMetricKeys(metrics: KpiSummary[]): KpiSummary[] {
+  return metrics.map((kpi) => {
+    switch (kpi.metricKey) {
+      case "cost":
+        return { ...kpi, metricKey: "meta_cost", label: kpi.label === "Investimento" ? "Investimento Meta Ads" : kpi.label };
+      case "impressions":
+        return { ...kpi, metricKey: "meta_impressions", label: kpi.label === "Impressões" ? "Impressões Meta Ads" : kpi.label };
+      case "reach":
+        return { ...kpi, metricKey: "meta_reach", label: kpi.label === "Alcance" ? "Alcance Meta Ads" : kpi.label };
+      case "clicks":
+        return { ...kpi, metricKey: "meta_clicks", label: kpi.label === "Cliques no Link" || kpi.label === "Cliques" ? "Cliques Meta Ads" : kpi.label };
+      case "ctr":
+        return { ...kpi, metricKey: "meta_ctr", label: kpi.label === "CTR" || kpi.label === "CTR Médio" ? "CTR Meta Ads" : kpi.label };
+      case "cpc":
+        return { ...kpi, metricKey: "meta_cpc", label: kpi.label === "CPC" || kpi.label === "CPC Médio" ? "CPC Meta Ads" : kpi.label };
+      case "cpa":
+        return { ...kpi, metricKey: "meta_cpa", label: kpi.label === "CPA" || kpi.label === "CPA Médio" ? "CPA Meta Ads" : kpi.label };
+      case "cpm":
+        return { ...kpi, metricKey: "meta_cpm", label: kpi.label === "CPM" ? "CPM Meta Ads" : kpi.label };
+      case "frequency":
+        return { ...kpi, metricKey: "meta_frequency", label: kpi.label === "Frequência" ? "Frequência Meta Ads" : kpi.label };
+      case "postEngagement":
+        return { ...kpi, metricKey: "meta_postEngagement", label: kpi.label === "Engajamentos" ? "Engajamentos Meta Ads" : kpi.label };
+      case "conversions":
+        return { ...kpi, metricKey: "meta_conversions", label: kpi.label === "Conversões" ? "Conversões Meta Ads" : kpi.label };
+      default:
+        return kpi;
+    }
+  });
+}
+
 export default function MetaAdsPage() {
   const { data } = useDashboard();
   const pathname = usePathname();
@@ -93,6 +124,8 @@ export default function MetaAdsPage() {
   const resultValueKey = resultMetric === "postEngagement" ? "postEngagement" : resultMetric === "clicks" ? "clicks" : resultMetric === "reach" ? "reach" : "conversions";
   const costPerResultKey = costMetric === "cpc" ? "cpc" : costMetric === "cpm" ? "cpm" : "cpa";
   const costPerResultColumnKey = costMetric === "cpa" && resultMetric !== "conversions" ? "costPerResult" : costPerResultKey;
+  const isIntegratedTemplate = data.templateId === "google_meta_ads_s4x";
+  const templateSectionKey = isIntegratedTemplate ? "meta-ads" : "executive-summary";
   const hasData = isMetaS4X 
     ? ((data.meta_ads && data.meta_ads.length > 0) || (data.dailyPerformance && data.dailyPerformance.length > 0))
     : (data.meta_ads && data.meta_ads.length > 0);
@@ -122,6 +155,10 @@ export default function MetaAdsPage() {
       })
     : generateMetaAdsKpis(data.meta_ads || [], data.meta_ads_summary);
 
+  if (isIntegratedTemplate) {
+    kpis = mapIntegratedMetaMetricKeys(kpis);
+  }
+
   if (isMetaS4X) {
     const hasResultMetric = resultMetric === "postEngagement"
       ? hasMetric("postEngagement")
@@ -148,7 +185,7 @@ export default function MetaAdsPage() {
   kpis = applyTemplateMetricConfigToKpis(
     kpis,
     templateConfig,
-    "executive-summary",
+    templateSectionKey,
     data.templateId || "meta_ads_s4x",
     activeObjective as any
   ) as KpiSummary[];
