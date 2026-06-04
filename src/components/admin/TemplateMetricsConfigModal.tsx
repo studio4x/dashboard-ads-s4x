@@ -153,6 +153,38 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
     });
   };
 
+  const buildSuggestionGroups = (kind: TemplateMetricKind, sourcePlatform: TemplateMetricSourcePlatform) => {
+    const effectiveSource = kind === "composite" ? "mixed" : sourcePlatform;
+    const filtered = filterSuggestionsBySource(effectiveSource);
+
+    const groups: Array<{ label: string; options: MetricKeySuggestion[] }> = [];
+    const canonical = filtered.filter((item) => item.origin === "canonical");
+    const importGoogle = filtered.filter((item) => item.origin === "discovered" && (item.sourceRoles || []).includes("google_ads"));
+    const importMeta = filtered.filter((item) => item.origin === "discovered" && (item.sourceRoles || []).includes("meta_ads"));
+    const importMixed = filtered.filter((item) => item.origin === "discovered" && (item.sourceRoles || []).includes("google_ads") && (item.sourceRoles || []).includes("meta_ads"));
+    const importUnknown = filtered.filter((item) => item.origin === "discovered" && (!item.sourceRoles || item.sourceRoles.length === 0));
+
+    if (canonical.length > 0) {
+      groups.push({ label: "Sistema", options: canonical });
+    }
+
+    if (effectiveSource === "mixed") {
+      if (importGoogle.length > 0) groups.push({ label: "Google Ads", options: importGoogle });
+      if (importMeta.length > 0) groups.push({ label: "Meta Ads", options: importMeta });
+      if (importMixed.length > 0) groups.push({ label: "Google Ads + Meta Ads", options: importMixed });
+    } else {
+      const sourceLabel = getSourceLabel(effectiveSource);
+      const originItems = filtered.filter((item) => item.origin === "discovered" && (!item.sourceRoles || item.sourceRoles.length === 0 || item.sourceRoles.includes(effectiveSource)));
+      if (originItems.length > 0) groups.push({ label: sourceLabel, options: originItems });
+    }
+
+    if (importUnknown.length > 0) {
+      groups.push({ label: "Origem não identificada", options: importUnknown });
+    }
+
+    return groups.filter((group) => group.options.length > 0);
+  };
+
   useEffect(() => {
     if (!open || !template) return;
     const nextConfig = normalizeTemplateMetricConfig(
@@ -431,12 +463,6 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   };
 
   const availablePageOptions = DASHBOARD_PAGES.filter((page) => !visiblePages.includes(page.key));
-
-  const getSuggestionOptionsForMetric = (sourcePlatform: TemplateMetricSourcePlatform, kind: TemplateMetricKind) => {
-    const baseSuggestions = filterSuggestionsBySource(sourcePlatform);
-    if (kind === "composite") return baseSuggestions;
-    return baseSuggestions;
-  };
 
   const getMetricBaseOptions = (sectionKey: string, sourcePlatform: TemplateMetricSourcePlatform) => {
     const section = config.sections?.[sectionKey];
@@ -781,12 +807,12 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       value={drafts[section.key]?.suggestionKey || ""}
                       onChange={(e) => {
                         const suggestionKey = e.target.value;
-                        const selectedSuggestion = getSuggestionOptionsForMetric(
-                          (drafts[section.key]?.kind || "standard") === "composite"
-                            ? (drafts[section.key]?.sourcePlatform || "mixed")
-                            : (drafts[section.key]?.sourcePlatform || "google_ads"),
-                          drafts[section.key]?.kind || "standard"
-                        ).find((item) => item.key === suggestionKey);
+                        const sourcePlatform = (drafts[section.key]?.kind || "standard") === "composite"
+                          ? "mixed"
+                          : (drafts[section.key]?.sourcePlatform || "google_ads");
+                        const selectedSuggestion = buildSuggestionGroups(drafts[section.key]?.kind || "standard", sourcePlatform)
+                          .flatMap((group) => group.options)
+                          .find((item) => item.key === suggestionKey);
                         setDrafts((prev) => ({
                           ...prev,
                           [section.key]: {
@@ -809,19 +835,23 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                       style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#FFFFFF" }}
                     >
                       <option value="">{metricKeyLoading ? "Carregando sugestões..." : "Selecione uma chave sugerida"}</option>
-                      {getSuggestionOptionsForMetric(
+                      {buildSuggestionGroups(
+                        drafts[section.key]?.kind || "standard",
                         (drafts[section.key]?.kind || "standard") === "composite"
-                          ? (drafts[section.key]?.sourcePlatform || "mixed")
-                          : (drafts[section.key]?.sourcePlatform || "google_ads"),
-                        drafts[section.key]?.kind || "standard"
-                      ).map((item) => (
-                        <option key={`${item.key}-${item.origin}`} value={item.key}>
-                          {formatMetricSuggestionLabel(item)}
-                        </option>
+                          ? "mixed"
+                          : (drafts[section.key]?.sourcePlatform || "google_ads")
+                      ).map((group) => (
+                        <optgroup key={group.label} label={group.label}>
+                          {group.options.map((item) => (
+                            <option key={`${group.label}-${item.key}-${item.origin}`} value={item.key}>
+                              {formatMetricSuggestionLabel(item)}
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                     <span style={{ fontSize: 10, color: "#64748B" }}>
-                      A lista combina chaves do sistema com métricas detectadas nas fontes já importadas.
+                      A lista é filtrada pelo tipo e pela origem da métrica. No modo composto, as opções aparecem agrupadas por origem.
                     </span>
                   </label>
                   {!drafts[section.key]?.suggestionKey && (
