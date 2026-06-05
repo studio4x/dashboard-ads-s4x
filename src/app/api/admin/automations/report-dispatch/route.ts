@@ -89,6 +89,25 @@ function maskUrl(url: string) {
   }
 }
 
+function appendDashboardRangeToUrl(url: string | null, from?: string | null, to?: string | null) {
+  if (!url) return url;
+  if (!from && !to) return url;
+
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("period", "custom");
+    if (from) parsed.searchParams.set("from", from);
+    if (to) parsed.searchParams.set("to", to);
+    return parsed.toString();
+  } catch {
+    const params = new URLSearchParams();
+    params.set("period", "custom");
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    return url.includes("?") ? `${url}&${params.toString()}` : `${url}?${params.toString()}`;
+  }
+}
+
 function isTestWebhookUrl(url: string) {
   try {
     const parsed = new URL(url);
@@ -951,6 +970,7 @@ export async function POST(request: Request) {
       shareLinkId: body.shareLinkId,
     });
     const shareToken = shareUrl ? shareUrl.split("/").pop() || null : null;
+    const shareUrlWithRange = appendDashboardRangeToUrl(shareUrl, body.from || null, body.to || null);
 
     const channels = normalizeChannels(body.channels);
 
@@ -1075,7 +1095,7 @@ export async function POST(request: Request) {
         manual: body.recipients,
       }),
       share: {
-        url: shareUrl,
+        url: shareUrlWithRange,
       },
       reportMode,
       report: reportPayload,
@@ -1208,7 +1228,8 @@ export async function POST(request: Request) {
       },
       dispatchedAt: payload.dispatchedAt,
       dashboardId,
-      shareUrl,
+      shareUrl: shareUrlWithRange,
+      shareUrlWithRange,
       pdf: payload.pdf,
     });
   } catch (error: any) {
