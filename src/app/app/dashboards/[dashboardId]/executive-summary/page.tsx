@@ -36,7 +36,7 @@ import { formatCurrency, formatNumber, formatDateShort } from "@/lib/formatters"
 import { cn } from "@/lib/utils";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
-import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateSectionWidgets, getMetricLabel, type TemplateWidgetItem } from "@/lib/dashboard/template-metric-config";
+import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateSectionWidgets, getTemplateMetricSection, getMetricLabel, type TemplateWidgetItem } from "@/lib/dashboard/template-metric-config";
 import type { KpiSummary } from "@/types/entities";
 
 // Cores da referência
@@ -119,6 +119,7 @@ export default function ExecutiveSummaryPage() {
   const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x", objectives as any, data.metaPrimaryObjective as any);
   const defaultExecutiveWidgets = getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x", objectives as any, data.metaPrimaryObjective as any).sections["executive-summary"]?.widgets || [];
   const executiveSummaryWidgets = getTemplateSectionWidgets(templateConfig, "executive-summary");
+  const executiveSummaryMetrics = getTemplateMetricSection(templateConfig, "executive-summary")?.metrics || [];
   const resolvedExecutiveWidgets = (executiveSummaryWidgets.length > 0 ? executiveSummaryWidgets : defaultExecutiveWidgets)
     .filter((widget) => widget.enabled)
     .sort((a, b) => a.order - b.order);
@@ -545,10 +546,49 @@ export default function ExecutiveSummaryPage() {
     data.metaPrimaryObjective as any
   ) as KpiSummary[];
 
-  const deduplicatedKpis = configuredKpis.filter((kpi, index, arr) => {
-    const key = String(kpi.metricKey || kpi.label || "").trim().toLowerCase();
-    return arr.findIndex((item) => String(item.metricKey || item.label || "").trim().toLowerCase() === key) === index;
-  });
+  const normalizeMetricAlias = (key?: string | null) => String(key || "").trim().toLowerCase().replace(/^(google_|meta_)/, "");
+  const executiveSummaryMetricOrder = new Map(
+    executiveSummaryMetrics.map((metric, index) => [String(metric.key || "").trim().toLowerCase(), index])
+  );
+  const executiveSummaryExactMetricKeys = new Set(executiveSummaryMetrics.map((metric) => String(metric.key || "").trim().toLowerCase()));
+  const deduplicatedKpis = Array.from(
+    configuredKpis.reduce((groups, kpi) => {
+      const alias = normalizeMetricAlias(kpi.metricKey || kpi.label);
+      const group = groups.get(alias) || [];
+      group.push(kpi);
+      groups.set(alias, group);
+      return groups;
+    }, new Map<string, KpiSummary[]>()).entries()
+  )
+    .map(([_, group]) => {
+      const exactMatches = group.filter((item) => executiveSummaryExactMetricKeys.has(String(item.metricKey || "").trim().toLowerCase()));
+      if (exactMatches.length > 0) {
+        return exactMatches.sort((a, b) => {
+          const orderA = executiveSummaryMetricOrder.get(String(a.metricKey || "").trim().toLowerCase()) ?? 999;
+          const orderB = executiveSummaryMetricOrder.get(String(b.metricKey || "").trim().toLowerCase()) ?? 999;
+          return orderA - orderB;
+        })[0];
+      }
+
+      const genericMetric = group.find((item) => {
+        const key = String(item.metricKey || "").trim().toLowerCase();
+        return key && !key.startsWith("google_") && !key.startsWith("meta_");
+      });
+      if (genericMetric) return genericMetric;
+
+      return group.sort((a, b) => {
+        const orderA = executiveSummaryMetricOrder.get(String(a.metricKey || "").trim().toLowerCase()) ?? 999;
+        const orderB = executiveSummaryMetricOrder.get(String(b.metricKey || "").trim().toLowerCase()) ?? 999;
+        if (orderA !== orderB) return orderA - orderB;
+        return normalizeMetricAlias(a.metricKey || a.label).localeCompare(normalizeMetricAlias(b.metricKey || b.label));
+      })[0];
+    })
+    .sort((a, b) => {
+      const orderA = executiveSummaryMetricOrder.get(String(a.metricKey || "").trim().toLowerCase()) ?? 999;
+      const orderB = executiveSummaryMetricOrder.get(String(b.metricKey || "").trim().toLowerCase()) ?? 999;
+      if (orderA !== orderB) return orderA - orderB;
+      return normalizeMetricAlias(a.metricKey || a.label).localeCompare(normalizeMetricAlias(b.metricKey || b.label));
+    });
 
   // Gráfico de Evolução (Investimento e Cliques)
   const resolveExecutiveMetricValue = (key?: string | null, row?: any) => {
@@ -962,3 +1002,4 @@ export default function ExecutiveSummaryPage() {
     </DashboardPageShell>
   );
 }
+
