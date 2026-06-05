@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 import { apiErrorResponse } from "@/lib/security/api-safety";
+import {
+  AUTOMATION_TIME_ZONE,
+  formatAutomationPeriodSummary,
+  getAutomationReferenceDate,
+  normalizeAutomationPeriodPreset,
+  resolveAutomationPeriodPresetFromDays,
+} from "@/lib/dashboard/automation-period";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +42,13 @@ function formatScheduleLabel(task: any) {
   if (frequency === "daily") return `Diario as ${hh}:${mm}`;
   const dayOfWeek = Number(task?.automation_day_of_week ?? 1);
   return `Semanal (${WEEKDAYS_PT[dayOfWeek] || "Seg"}) as ${hh}:${mm}`;
+}
+
+function formatPeriodLabel(task: any, now: Date) {
+  const preset = normalizeAutomationPeriodPreset(
+    task?.automation_period_preset || resolveAutomationPeriodPresetFromDays(task?.automation_period_days)
+  );
+  return formatAutomationPeriodSummary(preset, Boolean(task?.automation_include_today), getAutomationReferenceDate(now, AUTOMATION_TIME_ZONE));
 }
 
 function formatNextWindow(task: any, now: Date) {
@@ -94,7 +108,7 @@ export async function GET() {
     const supabase = await createAdminClient({ actor: "api_admin", action: "list_scheduled_tasks" });
     const { data, error } = await supabase
       .from("dashboards")
-      .select("id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_report_mode, automation_last_dispatched_at, clients(name)")
+      .select("id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_period_preset, automation_include_today, automation_report_mode, automation_last_dispatched_at, clients(name)")
       .order("name", { ascending: true });
 
     if (error) throw error;
@@ -112,6 +126,7 @@ export async function GET() {
         nextWindow: formatNextWindow(task, now),
         reportMode: String(task.automation_report_mode || "both"),
         periodDays: Number(task.automation_period_days || 7),
+        periodLabel: formatPeriodLabel(task, now),
         lastDispatchedAt: task.automation_last_dispatched_at || null,
         lastDispatchedAtLabel: formatLocalDateTime(task.automation_last_dispatched_at),
         status,
@@ -131,7 +146,7 @@ export async function GET() {
       success: true,
       generatedAt: now.toISOString(),
       generatedAtLabel: now.toLocaleString("pt-BR", { timeZone: TZ }),
-      timezone: TZ,
+      timezone: AUTOMATION_TIME_ZONE,
       summary,
       tasks,
     });

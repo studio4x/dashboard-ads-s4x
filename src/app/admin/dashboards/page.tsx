@@ -7,6 +7,9 @@ import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives 
 import { useToast } from "@/components/ui/Toast";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
+import { DateRangeSelector } from "@/components/dashboard/DateRangeSelector";
+import { DateRangePreset } from "@/lib/dashboard/date-utils";
+import { resolveAutomationPeriodDays, resolveAutomationPeriodPresetFromDays, normalizeAutomationPeriodPreset, formatAutomationPeriodSummary } from "@/lib/dashboard/automation-period";
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
 type MetaObjective = (typeof META_ADS_OBJECTIVES)[number]["id"];
 const META_TEMPLATE_ID = "meta_ads_s4x";
@@ -34,7 +37,8 @@ type AutomationForm = {
   dayOfWeek: number;
   hour: number;
   minute: number;
-  periodDays: number;
+  periodPreset: DateRangePreset;
+  includeToday: boolean;
   reportMode: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
 };
 
@@ -115,13 +119,15 @@ export default function AdminDashboardsPage() {
       if (Array.isArray(dashboardsData)) {
         const nextForms: Record<string, AutomationForm> = {};
         dashboardsData.forEach((d: any) => {
+          const periodPreset = normalizeAutomationPeriodPreset(d.automation_period_preset || resolveAutomationPeriodPresetFromDays(d.automation_period_days));
           nextForms[d.id] = {
             enabled: Boolean(d.automation_enabled),
             frequency: d.automation_frequency === "daily" ? "daily" : "weekly",
             dayOfWeek: Number.isInteger(d.automation_day_of_week) ? d.automation_day_of_week : 1,
             hour: Number.isInteger(d.automation_hour) ? d.automation_hour : 8,
             minute: Number.isInteger(d.automation_minute) ? d.automation_minute : 0,
-            periodDays: Number.isInteger(d.automation_period_days) ? d.automation_period_days : 7,
+            periodPreset,
+            includeToday: Boolean(d.automation_include_today),
             reportMode: ["analysis_only", "metrics_only", "both", "pdf_only", "analysis_pdf", "both_pdf"].includes(String(d.automation_report_mode))
               ? d.automation_report_mode
               : "both",
@@ -654,7 +660,8 @@ export default function AdminDashboardsPage() {
           dayOfWeek: 1,
           hour: 8,
           minute: 0,
-          periodDays: 7,
+          periodPreset: "last_7_days" as DateRangePreset,
+          includeToday: false,
           reportMode: "both",
         }),
         ...patch,
@@ -668,6 +675,8 @@ export default function AdminDashboardsPage() {
 
     setSavingAutomationByDashboardId((prev) => ({ ...prev, [dashboardId]: true }));
     try {
+      const selectedPreset = normalizeAutomationPeriodPreset(form.periodPreset);
+      const derivedPeriodDays = resolveAutomationPeriodDays(selectedPreset, form.includeToday);
       const response = await fetch(`/api/admin/dashboards/${dashboardId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -677,7 +686,9 @@ export default function AdminDashboardsPage() {
           automation_day_of_week: form.dayOfWeek,
           automation_hour: form.hour,
           automation_minute: form.minute,
-          automation_period_days: form.periodDays,
+          automation_period_preset: selectedPreset,
+          automation_include_today: form.includeToday,
+          automation_period_days: derivedPeriodDays,
           automation_report_mode: form.reportMode,
         }),
       });
@@ -1000,7 +1011,8 @@ export default function AdminDashboardsPage() {
                   dayOfWeek: 1,
                   hour: 8,
                   minute: 0,
-                  periodDays: 7,
+                  periodPreset: "last_7_days" as DateRangePreset,
+                  includeToday: false,
                   reportMode: "both",
                 };
                 const isCollapsed = form.enabled && !expandedAutomationByDashboardId[d.id];
@@ -1132,17 +1144,26 @@ export default function AdminDashboardsPage() {
                         />
                       </label>
 
-                      <label style={{ fontSize: 12, color: "#334155", display: "flex", flexDirection: "column", gap: 4 }}>
+                      <div style={{ fontSize: 12, color: "#334155", display: "flex", flexDirection: "column", gap: 4 }}>
                         Janela (dias)
-                        <input
-                          type="number"
-                          min={1}
-                          max={90}
-                          value={form.periodDays}
-                          onChange={(e) => handleAutomationFieldChange(d.id, { periodDays: Number(e.target.value) })}
-                          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13 }}
+                        <DateRangeSelector
+                          currentPreset={form.periodPreset as DateRangePreset}
+                          includeToday={form.includeToday}
+                          onPresetChange={(preset, _customDates, includeTodayOverride) =>
+                            handleAutomationFieldChange(d.id, {
+                              periodPreset: preset,
+                              includeToday: includeTodayOverride ?? form.includeToday,
+                            })
+                          }
+                          variant="default"
+                          menuAlign="left"
+                          showCustomRange={false}
+                          className="w-full"
                         />
-                      </label>
+                        <span style={{ fontSize: 11, color: "#64748B" }}>
+                          {formatAutomationPeriodSummary(form.periodPreset as Exclude<DateRangePreset, "custom">, form.includeToday)}
+                        </span>
+                      </div>
 
                       <label style={{ fontSize: 12, color: "#334155", display: "flex", flexDirection: "column", gap: 4 }}>
                         Conteúdo do payload

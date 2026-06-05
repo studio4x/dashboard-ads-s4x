@@ -8,6 +8,7 @@ import { DashboardTemplateCatalogService } from "@/services/dashboard-template-c
 import { DashboardTemplateService } from "@/services/dashboard-template-service";
 import { DataSourceService } from "@/services/data-source-service";
 import { GoogleSheetsImportService } from "@/lib/google-sheets/google-sheets-import-service";
+import { AUTOMATION_PERIOD_OPTIONS, normalizeAutomationPeriodPreset } from "@/lib/dashboard/automation-period";
 
 interface RouteParams {
   params: Promise<{ dashboardId: string }>;
@@ -59,6 +60,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       automation_day_of_week,
       automation_hour,
       automation_minute,
+      automation_period_preset,
+      automation_include_today,
       automation_period_days,
       automation_report_mode,
       automation_channels,
@@ -108,6 +111,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       automation_day_of_week?: number;
       automation_hour?: number;
       automation_minute?: number;
+      automation_period_preset?: string;
+      automation_include_today?: boolean;
       automation_period_days?: number;
       automation_report_mode?: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
       automation_channels?: string[];
@@ -163,6 +168,18 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         return NextResponse.json({ error: "automation_minute inválido. Use 0..59 em múltiplos de 5." }, { status: 400 });
       }
       updates.automation_minute = value;
+    }
+
+    if (automation_period_preset !== undefined) {
+      const rawValue = String(automation_period_preset).trim();
+      if (!AUTOMATION_PERIOD_OPTIONS.some((option) => option.value === rawValue)) {
+        return NextResponse.json({ error: "automation_period_preset inválido." }, { status: 400 });
+      }
+      updates.automation_period_preset = normalizeAutomationPeriodPreset(rawValue);
+    }
+
+    if (automation_include_today !== undefined) {
+      updates.automation_include_today = Boolean(automation_include_today);
     }
 
     if (automation_period_days !== undefined) {

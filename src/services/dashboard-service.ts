@@ -94,6 +94,8 @@ export const DashboardService = {
       automation_day_of_week?: number;
       automation_hour?: number;
       automation_minute?: number;
+      automation_period_preset?: string;
+      automation_include_today?: boolean;
       automation_period_days?: number;
       automation_channels?: string[];
       automation_last_dispatched_at?: string | null;

@@ -209,7 +209,7 @@ export default function ScheduledTasksPage() {
                   <td style={{ padding: "12px 14px", color: "#334155" }}>{task.lastDispatchedAtLabel}</td>
                   <td style={{ padding: "12px 14px", color: "#334155" }}>
                     <div style={{ fontSize: 12 }}>Modo: <strong>{task.reportMode}</strong></div>
-                    <div style={{ fontSize: 12 }}>Periodo: <strong>{task.periodDays} dias</strong></div>
+                    <div style={{ fontSize: 12 }}>Periodo: <strong>{task.periodLabel || `${task.periodDays} dias`}</strong></div>
                   </td>
                 </tr>
               ))

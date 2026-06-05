@@ -11,6 +11,7 @@ interface DateRangeSelectorProps {
   className?: string;
   variant?: "default" | "minimal";
   menuAlign?: "left" | "right";
+  showCustomRange?: boolean;
   includeToday?: boolean;
   from?: string;
   to?: string;
@@ -33,6 +34,7 @@ export function DateRangeSelector({
   className,
   variant = "default",
   menuAlign = "right",
+  showCustomRange = true,
   includeToday = false,
   from,
   to,
@@ -178,100 +180,104 @@ export function DateRangeSelector({
             </div>
 
             {/* Checkbox "Incluir dados de hoje" */}
-            <div style={{ borderTop: "1px solid #F1F5F9", marginTop: "6px", paddingTop: "8px", paddingBottom: "2px", paddingLeft: "12px", paddingRight: "12px" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", userSelect: "none" }}>
-                <input 
-                  type="checkbox" 
-                  checked={includeToday} 
-                  onChange={(e) => {
-                    onPresetChange(currentPreset, undefined, e.target.checked);
-                  }}
-                  style={{
-                    width: "14px",
-                    height: "14px",
-                    borderRadius: "4px",
-                    border: "1px solid #CBD5E1",
-                    accentColor: "#2563EB",
-                    cursor: "pointer"
-                  }}
-                />
-                <span style={{ fontSize: "12px", fontWeight: 500, color: "#475569" }}>
-                  Incluir dados de hoje
-                </span>
-              </label>
-            </div>
+            {showCustomRange && (
+              <>
+                <div style={{ borderTop: "1px solid #F1F5F9", marginTop: "6px", paddingTop: "8px", paddingBottom: "2px", paddingLeft: "12px", paddingRight: "12px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", userSelect: "none" }}>
+                    <input 
+                      type="checkbox" 
+                      checked={includeToday} 
+                      onChange={(e) => {
+                        onPresetChange(currentPreset, undefined, e.target.checked);
+                      }}
+                      style={{
+                        width: "14px",
+                        height: "14px",
+                        borderRadius: "4px",
+                        border: "1px solid #CBD5E1",
+                        accentColor: "#2563EB",
+                        cursor: "pointer"
+                      }}
+                    />
+                    <span style={{ fontSize: "12px", fontWeight: 500, color: "#475569" }}>
+                      Incluir dados de hoje
+                    </span>
+                  </label>
+                </div>
 
-            <div style={{ borderTop: "1px solid #E2E8F0", marginTop: "8px", paddingTop: "8px", paddingLeft: "4px", paddingRight: "4px" }}>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B", textTransform: "uppercase", display: "block", marginBottom: "8px", paddingLeft: "8px" }}>
-                Período Personalizado
-              </span>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingLeft: "8px", paddingRight: "8px" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                  <label style={{ fontSize: "10.5px", color: "#64748B" }}>De:</label>
-                  <input 
-                    type="date" 
-                    value={startDateStr}
-                    onChange={(e) => setStartDateStr(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "6px 8px",
-                      fontSize: "12.5px",
-                      borderRadius: "6px",
-                      border: "1px solid #CBD5E1",
-                      color: "#1E293B",
-                      outline: "none"
-                    }}
-                  />
+                <div style={{ borderTop: "1px solid #E2E8F0", marginTop: "8px", paddingTop: "8px", paddingLeft: "4px", paddingRight: "4px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B", textTransform: "uppercase", display: "block", marginBottom: "8px", paddingLeft: "8px" }}>
+                    Período Personalizado
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingLeft: "8px", paddingRight: "8px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      <label style={{ fontSize: "10.5px", color: "#64748B" }}>De:</label>
+                      <input 
+                        type="date" 
+                        value={startDateStr}
+                        onChange={(e) => setStartDateStr(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "6px 8px",
+                          fontSize: "12.5px",
+                          borderRadius: "6px",
+                          border: "1px solid #CBD5E1",
+                          color: "#1E293B",
+                          outline: "none"
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      <label style={{ fontSize: "10.5px", color: "#64748B" }}>Até:</label>
+                      <input 
+                        type="date" 
+                        value={endDateStr}
+                        onChange={(e) => setEndDateStr(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "6px 8px",
+                          fontSize: "12.5px",
+                          borderRadius: "6px",
+                          border: "1px solid #CBD5E1",
+                          color: "#1E293B",
+                          outline: "none"
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (startDateStr && endDateStr) {
+                          const [sy, sm, sd] = startDateStr.split("-").map(Number);
+                          const [ey, em, ed] = endDateStr.split("-").map(Number);
+                          const fromDate = new Date(sy, sm - 1, sd);
+                          const toDate = new Date(ey, em - 1, ed);
+                          onPresetChange("custom", { from: fromDate, to: toDate }, includeToday);
+                          setIsOpen(false);
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        background: "#2563EB",
+                        color: "white",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        borderRadius: "6px",
+                        border: "none",
+                        cursor: "pointer",
+                        textAlign: "center",
+                        marginTop: "4px",
+                        transition: "background 0.2s"
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#1D4ED8"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "#2563EB"; }}
+                    >
+                      Aplicar Período
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                  <label style={{ fontSize: "10.5px", color: "#64748B" }}>Até:</label>
-                  <input 
-                    type="date" 
-                    value={endDateStr}
-                    onChange={(e) => setEndDateStr(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "6px 8px",
-                      fontSize: "12.5px",
-                      borderRadius: "6px",
-                      border: "1px solid #CBD5E1",
-                      color: "#1E293B",
-                      outline: "none"
-                    }}
-                  />
-                </div>
-                <button
-                  onClick={() => {
-                    if (startDateStr && endDateStr) {
-                      const [sy, sm, sd] = startDateStr.split("-").map(Number);
-                      const [ey, em, ed] = endDateStr.split("-").map(Number);
-                      const fromDate = new Date(sy, sm - 1, sd);
-                      const toDate = new Date(ey, em - 1, ed);
-                      onPresetChange("custom", { from: fromDate, to: toDate }, includeToday);
-                      setIsOpen(false);
-                    }
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    background: "#2563EB",
-                    color: "white",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    borderRadius: "6px",
-                    border: "none",
-                    cursor: "pointer",
-                    textAlign: "center",
-                    marginTop: "4px",
-                    transition: "background 0.2s"
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "#1D4ED8"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "#2563EB"; }}
-                >
-                  Aplicar Período
-                </button>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </>
       )}

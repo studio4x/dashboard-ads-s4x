@@ -31,6 +31,10 @@ type DispatchBody = {
   source?: "manual" | "scheduled";
   reportMode?: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
   webhookEnvironment?: "production" | "test";
+  automationPeriod?: {
+    preset?: string;
+    includeToday?: boolean;
+  };
 };
 
 type ResolvedRecipients = {
@@ -1100,6 +1104,10 @@ export async function POST(request: Request) {
         from: body.from || null,
         to: body.to || null,
       },
+      automationPeriod: {
+        preset: String(body.automationPeriod?.preset || "custom"),
+        includeToday: Boolean(body.automationPeriod?.includeToday),
+      },
       channels: channels.length > 0 ? channels : ["email", "whatsapp"],
       recipients: resolveRecipients({
         client: dashboard.clients,
@@ -1110,7 +1118,8 @@ export async function POST(request: Request) {
         period: {
           from: body.from || null,
           to: body.to || null,
-          preset: "custom",
+          preset: String(body.automationPeriod?.preset || "custom"),
+          includeToday: Boolean(body.automationPeriod?.includeToday),
         },
       },
       reportMode,

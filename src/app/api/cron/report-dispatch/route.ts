@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { apiErrorResponse } from "@/lib/security/api-safety";
+import {
+  AUTOMATION_TIME_ZONE,
+  formatAutomationDateKey,
+  getAutomationReferenceDate,
+  normalizeAutomationPeriodPreset,
+  resolveAutomationPeriodPresetFromDays,
+  resolveAutomationPeriodRange,
+} from "@/lib/dashboard/automation-period";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +77,7 @@ async function handleCron(request: Request) {
     const supabase = await createAdminClient({ actor: "cron", action: "dispatch_reports" });
     const { data: dashboards, error } = await supabase
       .from("dashboards")
-      .select("id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_report_mode, automation_last_dispatched_at")
+      .select("id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_period_preset, automation_include_today, automation_report_mode, automation_last_dispatched_at")
       .eq("status", "active")
       .eq("automation_enabled", true);
 
@@ -80,6 +88,7 @@ async function handleCron(request: Request) {
 
     const origin = new URL(request.url).origin;
     const now = new Date();
+    const referenceDate = getAutomationReferenceDate(now, AUTOMATION_TIME_ZONE);
     const summary = {
       total: dashboards.length,
       triggered: 0,
@@ -95,13 +104,15 @@ async function handleCron(request: Request) {
         continue;
       }
 
-      const periodDays = Math.max(1, Math.min(90, Number(dashboard.automation_period_days || 7)));
-      const to = new Date(now);
-      to.setDate(to.getDate() - 1);
-      const from = new Date(to);
-      from.setDate(from.getDate() - (periodDays - 1));
-      const fromIso = from.toISOString().slice(0, 10);
-      const toIso = to.toISOString().slice(0, 10);
+      const periodPreset = normalizeAutomationPeriodPreset(
+        dashboard.automation_period_preset || resolveAutomationPeriodPresetFromDays(dashboard.automation_period_days)
+      );
+      const includeToday = Boolean(dashboard.automation_include_today);
+      const periodRange = resolveAutomationPeriodRange(periodPreset, includeToday, referenceDate);
+      const from = new Date(periodRange.from);
+      const to = new Date(periodRange.to);
+      const fromIso = formatAutomationDateKey(from, AUTOMATION_TIME_ZONE);
+      const toIso = formatAutomationDateKey(to, AUTOMATION_TIME_ZONE);
 
       try {
         const response = await fetch(`${origin}/api/admin/automations/report-dispatch`, {
@@ -116,6 +127,10 @@ async function handleCron(request: Request) {
             to: toIso,
             source: "scheduled",
             reportMode: dashboard.automation_report_mode || "both",
+            automationPeriod: {
+              preset: periodPreset,
+              includeToday,
+            },
           }),
         });
 

@@ -266,6 +266,10 @@ export default function AdminAutomationsPage() {
         dryRun,
         reportMode: testReportMode,
         webhookEnvironment: dispatchWebhookEnvironment,
+        automationPeriod: {
+          preset: testRangePreset,
+          includeToday: testIncludeToday,
+        },
       };
       if (testFrom) payload.from = testFrom;
       if (testTo) payload.to = testTo;
