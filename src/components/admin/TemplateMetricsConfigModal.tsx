@@ -671,6 +671,12 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
         description: "Configure os gráficos exibidos na aba Google Ads. Eles passam a fazer parte do template e não do fallback da página.",
       };
     }
+    if (sectionKey === "google-performance") {
+      return {
+        title: "Gráficos da aba Google Ads - Performance",
+        description: "Configure os gráficos usados na área de performance do Google Ads. Eles deixam de ser fallback fixo da página.",
+      };
+    }
     if (sectionKey === "meta-ads") {
       return {
         title: "Gráficos da aba Meta Ads",
@@ -2106,7 +2112,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                   </div>
                 )}
 
-                {["executive-summary", "google-ads", "meta-ads", "meta-performance"].includes(section.key) && (
+                {["executive-summary", "google-ads", "google-performance", "meta-ads", "meta-performance"].includes(section.key) && (
                   <div style={{ border: "1px solid #DBEAFE", borderRadius: 12, padding: 14, background: "#EFF6FF", display: "flex", flexDirection: "column", gap: 12 }}>
                     <div>
                       <p style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>{widgetSectionMeta(section.key).title}</p>
@@ -2320,6 +2326,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
             </div>
           ))}
           {config.sections?.["meta-performance"] && renderSectionCard(config.sections["meta-performance"], true)}
+          {config.sections?.["google-performance"] && renderSectionCard(config.sections["google-performance"], true)}
         </div>
 
         <div style={{ padding: 24, borderTop: "1px solid #E2E8F0", display: "flex", gap: 12, justifyContent: "space-between", background: "#FFFFFF" }}>

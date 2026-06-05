@@ -178,6 +178,35 @@ export default function GoogleAdsPage() {
     if (currentRow.length > 0) rows.push(currentRow);
     return rows;
   })();
+  const googlePerformanceSectionWidgets = getTemplateSectionWidgets(templateConfig, "google-performance");
+  const defaultGooglePerformanceSectionWidgets = getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x").sections["google-performance"]?.widgets || [];
+  const resolvedGooglePerformanceWidgets = (googlePerformanceSectionWidgets.length > 0 ? googlePerformanceSectionWidgets : defaultGooglePerformanceSectionWidgets)
+    .filter((widget) => widget.enabled)
+    .sort((a, b) => a.order - b.order);
+  const googlePerformanceWidgetRows = (() => {
+    const rows: TemplateWidgetItem[][] = [];
+    let currentRow: TemplateWidgetItem[] = [];
+    let currentSum = 0;
+    resolvedGooglePerformanceWidgets.forEach((widget) => {
+      const width = Math.max(10, Math.min(100, widget.widthPercent ?? 100));
+      const nextSum = currentSum + width;
+      if (currentRow.length > 0 && nextSum > 100.01) {
+        rows.push(currentRow);
+        currentRow = [widget];
+        currentSum = width;
+        return;
+      }
+      currentRow.push(widget);
+      currentSum = nextSum;
+      if (currentSum >= 99.5) {
+        rows.push(currentRow);
+        currentRow = [];
+        currentSum = 0;
+      }
+    });
+    if (currentRow.length > 0) rows.push(currentRow);
+    return rows;
+  })();
 
   const googleCurrent = (data.google_ads_summary?.current || {}) as any;
   const googleChange = (data.google_ads_summary?.change || {}) as any;
@@ -284,14 +313,22 @@ export default function GoogleAdsPage() {
           ))}
         </div>
       ) : (
-        <div className="dashboard-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <ChartCard title="Investimento Diário" subtitle="Evolução do gasto no período" height={280}>
-            <LineChartWidget data={dailySeries.map((row: any) => ({ date: row.date, primary: row.cost }))} lines={[{ key: "primary", label: "Investimento", color: "#4285F4" }]} xKey="date" formatValue={(v) => formatCurrency(v, true)} height={260} />
-          </ChartCard>
+        <div style={{ padding: 16, borderRadius: 12, border: "1px dashed #CBD5E1", background: "#F8FAFC", color: "#64748B", fontSize: 13 }}>
+          Nenhum gráfico configurado na seção da aba Google Ads. Use o editor de template para incluir os widgets desta aba.
+        </div>
+      )}
 
-          <ChartCard title="Investimento por Campanha" subtitle="Distribuição do budget" height={280}>
-            <HorizontalBarChartWidget data={campaignBarData} formatValue={(v) => formatCurrency(v, true)} height={260} />
-          </ChartCard>
+      {googlePerformanceWidgetRows.length > 0 ? (
+        <div className="flex flex-col gap-5" style={{ marginTop: 20 }}>
+          {googlePerformanceWidgetRows.map((row, rowIndex) => (
+            <div key={`google-performance-widgets-${rowIndex}`} className="flex flex-wrap gap-5">
+              {row.map((widget) => renderGoogleWidgetCard(widget, row.length))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ padding: 16, borderRadius: 12, border: "1px dashed #CBD5E1", background: "#F8FAFC", color: "#64748B", fontSize: 13, marginTop: 20 }}>
+          Nenhum gráfico configurado na seção interna de performance do Google Ads. Use o editor de template para incluir os widgets desta área.
         </div>
       )}
 
