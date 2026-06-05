@@ -23,6 +23,12 @@ Este documento lista as variáveis de ambiente necessárias para o funcionamento
   - Deve existir no ambiente da aplicação (Vercel).
   - Deve existir também no Supabase Vault com `name = 'CRON_SECRET'` para os jobs do `pg_cron` enviarem o header `Authorization`.
 
+## Automação (n8n)
+- **N8N_REPORT_DISPATCH_WEBHOOK_URL**: Webhook de produção usado pelos disparos reais e pelos cron jobs.
+- **N8N_REPORT_DISPATCH_WEBHOOK_TEST_URL**: Webhook de teste usado durante homologação e validação manual no n8n.
+- **N8N_REPORT_DISPATCH_WEBHOOK_TOKEN**: Token opcional para autenticação do webhook.
+- **N8N_REPORT_DISPATCH_HMAC_SECRET**: Segredo opcional para assinatura HMAC do payload enviado ao n8n.
+
 ## Notas de Segurança
 - O arquivo `.env.local` deve ser ignorado pelo Git.
 - Variáveis sensíveis **não** devem ter o prefixo `NEXT_PUBLIC_`.

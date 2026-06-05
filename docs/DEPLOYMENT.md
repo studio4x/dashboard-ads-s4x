@@ -24,6 +24,7 @@ npx vercel --prod
 - [x] Garantir que as migrations do Supabase foram aplicadas (`npx supabase db push`).
 - [x] Verificar se as Environment Variables estão sincronizadas na Vercel.
 - [x] Validar que `GOOGLE_SHEETS_USE_MOCKS` está de acordo com o desejado (true para testes, false para real).
+- [x] Configurar `N8N_REPORT_DISPATCH_WEBHOOK_URL` para produção e `N8N_REPORT_DISPATCH_WEBHOOK_TEST_URL` para homologação/testes no n8n, quando aplicável.
 
 ## Regra Operacional Obrigatória
 

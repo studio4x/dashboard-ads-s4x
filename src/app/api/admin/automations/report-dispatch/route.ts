@@ -31,6 +31,7 @@ type DispatchBody = {
   dryRun?: boolean;
   source?: "manual" | "scheduled";
   reportMode?: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
+  webhookEnvironment?: "production" | "test";
 };
 
 type ResolvedRecipients = {
@@ -38,7 +39,11 @@ type ResolvedRecipients = {
   phones: string[];
 };
 
-const WEBHOOK_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_URL";
+const WEBHOOK_ENV_KEYS = {
+  production: "N8N_REPORT_DISPATCH_WEBHOOK_URL",
+  test: "N8N_REPORT_DISPATCH_WEBHOOK_TEST_URL",
+} as const;
+type WebhookEnvironment = keyof typeof WEBHOOK_ENV_KEYS;
 const TOKEN_ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_TOKEN";
 const OPENAI_ENV_KEY = "OPENAI_API_KEY";
 const GEMINI_ENV_KEY = "GEMINI_API_KEY";
@@ -205,13 +210,18 @@ async function getProjectEnvVarFromVercel(key: string) {
   }
 }
 
-async function resolveWebhookUrl() {
-  const fromVercel = String((await getProjectEnvVarFromVercel(WEBHOOK_ENV_KEY)) || "").trim();
+async function resolveWebhookUrl(environment: WebhookEnvironment = "production") {
+  const envKey = WEBHOOK_ENV_KEYS[environment];
+  const fromVercel = String((await getProjectEnvVarFromVercel(envKey)) || "").trim();
   if (!isPlaceholderWebhook(fromVercel) && isValidWebhookUrl(fromVercel)) {
     return { url: fromVercel, source: "vercel_api" as const };
   }
 
-  const fromRuntime = String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim();
+  const fromRuntime = String(
+    environment === "test"
+      ? process.env.N8N_REPORT_DISPATCH_WEBHOOK_TEST_URL || ""
+      : process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || ""
+  ).trim();
   if (!isPlaceholderWebhook(fromRuntime) && isValidWebhookUrl(fromRuntime)) {
     return { url: fromRuntime, source: "runtime_env" as const };
   }
@@ -1084,24 +1094,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, dryRun: true, payload });
     }
 
-    const resolvedWebhook = await resolveWebhookUrl();
+    const webhookEnvironment = body.webhookEnvironment === "test" ? "test" : "production";
+    const resolvedWebhook = await resolveWebhookUrl(webhookEnvironment);
     const webhookUrl = resolvedWebhook.url;
     if (!webhookUrl) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "N8N_REPORT_DISPATCH_WEBHOOK_URL não configurado. Defina a variável de ambiente para habilitar o disparo.",
+            `${WEBHOOK_ENV_KEYS[webhookEnvironment]} não configurado. Defina a variável de ambiente para habilitar o disparo.`,
           diagnostic: {
             resolutionSource: resolvedWebhook.source,
-            runtimeValueConfigured: !isPlaceholderWebhook(String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim()),
+            runtimeValueConfigured: !isPlaceholderWebhook(
+              String(
+                webhookEnvironment === "test"
+                  ? process.env.N8N_REPORT_DISPATCH_WEBHOOK_TEST_URL || ""
+                  : process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || ""
+              ).trim()
+            ),
           },
           payloadPreview: payload,
         },
         { status: 400 }
       );
     }
-    if (isTestWebhookUrl(webhookUrl)) {
+    if (webhookEnvironment !== "test" && isTestWebhookUrl(webhookUrl)) {
       return NextResponse.json(
         {
           success: false,
@@ -1183,6 +1200,7 @@ export async function POST(request: Request) {
       message: "Disparo enviado ao n8n com sucesso.",
       webhookUrl: maskUrl(webhookUrl),
       resolutionSource: resolvedWebhook.source,
+      webhookEnvironment,
       n8nResponse: parsed,
       security: {
         bearerTokenSent: Boolean(webhookToken),

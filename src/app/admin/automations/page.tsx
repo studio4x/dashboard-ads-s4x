@@ -20,6 +20,13 @@ type DashboardOption = {
   clients?: { name?: string | null } | null;
 };
 
+type WebhookEnvironment = "production" | "test";
+
+const WEBHOOK_ENV_LABELS: Record<WebhookEnvironment, string> = {
+  production: "Produção",
+  test: "Teste",
+};
+
 function extractPdfUrl(payload: DispatchPayloadCandidate): string {
   const candidates = [
     payload?.response?.pdf?.url,
@@ -115,20 +122,31 @@ export default function AdminAutomationsPage() {
   const defaultFrom = defaultFromDate.toISOString().slice(0, 10);
   const defaultTo = defaultToDate.toISOString().slice(0, 10);
 
-  const [webhookUrl, setWebhookUrl] = useState("");
-  const [webhookMasked, setWebhookMasked] = useState("");
+  const [webhookEnvironment, setWebhookEnvironment] = useState<WebhookEnvironment>("production");
+  const [webhookUrls, setWebhookUrls] = useState<Record<WebhookEnvironment, string>>({
+    production: "",
+    test: "",
+  });
+  const [webhookMaskedUrls, setWebhookMaskedUrls] = useState<Record<WebhookEnvironment, string>>({
+    production: "",
+    test: "",
+  });
   const [isSavingWebhook, setIsSavingWebhook] = useState(false);
   const [webhookStatus, setWebhookStatus] = useState<"idle" | "ok" | "error">("idle");
   const [webhookMessage, setWebhookMessage] = useState("");
   const [webhookLoaded, setWebhookLoaded] = useState(false);
   const [webhookDirty, setWebhookDirty] = useState(false);
-  const lastSavedWebhookRef = useRef("");
+  const lastSavedWebhookRef = useRef<Record<WebhookEnvironment, string>>({
+    production: "",
+    test: "",
+  });
 
   const [dashboards, setDashboards] = useState<DashboardOption[]>([]);
   const [dashboardId, setDashboardId] = useState("");
   const [testFrom, setTestFrom] = useState(defaultFrom);
   const [testTo, setTestTo] = useState(defaultTo);
   const [testReportMode, setTestReportMode] = useState<"analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf">("both");
+  const [dispatchWebhookEnvironment, setDispatchWebhookEnvironment] = useState<WebhookEnvironment>("test");
   const [isTesting, setIsTesting] = useState(false);
   const [testResponse, setTestResponse] = useState("");
   const [testPdfUrl, setTestPdfUrl] = useState("");
@@ -157,10 +175,17 @@ export default function AdminAutomationsPage() {
         const res = await fetch("/api/admin/automations/n8n-webhook");
         const json = await res.json();
         if (res.ok && json?.success) {
-          const value = String(json.webhookUrl || "");
-          setWebhookUrl(value);
-          setWebhookMasked(String(json.webhookUrlMasked || ""));
-          lastSavedWebhookRef.current = value;
+          const urls = {
+            production: String(json?.webhookUrls?.production || ""),
+            test: String(json?.webhookUrls?.test || ""),
+          } satisfies Record<WebhookEnvironment, string>;
+          const maskedUrls = {
+            production: String(json?.webhookUrlsMasked?.production || ""),
+            test: String(json?.webhookUrlsMasked?.test || ""),
+          } satisfies Record<WebhookEnvironment, string>;
+          setWebhookUrls(urls);
+          setWebhookMaskedUrls(maskedUrls);
+          lastSavedWebhookRef.current = urls;
         }
       } catch {
         // mantém vazio em caso de erro
@@ -171,8 +196,8 @@ export default function AdminAutomationsPage() {
     loadWebhook();
   }, []);
 
-  const saveWebhookToVercel = async (valueOverride?: string) => {
-    const value = String(valueOverride ?? webhookUrl).trim();
+  const saveWebhookToVercel = async (environment: WebhookEnvironment, valueOverride?: string) => {
+    const value = String(valueOverride ?? webhookUrls[environment]).trim();
     if (!value) {
       setWebhookStatus("error");
       setWebhookMessage("Informe a URL do webhook antes de salvar.");
@@ -186,7 +211,7 @@ export default function AdminAutomationsPage() {
       const res = await fetch("/api/admin/automations/n8n-webhook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ webhookUrl: value }),
+        body: JSON.stringify({ webhookUrl: value, environment }),
       });
       const json = await res.json();
       if (!res.ok || !json?.success) {
@@ -197,8 +222,15 @@ export default function AdminAutomationsPage() {
 
       setWebhookStatus("ok");
       setWebhookMessage(json?.message || "Webhook salvo com sucesso.");
-      setWebhookMasked(String(json?.webhookUrlMasked || ""));
-      lastSavedWebhookRef.current = value;
+      const masked = String(json?.webhookUrlsMasked?.[environment] || json?.webhookUrlMasked || "");
+      setWebhookMaskedUrls((current) => ({
+        ...current,
+        [environment]: masked,
+      }));
+      lastSavedWebhookRef.current = {
+        ...lastSavedWebhookRef.current,
+        [environment]: value,
+      };
       setWebhookDirty(false);
       return true;
     } catch (error: unknown) {
@@ -212,15 +244,15 @@ export default function AdminAutomationsPage() {
 
   useEffect(() => {
     if (!webhookLoaded || !webhookDirty) return;
-    const value = webhookUrl.trim();
-    if (!value || value === lastSavedWebhookRef.current) return;
+    const value = webhookUrls[webhookEnvironment].trim();
+    if (!value || value === lastSavedWebhookRef.current[webhookEnvironment]) return;
 
     const timer = setTimeout(() => {
-      saveWebhookToVercel(value);
+      saveWebhookToVercel(webhookEnvironment, value);
     }, 900);
 
     return () => clearTimeout(timer);
-  }, [webhookUrl, webhookDirty, webhookLoaded]);
+  }, [webhookUrls, webhookEnvironment, webhookDirty, webhookLoaded]);
 
   const runDispatchTest = async (dryRun: boolean) => {
     if (!dashboardId) {
@@ -235,6 +267,7 @@ export default function AdminAutomationsPage() {
         dashboardId,
         dryRun,
         reportMode: testReportMode,
+        webhookEnvironment: dispatchWebhookEnvironment,
       };
       if (testFrom) payload.from = testFrom;
       if (testTo) payload.to = testTo;
@@ -344,7 +377,8 @@ export default function AdminAutomationsPage() {
     () =>
       [
         "Crie um workflow com nó Webhook (POST).",
-        "Copie a URL do Webhook e configure na variável N8N_REPORT_DISPATCH_WEBHOOK_URL no Vercel.",
+        "Configure a URL de produção em N8N_REPORT_DISPATCH_WEBHOOK_URL no Vercel.",
+        "Se estiver validando em homologação, configure também N8N_REPORT_DISPATCH_WEBHOOK_TEST_URL com a URL /webhook-test/ do n8n.",
         "Defina um token real em N8N_REPORT_DISPATCH_WEBHOOK_TOKEN e valide o header Authorization no n8n.",
         "Use IA com report.summary, report.comparativo, report.funil, report.topItems, report.series e report.insights.",
         "Envie por e-mail e WhatsApp no fim do fluxo.",
@@ -388,26 +422,59 @@ export default function AdminAutomationsPage() {
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>URL do Webhook (POST)</label>
-            <input
-              value={webhookUrl}
-              onChange={(e) => {
-                setWebhookUrl(e.target.value);
-                setWebhookDirty(true);
-                setWebhookStatus("idle");
-                setWebhookMessage("Alteração detectada. Salvamento automático ativo.");
-              }}
-              placeholder="https://seu-n8n/webhook/..."
-              style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
-            />
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 260px) 1fr", gap: 12, alignItems: "end" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Ambiente do webhook</label>
+                <select
+                  value={webhookEnvironment}
+                  onChange={(e) => {
+                    const nextEnv = e.target.value as WebhookEnvironment;
+                    setWebhookEnvironment(nextEnv);
+                    setWebhookStatus("idle");
+                    setWebhookMessage("");
+                    setWebhookDirty(false);
+                  }}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "#fff" }}
+                >
+                  <option value="production">Produção</option>
+                  <option value="test">Teste</option>
+                </select>
+                <p style={{ fontSize: 11, color: "#64748B" }}>
+                  {webhookEnvironment === "production"
+                    ? "Usado pelos disparos reais e pelos cron jobs."
+                    : "Usado pelos testes manuais do n8n em homologação."}
+                </p>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>URL do Webhook (POST)</label>
+                <input
+                  value={webhookUrls[webhookEnvironment]}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setWebhookUrls((current) => ({ ...current, [webhookEnvironment]: value }));
+                    setWebhookDirty(true);
+                    setWebhookStatus("idle");
+                    setWebhookMessage("Alteração detectada. Salvamento automático ativo.");
+                  }}
+                  placeholder={
+                    webhookEnvironment === "production"
+                      ? "https://seu-n8n/webhook/..."
+                      : "https://seu-n8n/webhook-test/..."
+                  }
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
+                />
+              </div>
+            </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <p style={{ fontSize: 11, color: "#64748B" }}>
-                {webhookMasked ? `Atual na Vercel: ${webhookMasked}` : "Nenhum webhook válido detectado no runtime atual."}
+                {webhookMaskedUrls.production || webhookMaskedUrls.test
+                  ? `Produção: ${webhookMaskedUrls.production || "não configurado"} | Teste: ${webhookMaskedUrls.test || "não configurado"}`
+                  : "Nenhum webhook válido detectado no runtime atual."}
               </p>
               <button
                 type="button"
                 disabled={isSavingWebhook}
-                onClick={() => saveWebhookToVercel()}
+                onClick={() => saveWebhookToVercel(webhookEnvironment)}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -423,7 +490,7 @@ export default function AdminAutomationsPage() {
                 }}
               >
                 {isSavingWebhook ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
-                Salvar agora na Vercel
+                Salvar {WEBHOOK_ENV_LABELS[webhookEnvironment].toLowerCase()} na Vercel
               </button>
             </div>
 
@@ -479,6 +546,20 @@ export default function AdminAutomationsPage() {
             <strong>Importante:</strong> o botão <strong>Teste Dry Run</strong> não envia requisição ao n8n. Ele apenas simula o payload para validação. Para enviar ao webhook, use <strong>Teste Real no n8n</strong>.
           </div>
           <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Ambiente do webhook</label>
+              <select
+                value={dispatchWebhookEnvironment}
+                onChange={(e) => setDispatchWebhookEnvironment(e.target.value as WebhookEnvironment)}
+                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, background: "white" }}
+              >
+                <option value="test">Teste</option>
+                <option value="production">Produção</option>
+              </select>
+              <p style={{ fontSize: 11, color: "#64748B" }}>
+                O botão "Teste Real no n8n" usa este ambiente para enviar o payload.
+              </p>
+            </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Dashboard</label>
               <select

@@ -6,7 +6,12 @@ import { apiErrorResponse, parseJsonObject, requireString } from "@/lib/security
 export const dynamic = "force-dynamic";
 
 const TARGETS = ["production", "preview", "development"];
-const ENV_KEY = "N8N_REPORT_DISPATCH_WEBHOOK_URL";
+const WEBHOOK_ENV_KEYS = {
+  production: "N8N_REPORT_DISPATCH_WEBHOOK_URL",
+  test: "N8N_REPORT_DISPATCH_WEBHOOK_TEST_URL",
+} as const;
+
+type WebhookEnvironment = keyof typeof WEBHOOK_ENV_KEYS;
 
 function maskUrl(url: string): string {
   try {
@@ -21,7 +26,52 @@ function maskUrl(url: string): string {
   }
 }
 
-async function upsertVercelEnvVar(value: string) {
+async function getVercelEnvVars() {
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const token = process.env.VERCEL_TOKEN;
+
+  if (!projectId || !token) {
+    return {
+      ok: false,
+      error:
+        "Credenciais da Vercel ausentes no servidor (VERCEL_PROJECT_ID / VERCEL_TOKEN).",
+    } as const;
+  }
+
+  const response = await fetch(
+    `https://api.vercel.com/v8/projects/${projectId}/env?decrypt=true`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (!response.ok) {
+    return { ok: false, error: `Falha ao ler variáveis na Vercel (HTTP ${response.status}).` } as const;
+  }
+
+  const json = await response.json();
+  const envs = Array.isArray(json?.envs) ? json.envs : [];
+  const map = new Map<string, string>();
+  for (const item of envs) {
+    if (item?.key && typeof item.value === "string") {
+      map.set(String(item.key), String(item.value));
+    }
+  }
+
+  return {
+    ok: true,
+    envs: {
+      production: String(map.get(WEBHOOK_ENV_KEYS.production) || "").trim(),
+      test: String(map.get(WEBHOOK_ENV_KEYS.test) || "").trim(),
+    },
+  } as const;
+}
+
+async function upsertVercelEnvVar(environment: WebhookEnvironment, value: string) {
   const projectId = process.env.VERCEL_PROJECT_ID;
   const token = process.env.VERCEL_TOKEN;
 
@@ -35,11 +85,11 @@ async function upsertVercelEnvVar(value: string) {
 
   const payload = [
     {
-      key: ENV_KEY,
+      key: WEBHOOK_ENV_KEYS[environment],
       value,
       type: "encrypted",
       target: TARGETS,
-      comment: "Configuração do webhook n8n (Dashboard Ads S4X)",
+      comment: `Configuração do webhook n8n (${environment}) - Dashboard Ads S4X`,
     },
   ];
 
@@ -76,52 +126,41 @@ async function upsertVercelEnvVar(value: string) {
   return { ok: true };
 }
 
-async function getWebhookFromVercel() {
-  const projectId = process.env.VERCEL_PROJECT_ID;
-  const token = process.env.VERCEL_TOKEN;
-  if (!projectId || !token) return null;
-
-  try {
-    const response = await fetch(
-      `https://api.vercel.com/v8/projects/${projectId}/env?decrypt=true`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      }
-    );
-
-    if (!response.ok) return null;
-    const json = await response.json();
-    const envs = Array.isArray(json?.envs) ? json.envs : [];
-    const hit = envs.find((item: any) => item?.key === ENV_KEY);
-    const value = String(hit?.value || "").trim();
-    return value || null;
-  } catch {
-    return null;
-  }
-}
-
 export async function GET() {
   try {
     const authError = await requireAdmin();
     if (authError) return authError;
 
-    const fromVercelApi = await getWebhookFromVercel();
-    const currentValue = (fromVercelApi || process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim();
-    const configured =
-      currentValue.length > 0 &&
-      !currentValue.includes("SEU_N8N_WEBHOOK_URL_AQUI") &&
-      currentValue !== "https://SEU_N8N_WEBHOOK_URL_AQUI";
+    const fromVercelApi = await getVercelEnvVars();
+    const productionValue =
+      fromVercelApi.ok && fromVercelApi.envs.production
+        ? fromVercelApi.envs.production
+        : String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_URL || "").trim();
+    const testValue =
+      fromVercelApi.ok && fromVercelApi.envs.test
+        ? fromVercelApi.envs.test
+        : String(process.env.N8N_REPORT_DISPATCH_WEBHOOK_TEST_URL || "").trim();
+    const productionConfigured =
+      productionValue.length > 0 &&
+      !productionValue.includes("SEU_N8N_WEBHOOK_URL_AQUI") &&
+      productionValue !== "https://SEU_N8N_WEBHOOK_URL_AQUI";
+    const testConfigured =
+      testValue.length > 0 &&
+      !testValue.includes("SEU_N8N_WEBHOOK_URL_AQUI") &&
+      testValue !== "https://SEU_N8N_WEBHOOK_URL_AQUI";
 
     return NextResponse.json({
       success: true,
-      configured,
-      webhookUrl: configured ? currentValue : "",
-      webhookUrlMasked: configured ? maskUrl(currentValue) : "",
-      source: fromVercelApi ? "vercel_api" : "runtime_env",
+      configured: productionConfigured || testConfigured,
+      webhookUrls: {
+        production: productionConfigured ? productionValue : "",
+        test: testConfigured ? testValue : "",
+      },
+      webhookUrlsMasked: {
+        production: productionConfigured ? maskUrl(productionValue) : "",
+        test: testConfigured ? maskUrl(testValue) : "",
+      },
+      source: fromVercelApi.ok ? "vercel_api" : "runtime_env",
       targetScopes: TARGETS,
       note:
         "A leitura reflete o ambiente em runtime. Após atualizar variável na Vercel, pode ser necessário novo deploy para refletir imediatamente em todas as instâncias.",
@@ -143,6 +182,8 @@ export async function POST(request: Request) {
     const parsedBody = await parseJsonObject(request);
     if (!parsedBody.ok) return parsedBody.response;
     const webhookUrl = requireString(parsedBody.body, "webhookUrl") || "";
+    const environment = String(parsedBody.body?.environment || "production").trim().toLowerCase() as WebhookEnvironment;
+    const normalizedEnvironment: WebhookEnvironment = environment === "test" ? "test" : "production";
 
     if (!webhookUrl) {
       return NextResponse.json(
@@ -168,7 +209,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const update = await upsertVercelEnvVar(webhookUrl);
+    const update = await upsertVercelEnvVar(normalizedEnvironment, webhookUrl);
     if (!update.ok) {
       return NextResponse.json(
         { success: false, error: update.error },
@@ -178,8 +219,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Webhook salvo na Vercel com sucesso.",
+      message: `Webhook de ${normalizedEnvironment === "test" ? "teste" : "produção"} salvo na Vercel com sucesso.`,
+      environment: normalizedEnvironment,
       webhookUrlMasked: maskUrl(webhookUrl),
+      webhookUrlsMasked: {
+        [normalizedEnvironment]: maskUrl(webhookUrl),
+      },
       targetScopes: TARGETS,
       note:
         "Variável atualizada na Vercel. Em alguns casos, o novo valor só passa a valer após novo deploy.",
