@@ -624,6 +624,7 @@ export default function AdminAutomationsPage() {
                 to={testTo}
                 onPresetChange={handleTestPeriodChange}
                 variant="default"
+                menuAlign="left"
                 className="w-full"
               />
               <p style={{ fontSize: 11, color: "#64748B" }}>

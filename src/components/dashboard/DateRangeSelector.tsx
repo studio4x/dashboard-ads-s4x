@@ -10,6 +10,7 @@ interface DateRangeSelectorProps {
   onPresetChange: (preset: DateRangePreset, customDates?: { from: Date, to: Date }, includeTodayOverride?: boolean) => void;
   className?: string;
   variant?: "default" | "minimal";
+  menuAlign?: "left" | "right";
   includeToday?: boolean;
   from?: string;
   to?: string;
@@ -31,6 +32,7 @@ export function DateRangeSelector({
   onPresetChange,
   className,
   variant = "default",
+  menuAlign = "right",
   includeToday = false,
   from,
   to,
@@ -109,8 +111,14 @@ export function DateRangeSelector({
             onClick={() => setIsOpen(false)}
           />
           <div 
-            className="absolute right-0 mt-2 w-72 rounded-xl border border-slate-200 bg-white shadow-xl z-50 overflow-hidden animate-fade-in"
-            style={{ padding: "8px" }}
+            className="absolute mt-2 rounded-xl border border-slate-200 bg-white shadow-xl z-50 overflow-hidden animate-fade-in"
+            style={{
+              padding: "8px",
+              width: "min(24rem, calc(100vw - 1rem))",
+              left: menuAlign === "left" ? 0 : "auto",
+              right: menuAlign === "right" ? 0 : "auto",
+              top: "100%",
+            }}
           >
             <div className="flex flex-col gap-1">
               {presets.map((preset) => {
