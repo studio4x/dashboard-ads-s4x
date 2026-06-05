@@ -11,7 +11,6 @@ import {
   buildPdfPeriodPart,
   buildSharePdfFilename,
   buildSharePdfStoragePath,
-  createSharePdfSignedUrl,
   getCachedSharePdf,
   normalizePdfPeriodPart,
   renderAndStoreSharePdf,
@@ -1031,7 +1030,7 @@ export async function POST(request: Request) {
         : null;
     let pdfUrl =
       includePdf && shareToken
-        ? `${origin}/api/share/${shareToken}/${encodeURIComponent(pdfFilename)}${
+        ? `${origin}/api/share/${shareToken}/dashboard.pdf${
             periodFrom || periodTo
               ? `?${new URLSearchParams(
                   Object.fromEntries(
@@ -1061,7 +1060,18 @@ export async function POST(request: Request) {
           report: pdfReport as any,
           storagePath,
         });
-        pdfUrl = await createSharePdfSignedUrl(storagePath);
+        pdfUrl = `${origin}/api/share/${shareToken}/dashboard.pdf${
+          periodFrom || periodTo
+            ? `?${new URLSearchParams(
+                Object.fromEntries(
+                  Object.entries({
+                    ...(periodFrom ? { from: periodFrom } : {}),
+                    ...(periodTo ? { to: periodTo } : {}),
+                  })
+                )
+              ).toString()}`
+            : ""
+        }`;
       } catch (pdfWarmupError) {
         return NextResponse.json(
           {
