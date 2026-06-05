@@ -117,10 +117,9 @@ export default function ExecutiveSummaryPage() {
   const changes = summary?.change || {};
   const objectives = Array.isArray(data.metaObjectives) ? data.metaObjectives : [];
   const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x", objectives as any, data.metaPrimaryObjective as any);
-  const defaultExecutiveWidgets = getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x", objectives as any, data.metaPrimaryObjective as any).sections["executive-summary"]?.widgets || [];
   const executiveSummaryWidgets = getTemplateSectionWidgets(templateConfig, "executive-summary");
   const executiveSummaryMetrics = getTemplateMetricSection(templateConfig, "executive-summary")?.metrics || [];
-  const resolvedExecutiveWidgets = (executiveSummaryWidgets.length > 0 ? executiveSummaryWidgets : defaultExecutiveWidgets)
+  const resolvedExecutiveWidgets = executiveSummaryWidgets
     .filter((widget) => widget.enabled)
     .sort((a, b) => a.order - b.order);
   const executiveWidgetRows = (() => {
@@ -918,13 +917,17 @@ export default function ExecutiveSummaryPage() {
         </div>
 
         {/* Middle Charts Section */}
-        {executiveWidgetRows.length > 0 && (
+        {executiveWidgetRows.length > 0 ? (
           <div className="flex flex-col gap-5">
             {executiveWidgetRows.map((row, rowIndex) => (
               <div key={`executive-widget-row-${rowIndex}`} className="flex flex-nowrap gap-5 w-full">
                 {row.map((widget) => renderWidgetCard(widget, row.length))}
               </div>
             ))}
+          </div>
+        ) : (
+          <div style={{ padding: 16, borderRadius: 12, border: "1px dashed #CBD5E1", background: "#F8FAFC", color: "#64748B", fontSize: 13 }}>
+            Nenhum gráfico configurado no resumo executivo do template.
           </div>
         )}
 
