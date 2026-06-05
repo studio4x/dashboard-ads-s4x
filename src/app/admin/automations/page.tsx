@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, CheckCircle2, Info, Loader2, Play, Save } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { DateRangeSelector } from "@/components/dashboard/DateRangeSelector";
+import { DateRangePreset, formatDateISO, getDateRangePreset } from "@/lib/dashboard/date-utils";
 
 const APP_BASE_URL = "https://dashboard-ads-s4x.vercel.app";
 const DISPATCH_ENDPOINT = `${APP_BASE_URL}/api/admin/automations/report-dispatch`;
@@ -114,13 +116,11 @@ function CopyBlock({
 
 export default function AdminAutomationsPage() {
   const { toast } = useToast();
-  const today = new Date();
-  const defaultToDate = new Date(today);
-  defaultToDate.setDate(defaultToDate.getDate() - 1);
-  const defaultFromDate = new Date(defaultToDate);
-  defaultFromDate.setDate(defaultFromDate.getDate() - 6);
-  const defaultFrom = defaultFromDate.toISOString().slice(0, 10);
-  const defaultTo = defaultToDate.toISOString().slice(0, 10);
+  const defaultTestRange = getDateRangePreset("last_30_days", undefined, false);
+  const [testRangePreset, setTestRangePreset] = useState<DateRangePreset>("last_30_days");
+  const [testIncludeToday, setTestIncludeToday] = useState(false);
+  const [testFrom, setTestFrom] = useState(formatDateISO(defaultTestRange.from));
+  const [testTo, setTestTo] = useState(formatDateISO(defaultTestRange.to));
 
   const [webhookEnvironment, setWebhookEnvironment] = useState<WebhookEnvironment>("production");
   const [webhookUrls, setWebhookUrls] = useState<Record<WebhookEnvironment, string>>({
@@ -143,8 +143,6 @@ export default function AdminAutomationsPage() {
 
   const [dashboards, setDashboards] = useState<DashboardOption[]>([]);
   const [dashboardId, setDashboardId] = useState("");
-  const [testFrom, setTestFrom] = useState(defaultFrom);
-  const [testTo, setTestTo] = useState(defaultTo);
   const [testReportMode, setTestReportMode] = useState<"analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf">("both");
   const [dispatchWebhookEnvironment, setDispatchWebhookEnvironment] = useState<WebhookEnvironment>("test");
   const [isTesting, setIsTesting] = useState(false);
@@ -306,6 +304,31 @@ export default function AdminAutomationsPage() {
     } finally {
       setIsTesting(false);
     }
+  };
+
+  const handleTestPeriodChange = (
+    preset: DateRangePreset,
+    customDates?: { from: Date; to: Date },
+    includeTodayOverride?: boolean
+  ) => {
+    setTestRangePreset(preset);
+    if (includeTodayOverride !== undefined) {
+      setTestIncludeToday(includeTodayOverride);
+    }
+
+    if (customDates) {
+      setTestFrom(formatDateISO(customDates.from));
+      setTestTo(formatDateISO(customDates.to));
+      return;
+    }
+
+    if (preset === "all_time") {
+      return;
+    }
+
+    const resolved = getDateRangePreset(preset, undefined, includeTodayOverride ?? testIncludeToday);
+    setTestFrom(formatDateISO(resolved.from));
+    setTestTo(formatDateISO(resolved.to));
   };
 
   const samplePayload = useMemo(
@@ -592,23 +615,20 @@ export default function AdminAutomationsPage() {
                 style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
               />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Data início (opcional)</label>
-              <input
-                type="date"
-                value={testFrom}
-                onChange={(e) => setTestFrom(e.target.value)}
-                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "1 / -1" }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Período do teste</label>
+              <DateRangeSelector
+                currentPreset={testRangePreset}
+                includeToday={testIncludeToday}
+                from={testFrom}
+                to={testTo}
+                onPresetChange={handleTestPeriodChange}
+                variant="default"
+                className="w-full"
               />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Data fim (opcional)</label>
-              <input
-                type="date"
-                value={testTo}
-                onChange={(e) => setTestTo(e.target.value)}
-                style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13 }}
-              />
+              <p style={{ fontSize: 11, color: "#64748B" }}>
+                O período selecionado é enviado ao webhook, à URL do dashboard e ao PDF gerado.
+              </p>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Conteúdo do payload</label>
