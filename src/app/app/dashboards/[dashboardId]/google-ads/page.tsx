@@ -11,7 +11,7 @@ import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateGoogleAdsKpis } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 import { normalizeGoogleAdsRowsToPeriod } from "@/lib/dashboard/google-ads-period-model";
-import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
+import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateMetricSection } from "@/lib/dashboard/template-metric-config";
 import type { KpiSummary } from "@/types/entities";
 
 function mapIntegratedGoogleMetricKeys(metrics: KpiSummary[]): KpiSummary[] {
@@ -45,7 +45,8 @@ export default function GoogleAdsPage() {
   if (!data) return null;
 
   const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x");
-  const isIntegratedTemplate = data.templateId === "google_meta_ads_s4x";
+  const hasGoogleAdsSection = Boolean(getTemplateMetricSection(templateConfig, "google-ads"));
+  const isIntegratedTemplate = data.templateId === "google_meta_ads_s4x" || hasGoogleAdsSection;
   const hasData = data.google_ads && data.google_ads.length > 0;
   
   if (!hasData && data.source !== "mock") {

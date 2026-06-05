@@ -13,7 +13,7 @@ import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateMetaAdsKpis, generateMetaAdsS4XKpisWithLabels } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaObjectiveLabel, getMetaResultMetric, normalizeMetaAdsObjectives, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
-import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig } from "@/lib/dashboard/template-metric-config";
+import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateMetricSection } from "@/lib/dashboard/template-metric-config";
 import type { KpiSummary } from "@/types/entities";
 
 function mapIntegratedMetaMetricKeys(metrics: KpiSummary[]): KpiSummary[] {
@@ -96,6 +96,7 @@ export default function MetaAdsPage() {
   const defaultObjective = normalizeMetaAdsObjectives([data.metaPrimaryObjective])[0] || objectiveOptions[0] || "";
   const activeObjective = selectedObjective || defaultObjective;
   const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "meta_ads_s4x", objectiveOptions as any, data.metaPrimaryObjective as any);
+  const hasMetaAdsSection = Boolean(getTemplateMetricSection(templateConfig, "meta-ads"));
 
   const isMetaS4X = data.templateId === "meta_ads_s4x" || data.templateId === "google_meta_ads_s4x";
   const available =
@@ -124,8 +125,8 @@ export default function MetaAdsPage() {
   const resultValueKey = resultMetric === "postEngagement" ? "postEngagement" : resultMetric === "clicks" ? "clicks" : resultMetric === "reach" ? "reach" : "conversions";
   const costPerResultKey = costMetric === "cpc" ? "cpc" : costMetric === "cpm" ? "cpm" : "cpa";
   const costPerResultColumnKey = costMetric === "cpa" && resultMetric !== "conversions" ? "costPerResult" : costPerResultKey;
-  const isIntegratedTemplate = data.templateId === "google_meta_ads_s4x";
-  const templateSectionKey = isIntegratedTemplate ? "meta-ads" : "executive-summary";
+  const isIntegratedTemplate = data.templateId === "google_meta_ads_s4x" || hasMetaAdsSection;
+  const templateSectionKey = hasMetaAdsSection ? "meta-ads" : "executive-summary";
   const hasData = isMetaS4X 
     ? ((data.meta_ads && data.meta_ads.length > 0) || (data.dailyPerformance && data.dailyPerformance.length > 0))
     : (data.meta_ads && data.meta_ads.length > 0);
@@ -142,7 +143,7 @@ export default function MetaAdsPage() {
   }
 
   // 1. Geração de KPIs
-  const metaRowsForS4X = data.templateId === "google_meta_ads_s4x"
+  const metaRowsForS4X = hasMetaAdsSection
     ? (data.meta_ads || [])
     : (data.dailyPerformance || []);
 
