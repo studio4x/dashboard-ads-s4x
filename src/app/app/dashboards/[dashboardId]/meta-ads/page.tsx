@@ -98,7 +98,7 @@ export default function MetaAdsPage() {
   const templateConfig = data.templateConfig || getDefaultTemplateMetricConfig(data.templateId || "meta_ads_s4x", objectiveOptions as any, data.metaPrimaryObjective as any);
   const hasMetaAdsSection = Boolean(getTemplateMetricSection(templateConfig, "meta-ads"));
 
-  const isMetaS4X = data.templateId === "meta_ads_s4x" || data.templateId === "google_meta_ads_s4x";
+  const isMetaS4X = data.templateId === "meta_ads_s4x" || data.templateId === "google_meta_ads_s4x" || hasMetaAdsSection;
   const available =
     data?.diagnostics?.availableMetrics?.fields
     || data?.metaPayload?.diagnostics?.availableMetrics?.fields;
@@ -108,7 +108,7 @@ export default function MetaAdsPage() {
     return Boolean(available[key]);
   };
   const hasReachData = () => {
-    const rows = (data.templateId === "google_meta_ads_s4x" ? data.meta_ads : data.dailyPerformance) || [];
+    const rows = (hasMetaAdsSection ? data.meta_ads : data.dailyPerformance) || [];
     return Array.isArray(rows) && rows.some((row: any) => Number(row?.reach || 0) > 0);
   };
   const canShowReachMetric = hasMetric("reach") || hasReachData();
@@ -224,7 +224,7 @@ export default function MetaAdsPage() {
 
   if (isMetaS4X) {
     // Processamento estruturado Meta Ads S4X
-    const rawData = (data.templateId === "google_meta_ads_s4x" ? data.meta_ads : data.dailyPerformance) || [];
+    const rawData = (hasMetaAdsSection ? data.meta_ads : data.dailyPerformance) || [];
 
     // Campanhas
     const campaignsMap = rawData.reduce((acc: any, curr: any) => {
