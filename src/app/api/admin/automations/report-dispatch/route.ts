@@ -1084,6 +1084,7 @@ export async function POST(request: Request) {
         templateId: dashboard.dashboard_type,
         clientId: dashboard.client_id,
         clientName: dashboard.clients?.name || null,
+        url: shareUrlWithRange,
       },
       period: {
         from: body.from || null,
@@ -1096,6 +1097,11 @@ export async function POST(request: Request) {
       }),
       share: {
         url: shareUrlWithRange,
+        period: {
+          from: body.from || null,
+          to: body.to || null,
+          preset: "custom",
+        },
       },
       reportMode,
       report: reportPayload,
