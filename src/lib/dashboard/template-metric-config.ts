@@ -5,7 +5,7 @@ import type { KpiSummary } from "@/types/entities";
 export type MetricDisplayMode = "card" | "text" | "chart" | "table";
 export type TemplateMetricKind = "standard" | "composite";
 export type TemplateMetricSourcePlatform = "google_ads" | "meta_ads" | "mixed";
-export type TemplateWidgetKind = "trend_chart" | "comparison_chart" | "bar_chart" | "device_donut";
+export type TemplateWidgetKind = "trend_chart" | "comparison_chart" | "bar_chart" | "funnel_chart" | "device_donut";
 export type TemplateMetricCompositeType =
   | "sum"
   | "subtract"
@@ -182,6 +182,46 @@ function defaultMetaAdsWidgets(primaryObjective: MetaAdsObjectiveId | null): Tem
       label: "Investimento por campanha",
       enabled: true,
       widthPercent: 40,
+      primaryMetricKey: "cost",
+    }),
+  ];
+}
+
+function defaultMetaPerformanceWidgets(): TemplateWidgetItem[] {
+  return [
+    widgetItem("meta_perf_trend_chart", 10, {
+      kind: "trend_chart",
+      label: "Funil Diário",
+      enabled: true,
+      widthPercent: 100,
+      primaryMetricKey: "cost",
+      secondaryMetricKey: "clicks",
+    }),
+    widgetItem("meta_perf_funnel_chart", 20, {
+      kind: "funnel_chart",
+      label: "Funil de Performance",
+      enabled: true,
+      widthPercent: 100,
+    }),
+    widgetItem("meta_perf_campaigns_bar_chart", 30, {
+      kind: "bar_chart",
+      label: "Campanhas",
+      enabled: true,
+      widthPercent: 33.33,
+      primaryMetricKey: "cost",
+    }),
+    widgetItem("meta_perf_adsets_bar_chart", 40, {
+      kind: "bar_chart",
+      label: "Conjuntos",
+      enabled: true,
+      widthPercent: 33.33,
+      primaryMetricKey: "cost",
+    }),
+    widgetItem("meta_perf_ads_bar_chart", 50, {
+      kind: "bar_chart",
+      label: "Anúncios",
+      enabled: true,
+      widthPercent: 33.34,
       primaryMetricKey: "cost",
     }),
   ];
@@ -515,7 +555,16 @@ function metaDefaults(primaryObjective: MetaAdsObjectiveId | null): Record<strin
       metricItem("postReactions", 30, { displayMode: "table", recommended: true, sourcePlatform: "meta_ads" }),
       metricItem("postShares", 40, { displayMode: "table", recommended: true, sourcePlatform: "meta_ads" }),
       metricItem("reach", 50, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
-    ]),
+    ], defaultMetaAdsWidgets(primaryObjective)),
+    "meta-performance": section("meta-performance", "Meta Ads - Performance", [
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("impressions", 20, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("reach", 30, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("clicks", 40, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("conversions", 50, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("postEngagement", 60, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("frequency", 70, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+    ], defaultMetaPerformanceWidgets()),
   };
 }
 
@@ -552,6 +601,15 @@ function integratedDefaults(primaryObjective: MetaAdsObjectiveId | null): Record
       metricItem("meta_frequency", 60, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
       metricItem("meta_postEngagement", 70, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
     ], defaultMetaAdsWidgets(primaryObjective)),
+    "meta-performance": section("meta-performance", "Meta Ads - Performance", [
+      metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("impressions", 20, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("reach", 30, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("clicks", 40, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("conversions", 50, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("postEngagement", 60, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
+      metricItem("frequency", 70, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
+    ], defaultMetaPerformanceWidgets()),
   };
 }
 

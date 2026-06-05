@@ -539,6 +539,35 @@ export default function MetaAdsPage() {
     if (currentRow.length > 0) rows.push(currentRow);
     return rows;
   })();
+  const metaPerformanceSectionWidgets = getTemplateSectionWidgets(templateConfig, "meta-performance");
+  const defaultMetaPerformanceSectionWidgets = getDefaultTemplateMetricConfig(data.templateId || "meta_ads_s4x", objectiveOptions as any, data.metaPrimaryObjective as any).sections["meta-performance"]?.widgets || [];
+  const resolvedMetaPerformanceWidgets = (metaPerformanceSectionWidgets.length > 0 ? metaPerformanceSectionWidgets : defaultMetaPerformanceSectionWidgets)
+    .filter((widget) => widget.enabled)
+    .sort((a, b) => a.order - b.order);
+  const metaPerformanceWidgetRows = (() => {
+    const rows: TemplateWidgetItem[][] = [];
+    let currentRow: TemplateWidgetItem[] = [];
+    let currentSum = 0;
+    resolvedMetaPerformanceWidgets.forEach((widget) => {
+      const width = Math.max(10, Math.min(100, widget.widthPercent ?? 100));
+      const nextSum = currentSum + width;
+      if (currentRow.length > 0 && nextSum > 100.01) {
+        rows.push(currentRow);
+        currentRow = [widget];
+        currentSum = width;
+        return;
+      }
+      currentRow.push(widget);
+      currentSum = nextSum;
+      if (currentSum >= 99.5) {
+        rows.push(currentRow);
+        currentRow = [];
+        currentSum = 0;
+      }
+    });
+    if (currentRow.length > 0) rows.push(currentRow);
+    return rows;
+  })();
   const metaCurrent = (data.meta_ads_summary?.current || {}) as any;
   const metaChange = (data.meta_ads_summary?.change || {}) as any;
   const resolveMetaCurrentSummaryValue = (key?: string | null) => renderMetaMetricValue(metaCurrent, key);
@@ -564,6 +593,55 @@ export default function MetaAdsPage() {
       minWidth: 0,
       width: "100%",
     } as const;
+
+    if (widget.kind === "funnel_chart") {
+      return (
+        <div key={widget.key} style={wrapperStyle}>
+          <ChartCard title={title} subtitle={`Impressões > Alcance > Cliques > ${conversionLabel} > Engajamento`} height={420}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 304 }}>
+              {funnelStages.length === 0 ? (
+                <div style={{ height: 228, display: "flex", alignItems: "center", justifyContent: "center", color: "#94A3B8", fontSize: 13 }}>
+                  Sem dados para montar o funil no período selecionado.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 4 }}>
+                  {funnelStages.map((stage) => (
+                    <div key={stage.name} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                        <span style={{ color: "#0F172A", fontWeight: 700 }}>{stage.name}</span>
+                        <span style={{ color: "#0F172A", fontWeight: 700 }}>{formatNumber(stage.value, true)}</span>
+                      </div>
+                      <div style={{ width: "100%", height: 20, borderRadius: 999, background: "#E2E8F0", overflow: "hidden" }}>
+                        <div
+                          style={{
+                            width: `${stage.barWidth}%`,
+                            height: "100%",
+                            borderRadius: 999,
+                            background: `linear-gradient(90deg, ${stage.color}, ${stage.color}CC)`,
+                            transition: "width 0.3s ease",
+                          }}
+                        />
+                      </div>
+                      {stage.conversionRate !== null && (
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748B" }}>
+                          <span>Conversão vs etapa anterior: <strong style={{ color: "#0F172A" }}>{stage.conversionRate.toFixed(1)}%</strong></span>
+                          <span>Perda: <strong style={{ color: "#0F172A" }}>{stage.dropRate?.toFixed(1)}%</strong></span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="dashboard-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 8 }}>
+              <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CTR: <strong style={{ color: "#0F172A" }}>{funnelCtr.toFixed(2)}%</strong></div>
+              <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CPC: <strong style={{ color: "#0F172A" }}>{formatCurrency(funnelCpc)}</strong></div>
+              <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CPM: <strong style={{ color: "#0F172A" }}>{formatCurrency(funnelCpm)}</strong></div>
+            </div>
+          </ChartCard>
+        </div>
+      );
+    }
 
     if (widget.kind === "bar_chart") {
       const barData = filteredCampaigns.slice(0, 10).map((c: any) => ({
@@ -800,72 +878,19 @@ export default function MetaAdsPage() {
                   {adSetOptions.map((a) => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
-              <ChartCard title="Funil Diário" subtitle={`Investimento, Cliques e ${conversionLabel}`} height={300}>
-                <LineChartWidget
-                  data={dailySeries}
-                  lines={[
-                    ...(hasMetric("cost") ? [{ key: "cost", label: "Investimento", color: "#1877F2" }] : []),
-                    ...(hasMetric("clicks") ? [{ key: "clicks", label: "Cliques", color: "#F59E0B" }] : []),
-                    ...((resultMetric === "postEngagement" ? hasMetric("postEngagement") : resultMetric === "clicks" ? hasMetric("clicks") : resultMetric === "reach" ? hasMetric("reach") : hasMetric("conversions")) ? [{ key: resultValueKey, label: conversionLabel, color: "#10B981" }] : []),
-                  ]}
-                  xKey="date"
-                  formatValue={(v) => typeof v === "number" && v > 50 ? formatCurrency(v, true) : String(v)}
-                  height={260}
-                />
-              </ChartCard>
-              <ChartCard title="Funil de Performance" subtitle={`Impressões > Alcance > Cliques > ${conversionLabel} > Engajamento`} height={420}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 304 }}>
-                  {funnelStages.length === 0 ? (
-                    <div style={{ height: 228, display: "flex", alignItems: "center", justifyContent: "center", color: "#94A3B8", fontSize: 13 }}>
-                      Sem dados para montar o funil no período selecionado.
+              {metaPerformanceWidgetRows.length > 0 ? (
+                <div className="flex flex-col gap-5">
+                  {metaPerformanceWidgetRows.map((row, rowIndex) => (
+                    <div key={`meta-performance-widgets-${rowIndex}`} className="flex flex-wrap gap-5">
+                      {row.map((widget) => renderMetaWidgetCard(widget, row.length))}
                     </div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 4 }}>
-                      {funnelStages.map((stage) => (
-                        <div key={stage.name} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                            <span style={{ color: "#0F172A", fontWeight: 700 }}>{stage.name}</span>
-                            <span style={{ color: "#0F172A", fontWeight: 700 }}>{formatNumber(stage.value, true)}</span>
-                          </div>
-                          <div style={{ width: "100%", height: 20, borderRadius: 999, background: "#E2E8F0", overflow: "hidden" }}>
-                            <div
-                              style={{
-                                width: `${stage.barWidth}%`,
-                                height: "100%",
-                                borderRadius: 999,
-                                background: `linear-gradient(90deg, ${stage.color}, ${stage.color}CC)`,
-                                transition: "width 0.3s ease",
-                              }}
-                            />
-                          </div>
-                          {stage.conversionRate !== null && (
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748B" }}>
-                              <span>Conversão vs etapa anterior: <strong style={{ color: "#0F172A" }}>{stage.conversionRate.toFixed(1)}%</strong></span>
-                              <span>Perda: <strong style={{ color: "#0F172A" }}>{stage.dropRate?.toFixed(1)}%</strong></span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  ))}
                 </div>
-                <div className="dashboard-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 8 }}>
-                  <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CTR: <strong style={{ color: "#0F172A" }}>{funnelCtr.toFixed(2)}%</strong></div>
-                  <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CPC: <strong style={{ color: "#0F172A" }}>{formatCurrency(funnelCpc)}</strong></div>
-                  <div style={{ padding: 8, border: "1px solid #E2E8F0", borderRadius: 8, fontSize: 12, color: "#475569" }}>CPM: <strong style={{ color: "#0F172A" }}>{formatCurrency(funnelCpm)}</strong></div>
+              ) : (
+                <div style={{ padding: 16, borderRadius: 12, border: "1px dashed #CBD5E1", background: "#F8FAFC", color: "#64748B", fontSize: 13 }}>
+                  Nenhum gráfico configurado na seção interna de performance. Use o editor de template para incluir os widgets desta aba.
                 </div>
-              </ChartCard>
-              <div className="dashboard-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-                <ChartCard title="Campanhas" subtitle="Investimento por campanha" height={280}>
-                  <HorizontalBarChartWidget data={campaignBarDataFiltered} formatValue={(v) => formatCurrency(v, true)} height={230} />
-                </ChartCard>
-                <ChartCard title="Conjuntos" subtitle="Investimento por conjunto" height={280}>
-                  <HorizontalBarChartWidget data={adSetBarDataFiltered} formatValue={(v) => formatCurrency(v, true)} height={230} />
-                </ChartCard>
-                <ChartCard title="Anúncios" subtitle="Investimento por anúncio" height={280}>
-                  <HorizontalBarChartWidget data={adBarDataFiltered} formatValue={(v) => formatCurrency(v, true)} height={230} />
-                </ChartCard>
-              </div>
+              )}
             </div>
           )}
 
