@@ -1,5 +1,16 @@
 "use client";
 
+import React from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { KpiGrid } from "@/components/dashboard/MetricCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
@@ -11,7 +22,7 @@ import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateGoogleAdsKpis } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 import { normalizeGoogleAdsRowsToPeriod } from "@/lib/dashboard/google-ads-period-model";
-import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateMetricSection } from "@/lib/dashboard/template-metric-config";
+import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateMetricSection, getTemplateSectionWidgets, getMetricLabel, type TemplateWidgetItem } from "@/lib/dashboard/template-metric-config";
 import type { KpiSummary } from "@/types/entities";
 
 function mapIntegratedGoogleMetricKeys(metrics: KpiSummary[]): KpiSummary[] {
@@ -37,6 +48,37 @@ function mapIntegratedGoogleMetricKeys(metrics: KpiSummary[]): KpiSummary[] {
         return kpi;
     }
   });
+}
+
+function normalizeMetricKey(key?: string | null) {
+  return String(key || "").trim().toLowerCase().replace(/^(google_|meta_)/, "");
+}
+
+function renderGoogleMetricValue(source: any, key?: string | null) {
+  if (!key) return 0;
+  const normalized = normalizeMetricKey(key);
+  switch (normalized) {
+    case "cost":
+      return Number(source.cost ?? source.value ?? source.total_spend ?? 0);
+    case "revenue":
+      return Number(source.revenue ?? source.total_revenue ?? source.conversionValue ?? 0);
+    case "impressions":
+      return Number(source.impressions ?? source.total_impressions ?? 0);
+    case "clicks":
+      return Number(source.clicks ?? source.total_clicks ?? 0);
+    case "ctr":
+      return Number(source.ctr ?? 0);
+    case "cpc":
+      return Number(source.cpc ?? 0);
+    case "cpa":
+      return Number(source.cpa ?? 0);
+    case "roas":
+      return Number(source.roas ?? 0);
+    case "conversions":
+      return Number(source.conversions ?? source.total_conversions ?? 0);
+    default:
+      return Number(source[normalized] ?? source[key as string] ?? 0);
+  }
 }
 
 export default function GoogleAdsPage() {
@@ -71,7 +113,14 @@ export default function GoogleAdsPage() {
 
   const dailySeries = data.google_ads.map((r: any) => ({
     date: formatDateShort(r.date),
-    Investimento: r.cost !== undefined ? r.cost : r.value || 0,
+    cost: Number(r.cost ?? r.value ?? 0),
+    clicks: Number(r.clicks ?? 0),
+    impressions: Number(r.impressions ?? 0),
+    conversions: Number(r.conversions ?? 0),
+    ctr: Number(r.ctr ?? 0),
+    cpc: Number(r.cpc ?? 0),
+    cpa: Number(r.cpa ?? 0),
+    roas: Number(r.roas ?? 0),
   }));
 
   const normalizedCampaigns = normalizeGoogleAdsRowsToPeriod(
@@ -100,19 +149,151 @@ export default function GoogleAdsPage() {
     roas: c.roas,
   }));
 
+  const googleSectionWidgets = getTemplateSectionWidgets(templateConfig, "google-ads");
+  const defaultGoogleSectionWidgets = getDefaultTemplateMetricConfig(data.templateId || "google_ads_s4x").sections["google-ads"]?.widgets || [];
+  const resolvedGoogleWidgets = (googleSectionWidgets.length > 0 ? googleSectionWidgets : defaultGoogleSectionWidgets)
+    .filter((widget) => widget.enabled)
+    .sort((a, b) => a.order - b.order);
+  const googleWidgetRows = (() => {
+    const rows: TemplateWidgetItem[][] = [];
+    let currentRow: TemplateWidgetItem[] = [];
+    let currentSum = 0;
+    resolvedGoogleWidgets.forEach((widget) => {
+      const width = Math.max(10, Math.min(100, widget.widthPercent ?? 100));
+      const nextSum = currentSum + width;
+      if (currentRow.length > 0 && nextSum > 100.01) {
+        rows.push(currentRow);
+        currentRow = [widget];
+        currentSum = width;
+        return;
+      }
+      currentRow.push(widget);
+      currentSum = nextSum;
+      if (currentSum >= 99.5) {
+        rows.push(currentRow);
+        currentRow = [];
+        currentSum = 0;
+      }
+    });
+    if (currentRow.length > 0) rows.push(currentRow);
+    return rows;
+  })();
+
+  const googleCurrent = (data.google_ads_summary?.current || {}) as any;
+  const googleChange = (data.google_ads_summary?.change || {}) as any;
+  const resolveGoogleCurrentSummaryValue = (key?: string | null) => renderGoogleMetricValue(googleCurrent, key);
+  const resolveGooglePreviousSummaryValue = (key?: string | null) => {
+    if (!key) return 0;
+    const normalized = normalizeMetricKey(key);
+    const currentValue = resolveGoogleCurrentSummaryValue(key);
+    const changeValue = Number(googleChange[normalized] ?? googleChange[`total_${normalized}`] ?? 0);
+    if (!Number.isFinite(changeValue) || changeValue === -100) return currentValue;
+    const factor = 1 + changeValue / 100;
+    if (factor === 0) return currentValue;
+    return currentValue / factor;
+  };
+
+  const renderGoogleWidgetCard = (widget: TemplateWidgetItem, rowCardCount: number) => {
+    const title = widget.label || getMetricLabel(data.templateId || "google_ads_s4x", widget.key);
+    const widthPercent = Math.max(10, Math.min(100, widget.widthPercent ?? 100));
+    const rowGapPx = 20;
+    const rowGapTotal = Math.max(0, rowCardCount - 1) * rowGapPx;
+    const wrapperStyle = {
+      flex: `0 0 calc((100% - ${rowGapTotal}px) * ${widthPercent / 100})`,
+      maxWidth: `calc((100% - ${rowGapTotal}px) * ${widthPercent / 100})`,
+      minWidth: 0,
+      width: "100%",
+    } as const;
+
+    if (widget.kind === "bar_chart") {
+      const barData = googleCampaigns.slice(0, 10).map((c: any) => ({
+        label: (c.campaignName || c.campaign_name || "").substring(0, 28) + ((c.campaignName || c.campaign_name || "").length > 28 ? "..." : ""),
+        value: renderGoogleMetricValue(c, widget.primaryMetricKey || "cost"),
+      }));
+      return (
+        <div key={widget.key} style={wrapperStyle}>
+          <ChartCard title={title} subtitle="Distribuição por campanha" height={280}>
+            <HorizontalBarChartWidget data={barData} formatValue={(v) => formatCurrency(v, true)} height={240} />
+          </ChartCard>
+        </div>
+      );
+    }
+
+    if (widget.kind === "comparison_chart") {
+      const comparisonData = [widget.primaryMetricKey, widget.secondaryMetricKey]
+        .filter(Boolean)
+        .map((metricKey) => ({
+          metrica: getMetricLabel(data.templateId || "google_ads_s4x", metricKey as string),
+          atual: resolveGoogleCurrentSummaryValue(metricKey),
+          anterior: resolveGooglePreviousSummaryValue(metricKey),
+        }));
+      return (
+        <div key={widget.key} style={wrapperStyle}>
+          <ChartCard title={title} subtitle="Atual x anterior" height={280}>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={comparisonData} margin={{ top: 10, right: 10, bottom: 0, left: -15 }}>
+                <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="metrica" tick={{ fill: "#111827", fontSize: 11 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
+                <YAxis tick={{ fill: "#6B7280", fontSize: 11 }} tickLine={false} axisLine={false} />
+                <Tooltip formatter={(value) => [formatCurrency(Number(value), true), undefined]} />
+                <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 12 }} />
+                <Bar dataKey="atual" name="Período atual" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={24} />
+                <Bar dataKey="anterior" name="Anterior" fill="#BFDBFE" radius={[4, 4, 0, 0]} barSize={24} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </div>
+      );
+    }
+
+    const trendData = dailySeries.map((row: any) => ({
+      date: row.date,
+      primary: renderGoogleMetricValue(row, widget.primaryMetricKey || "cost"),
+      secondary: widget.secondaryMetricKey ? renderGoogleMetricValue(row, widget.secondaryMetricKey) : 0,
+    }));
+    const primaryLabel = getMetricLabel(data.templateId || "google_ads_s4x", widget.primaryMetricKey || "cost");
+    const secondaryLabel = widget.secondaryMetricKey ? getMetricLabel(data.templateId || "google_ads_s4x", widget.secondaryMetricKey) : "Série";
+    return (
+      <div key={widget.key} style={wrapperStyle}>
+        <ChartCard title={title} subtitle="Evolução no período" height={280}>
+          <LineChartWidget
+            data={trendData}
+            lines={[
+              { key: "primary", label: primaryLabel, color: "#4285F4" },
+              ...(widget.secondaryMetricKey ? [{ key: "secondary", label: secondaryLabel, color: "#60A5FA" }] : []),
+            ]}
+            xKey="date"
+            formatValue={(v) => (typeof v === "number" && v > 50 ? formatCurrency(v, true) : String(v))}
+            height={240}
+          />
+        </ChartCard>
+      </div>
+    );
+  };
+
   return (
     <DashboardPageShell title="Google Ads" subtitle="Desempenho de campanhas, grupos e palavras-chave">
       <KpiGrid metrics={kpis} columns={3} />
 
-      <div className="dashboard-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <ChartCard title="Investimento Diário" subtitle="Evolução do gasto no período" height={280}>
-          <LineChartWidget data={dailySeries} lines={[{ key: "Investimento", label: "Investimento", color: "#4285F4" }]} xKey="date" formatValue={(v) => formatCurrency(v, true)} height={260} />
-        </ChartCard>
+      {googleWidgetRows.length > 0 ? (
+        <div className="flex flex-col gap-5">
+          {googleWidgetRows.map((row, rowIndex) => (
+            <div key={`google-widgets-${rowIndex}`} className="flex flex-wrap gap-5">
+              {row.map((widget) => renderGoogleWidgetCard(widget, row.length))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="dashboard-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <ChartCard title="Investimento Diário" subtitle="Evolução do gasto no período" height={280}>
+            <LineChartWidget data={dailySeries.map((row: any) => ({ date: row.date, primary: row.cost }))} lines={[{ key: "primary", label: "Investimento", color: "#4285F4" }]} xKey="date" formatValue={(v) => formatCurrency(v, true)} height={260} />
+          </ChartCard>
 
-        <ChartCard title="Investimento por Campanha" subtitle="Distribuição do budget" height={280}>
-          <HorizontalBarChartWidget data={campaignBarData} formatValue={(v) => formatCurrency(v, true)} height={260} />
-        </ChartCard>
-      </div>
+          <ChartCard title="Investimento por Campanha" subtitle="Distribuição do budget" height={280}>
+            <HorizontalBarChartWidget data={campaignBarData} formatValue={(v) => formatCurrency(v, true)} height={260} />
+          </ChartCard>
+        </div>
+      )}
 
       <div className="card" style={{ padding: 20 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "#0F172A", marginBottom: 16 }}>Campanhas</h3>

@@ -5,7 +5,7 @@ import type { KpiSummary } from "@/types/entities";
 export type MetricDisplayMode = "card" | "text" | "chart" | "table";
 export type TemplateMetricKind = "standard" | "composite";
 export type TemplateMetricSourcePlatform = "google_ads" | "meta_ads" | "mixed";
-export type TemplateWidgetKind = "trend_chart" | "comparison_chart" | "device_donut";
+export type TemplateWidgetKind = "trend_chart" | "comparison_chart" | "bar_chart" | "device_donut";
 export type TemplateMetricCompositeType =
   | "sum"
   | "subtract"
@@ -116,8 +116,13 @@ function metricItem(key: string, order: number, options?: Partial<TemplateMetric
   };
 }
 
-function section(key: string, label: string, metrics: TemplateMetricItem[]): TemplateMetricSectionConfig {
-  return { key, label, metrics, widgets: key === "executive-summary" ? defaultExecutiveSummaryWidgets() : [] };
+function section(
+  key: string,
+  label: string,
+  metrics: TemplateMetricItem[],
+  widgets: TemplateWidgetItem[] = []
+): TemplateMetricSectionConfig {
+  return { key, label, metrics, widgets };
 }
 
 function widgetItem(key: string, order: number, options?: Partial<TemplateWidgetItem>): TemplateWidgetItem {
@@ -138,6 +143,47 @@ function defaultExecutiveSummaryWidgets(): TemplateWidgetItem[] {
     widgetItem("trend_chart", 10, { kind: "trend_chart", label: "Evolução diária de investimento e cliques", enabled: true, widthPercent: 40, primaryMetricKey: "cost", secondaryMetricKey: "clicks" }),
     widgetItem("comparison_chart", 20, { kind: "comparison_chart", label: "Comparativo: atual x anterior", enabled: true, widthPercent: 35, primaryMetricKey: "cost", secondaryMetricKey: "impressions" }),
     widgetItem("device_donut", 30, { kind: "device_donut", label: "Sessões por dispositivo", enabled: true, widthPercent: 25 }),
+  ];
+}
+
+function defaultGoogleAdsWidgets(): TemplateWidgetItem[] {
+  return [
+    widgetItem("google_trend_chart", 10, {
+      kind: "trend_chart",
+      label: "Evolução diária de investimento e cliques",
+      enabled: true,
+      widthPercent: 60,
+      primaryMetricKey: "cost",
+      secondaryMetricKey: "clicks",
+    }),
+    widgetItem("google_bar_chart", 20, {
+      kind: "bar_chart",
+      label: "Investimento por campanha",
+      enabled: true,
+      widthPercent: 40,
+      primaryMetricKey: "cost",
+    }),
+  ];
+}
+
+function defaultMetaAdsWidgets(primaryObjective: MetaAdsObjectiveId | null): TemplateWidgetItem[] {
+  const objectiveMetric = objectiveMetrics(primaryObjective)[0]?.key || "conversions";
+  return [
+    widgetItem("meta_trend_chart", 10, {
+      kind: "trend_chart",
+      label: "Evolução temporal",
+      enabled: true,
+      widthPercent: 60,
+      primaryMetricKey: "cost",
+      secondaryMetricKey: objectiveMetric,
+    }),
+    widgetItem("meta_bar_chart", 20, {
+      kind: "bar_chart",
+      label: "Investimento por campanha",
+      enabled: true,
+      widthPercent: 40,
+      primaryMetricKey: "cost",
+    }),
   ];
 }
 
@@ -372,7 +418,7 @@ function googleAdsDefaults(): Record<string, TemplateMetricSectionConfig> {
       metricItem("conversions", 60, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
       metricItem("cpa", 70, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
       metricItem("roas", 80, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
-    ]),
+    ], defaultExecutiveSummaryWidgets()),
     "google-ads": section("google-ads", "Google Ads", [
       metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
       metricItem("revenue", 20, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
@@ -382,7 +428,7 @@ function googleAdsDefaults(): Record<string, TemplateMetricSectionConfig> {
       metricItem("conversions", 60, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
       metricItem("cpa", 70, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
       metricItem("roas", 80, { displayMode: "chart", recommended: true, sourcePlatform: "google_ads" }),
-    ]),
+    ], defaultGoogleAdsWidgets()),
     campaigns: section("campaigns", "Campanhas", [
       metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
       metricItem("impressions", 20, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
@@ -431,7 +477,7 @@ function metaDefaults(primaryObjective: MetaAdsObjectiveId | null): Record<strin
       metricItem("conversions", 60, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
       metricItem("cpa", 70, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
       ...objMetrics.slice(0, 3),
-    ]),
+    ], defaultExecutiveSummaryWidgets()),
     campanhas: section("campanhas", "Campanhas", [
       metricItem("cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
       metricItem("reach", 20, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
@@ -487,7 +533,7 @@ function integratedDefaults(primaryObjective: MetaAdsObjectiveId | null): Record
       metricItem("cpa", 80, { displayMode: "card", recommended: true, sourcePlatform: "mixed" }),
       metricItem("roas", 90, { displayMode: "card", recommended: true, sourcePlatform: "mixed" }),
       ...objMetrics.slice(0, 3),
-    ]),
+    ], defaultExecutiveSummaryWidgets()),
     "google-ads": section("google-ads", "Google Ads", [
       metricItem("google_cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
       metricItem("google_impressions", 20, { displayMode: "text", recommended: true, sourcePlatform: "google_ads" }),
@@ -496,7 +542,7 @@ function integratedDefaults(primaryObjective: MetaAdsObjectiveId | null): Record
       metricItem("google_conversions", 50, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
       metricItem("google_cpa", 60, { displayMode: "card", recommended: true, sourcePlatform: "google_ads" }),
       metricItem("google_roas", 70, { displayMode: "chart", recommended: true, sourcePlatform: "google_ads" }),
-    ]),
+    ], defaultGoogleAdsWidgets()),
     "meta-ads": section("meta-ads", "Meta Ads", [
       metricItem("meta_cost", 10, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
       metricItem("meta_reach", 20, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
@@ -505,7 +551,7 @@ function integratedDefaults(primaryObjective: MetaAdsObjectiveId | null): Record
       metricItem("meta_cpa", 50, { displayMode: "card", recommended: true, sourcePlatform: "meta_ads" }),
       metricItem("meta_frequency", 60, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
       metricItem("meta_postEngagement", 70, { displayMode: "text", recommended: true, sourcePlatform: "meta_ads" }),
-    ]),
+    ], defaultMetaAdsWidgets(primaryObjective)),
   };
 }
 

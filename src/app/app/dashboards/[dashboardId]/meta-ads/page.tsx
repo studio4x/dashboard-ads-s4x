@@ -1,7 +1,18 @@
 "use client";
 
+import React from "react";
 import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { KpiGrid } from "@/components/dashboard/MetricCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
@@ -13,7 +24,7 @@ import { useDashboard } from "@/components/dashboard/DashboardDataContext";
 import { generateMetaAdsKpis, generateMetaAdsS4XKpisWithLabels } from "@/lib/dashboard/kpi-generator";
 import { TemplateEmptyState } from "@/components/dashboard/TemplateEmptyState";
 import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaObjectiveLabel, getMetaResultMetric, normalizeMetaAdsObjectives, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
-import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateMetricSection } from "@/lib/dashboard/template-metric-config";
+import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateMetricSection, getTemplateSectionWidgets, getMetricLabel, type TemplateWidgetItem } from "@/lib/dashboard/template-metric-config";
 import type { KpiSummary } from "@/types/entities";
 
 function mapIntegratedMetaMetricKeys(metrics: KpiSummary[]): KpiSummary[] {
@@ -45,6 +56,43 @@ function mapIntegratedMetaMetricKeys(metrics: KpiSummary[]): KpiSummary[] {
         return kpi;
     }
   });
+}
+
+function normalizeMetricKey(key?: string | null) {
+  return String(key || "").trim().toLowerCase().replace(/^(google_|meta_)/, "");
+}
+
+function renderMetaMetricValue(source: any, key?: string | null) {
+  if (!key) return 0;
+  const normalized = normalizeMetricKey(key);
+  switch (normalized) {
+    case "cost":
+      return Number(source.cost ?? source.value ?? source.total_spend ?? 0);
+    case "revenue":
+      return Number(source.revenue ?? source.total_revenue ?? source.conversionValue ?? 0);
+    case "impressions":
+      return Number(source.impressions ?? source.total_impressions ?? 0);
+    case "reach":
+      return Number(source.reach ?? source.total_reach ?? 0);
+    case "clicks":
+      return Number(source.clicks ?? source.total_clicks ?? 0);
+    case "ctr":
+      return Number(source.ctr ?? 0);
+    case "cpc":
+      return Number(source.cpc ?? 0);
+    case "cpa":
+      return Number(source.cpa ?? 0);
+    case "cpm":
+      return Number(source.cpm ?? source.avgCpm ?? 0);
+    case "frequency":
+      return Number(source.frequency ?? 0);
+    case "postengagement":
+      return Number(source.postEngagement ?? source.total_engagement ?? 0);
+    case "conversions":
+      return Number(source.conversions ?? source.total_conversions ?? 0);
+    default:
+      return Number(source[normalized] ?? source[key as string] ?? 0);
+  }
 }
 
 export default function MetaAdsPage() {
@@ -197,12 +245,14 @@ export default function MetaAdsPage() {
     const dailyGrouped = metaRowsForS4X.reduce((acc: any, curr: any) => {
       const dateStr = formatDateShort(curr.date);
       if (!acc[dateStr]) {
-        acc[dateStr] = { date: dateStr, cost: 0, conversions: 0, clicks: 0, impressions: 0 };
+        acc[dateStr] = { date: dateStr, cost: 0, conversions: 0, clicks: 0, impressions: 0, reach: 0, postEngagement: 0 };
       }
       acc[dateStr].cost += Number(curr.cost || 0);
       acc[dateStr].conversions += Number(curr.conversions || 0);
       acc[dateStr].clicks += Number(curr.clicks || 0);
       acc[dateStr].impressions += Number(curr.impressions || 0);
+      acc[dateStr].reach += Number(curr.reach || 0);
+      acc[dateStr].postEngagement += Number(curr.postEngagement || 0);
       return acc;
     }, {});
     dailySeries = Object.values(dailyGrouped).sort((a: any, b: any) => {
@@ -460,6 +510,127 @@ export default function MetaAdsPage() {
     value: Number(a.cost || 0),
   }));
 
+  const metaSectionWidgets = getTemplateSectionWidgets(templateConfig, "meta-ads");
+  const defaultMetaSectionWidgets = getDefaultTemplateMetricConfig(data.templateId || "meta_ads_s4x", objectiveOptions as any, data.metaPrimaryObjective as any).sections["meta-ads"]?.widgets || [];
+  const resolvedMetaWidgets = (metaSectionWidgets.length > 0 ? metaSectionWidgets : defaultMetaSectionWidgets)
+    .filter((widget) => widget.enabled)
+    .sort((a, b) => a.order - b.order);
+  const metaWidgetRows = (() => {
+    const rows: TemplateWidgetItem[][] = [];
+    let currentRow: TemplateWidgetItem[] = [];
+    let currentSum = 0;
+    resolvedMetaWidgets.forEach((widget) => {
+      const width = Math.max(10, Math.min(100, widget.widthPercent ?? 100));
+      const nextSum = currentSum + width;
+      if (currentRow.length > 0 && nextSum > 100.01) {
+        rows.push(currentRow);
+        currentRow = [widget];
+        currentSum = width;
+        return;
+      }
+      currentRow.push(widget);
+      currentSum = nextSum;
+      if (currentSum >= 99.5) {
+        rows.push(currentRow);
+        currentRow = [];
+        currentSum = 0;
+      }
+    });
+    if (currentRow.length > 0) rows.push(currentRow);
+    return rows;
+  })();
+  const metaCurrent = (data.meta_ads_summary?.current || {}) as any;
+  const metaChange = (data.meta_ads_summary?.change || {}) as any;
+  const resolveMetaCurrentSummaryValue = (key?: string | null) => renderMetaMetricValue(metaCurrent, key);
+  const resolveMetaPreviousSummaryValue = (key?: string | null) => {
+    if (!key) return 0;
+    const normalized = normalizeMetricKey(key);
+    const currentValue = resolveMetaCurrentSummaryValue(key);
+    const changeValue = Number(metaChange[normalized] ?? metaChange[`total_${normalized}`] ?? 0);
+    if (!Number.isFinite(changeValue) || changeValue === -100) return currentValue;
+    const factor = 1 + changeValue / 100;
+    if (factor === 0) return currentValue;
+    return currentValue / factor;
+  };
+
+  const renderMetaWidgetCard = (widget: TemplateWidgetItem, rowCardCount: number) => {
+    const title = widget.label || getMetricLabel(data.templateId || "meta_ads_s4x", widget.key, activeObjective as any);
+    const widthPercent = Math.max(10, Math.min(100, widget.widthPercent ?? 100));
+    const rowGapPx = 20;
+    const rowGapTotal = Math.max(0, rowCardCount - 1) * rowGapPx;
+    const wrapperStyle = {
+      flex: `0 0 calc((100% - ${rowGapTotal}px) * ${widthPercent / 100})`,
+      maxWidth: `calc((100% - ${rowGapTotal}px) * ${widthPercent / 100})`,
+      minWidth: 0,
+      width: "100%",
+    } as const;
+
+    if (widget.kind === "bar_chart") {
+      const barData = filteredCampaigns.slice(0, 10).map((c: any) => ({
+        label: String(c.campaignName || "").substring(0, 24) + (String(c.campaignName || "").length > 24 ? "..." : ""),
+        value: renderMetaMetricValue(c, widget.primaryMetricKey || "cost"),
+      }));
+      return (
+        <div key={widget.key} style={wrapperStyle}>
+          <ChartCard title={title} subtitle="Distribuição por campanha" height={320}>
+            <HorizontalBarChartWidget data={barData} formatValue={(v) => formatCurrency(v, true)} height={280} />
+          </ChartCard>
+        </div>
+      );
+    }
+
+    if (widget.kind === "comparison_chart") {
+      const comparisonData = [widget.primaryMetricKey, widget.secondaryMetricKey]
+        .filter(Boolean)
+        .map((metricKey) => ({
+          metrica: getMetricLabel(data.templateId || "meta_ads_s4x", metricKey as string, activeObjective as any),
+          atual: resolveMetaCurrentSummaryValue(metricKey),
+          anterior: resolveMetaPreviousSummaryValue(metricKey),
+        }));
+      return (
+        <div key={widget.key} style={wrapperStyle}>
+          <ChartCard title={title} subtitle="Atual x anterior" height={320}>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={comparisonData} margin={{ top: 10, right: 10, bottom: 0, left: -15 }}>
+                <CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="metrica" tick={{ fill: "#111827", fontSize: 11 }} tickLine={false} axisLine={{ stroke: "#E2E8F0" }} />
+                <YAxis tick={{ fill: "#6B7280", fontSize: 11 }} tickLine={false} axisLine={false} />
+                <Tooltip formatter={(value) => [formatCurrency(Number(value), true), undefined]} />
+                <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ paddingBottom: 12 }} />
+                <Bar dataKey="atual" name="Período atual" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={24} />
+                <Bar dataKey="anterior" name="Anterior" fill="#BFDBFE" radius={[4, 4, 0, 0]} barSize={24} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </div>
+      );
+    }
+
+    const trendData = dailySeries.map((row: any) => ({
+      date: row.date,
+      primary: renderMetaMetricValue(row, widget.primaryMetricKey || "cost"),
+      secondary: widget.secondaryMetricKey ? renderMetaMetricValue(row, widget.secondaryMetricKey) : 0,
+    }));
+    const primaryLabel = getMetricLabel(data.templateId || "meta_ads_s4x", widget.primaryMetricKey || "cost", activeObjective as any);
+    const secondaryLabel = widget.secondaryMetricKey ? getMetricLabel(data.templateId || "meta_ads_s4x", widget.secondaryMetricKey, activeObjective as any) : "Série";
+    return (
+      <div key={widget.key} style={wrapperStyle}>
+        <ChartCard title={title} subtitle="Evolução no período" height={320}>
+          <LineChartWidget
+            data={trendData}
+            lines={[
+              { key: "primary", label: primaryLabel, color: "#1877F2" },
+              ...(widget.secondaryMetricKey ? [{ key: "secondary", label: secondaryLabel, color: "#60A5FA" }] : []),
+            ]}
+            xKey="date"
+            formatValue={(v) => (typeof v === "number" && v > 50 ? formatCurrency(v, true) : String(v))}
+            height={280}
+          />
+        </ChartCard>
+      </div>
+    );
+  };
+
   return (
     <DashboardPageShell title={pageTitle} subtitle={pageSubtitle}>
       {!isDedicatedMetaRoute && isMetaS4X && objectiveOptions.length > 0 && (
@@ -483,34 +654,44 @@ export default function MetaAdsPage() {
       {!isDedicatedMetaRoute && <KpiGrid metrics={kpis} columns={isMetaS4X ? 3 : 3} />}
 
       {!isDedicatedMetaRoute && (
-      <div className="dashboard-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-        <ChartCard title="Evolução Temporal" subtitle={`Gasto vs. ${conversionLabel}`} height={320}>
-          {isMetaS4X ? (
-            <LineChartWidget 
-              data={dailySeries} 
-              lines={[
-                ...(hasMetric("cost") ? [{ key: "cost", label: "Investimento", color: "#1877F2" }] : []),
-                ...((resultMetric === "postEngagement" ? hasMetric("postEngagement") : resultMetric === "clicks" ? hasMetric("clicks") : resultMetric === "reach" ? hasMetric("reach") : hasMetric("conversions")) ? [{ key: resultValueKey, label: conversionLabel, color: "#10B981" }] : []),
-                ...(hasMetric("clicks") ? [{ key: "clicks", label: "Cliques", color: "#F59E0B" }] : [])
-              ]} 
-              xKey="date" 
-              formatValue={(v) => typeof v === "number" && v > 50 ? formatCurrency(v, true) : String(v)} 
-              height={290} 
-            />
-          ) : (
-            <LineChartWidget 
-              data={dailySeries} 
-              lines={[{ key: "Investimento", label: "Investimento", color: "#1877F2" }]} 
-              xKey="date" 
-              formatValue={(v) => formatCurrency(v, true)} 
-              height={290} 
-            />
-          )}
-        </ChartCard>
-        <ChartCard title="Investimento por Campanha" subtitle="Maiores orçamentos aplicados (Top 10)" height={320}>
-          <HorizontalBarChartWidget data={campaignBarData} formatValue={(v) => formatCurrency(v, true)} height={290} />
-        </ChartCard>
-      </div>
+        metaWidgetRows.length > 0 ? (
+          <div className="flex flex-col gap-5" style={{ marginBottom: 20 }}>
+            {metaWidgetRows.map((row, rowIndex) => (
+              <div key={`meta-widgets-${rowIndex}`} className="flex flex-wrap gap-5">
+                {row.map((widget) => renderMetaWidgetCard(widget, row.length))}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="dashboard-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+            <ChartCard title="Evolução Temporal" subtitle={`Gasto vs. ${conversionLabel}`} height={320}>
+              {isMetaS4X ? (
+                <LineChartWidget 
+                  data={dailySeries} 
+                  lines={[
+                    ...(hasMetric("cost") ? [{ key: "cost", label: "Investimento", color: "#1877F2" }] : []),
+                    ...((resultMetric === "postEngagement" ? hasMetric("postEngagement") : resultMetric === "clicks" ? hasMetric("clicks") : resultMetric === "reach" ? hasMetric("reach") : hasMetric("conversions")) ? [{ key: resultValueKey, label: conversionLabel, color: "#10B981" }] : []),
+                    ...(hasMetric("clicks") ? [{ key: "clicks", label: "Cliques", color: "#F59E0B" }] : [])
+                  ]} 
+                  xKey="date" 
+                  formatValue={(v) => typeof v === "number" && v > 50 ? formatCurrency(v, true) : String(v)} 
+                  height={290} 
+                />
+              ) : (
+                <LineChartWidget 
+                  data={dailySeries} 
+                  lines={[{ key: "Investimento", label: "Investimento", color: "#1877F2" }]} 
+                  xKey="date" 
+                  formatValue={(v) => formatCurrency(v, true)} 
+                  height={290} 
+                />
+              )}
+            </ChartCard>
+            <ChartCard title="Investimento por Campanha" subtitle="Maiores orçamentos aplicados (Top 10)" height={320}>
+              <HorizontalBarChartWidget data={campaignBarData} formatValue={(v) => formatCurrency(v, true)} height={290} />
+            </ChartCard>
+          </div>
+        )
       )}
 
       {isMetaS4X ? (

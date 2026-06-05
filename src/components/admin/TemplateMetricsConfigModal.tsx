@@ -60,9 +60,10 @@ const COMPOSITE_TYPE_OPTIONS: Array<{ value: TemplateMetricCompositeType; label:
   { value: "per_thousand_currency", label: "CPM" },
 ];
 
-const WIDGET_KIND_OPTIONS: Array<{ value: "trend_chart" | "comparison_chart" | "device_donut"; label: string }> = [
+const WIDGET_KIND_OPTIONS: Array<{ value: "trend_chart" | "comparison_chart" | "bar_chart" | "device_donut"; label: string }> = [
   { value: "trend_chart", label: "Evolução" },
   { value: "comparison_chart", label: "Comparativo" },
+  { value: "bar_chart", label: "Barras" },
   { value: "device_donut", label: "Dispositivo" },
 ];
 
@@ -79,7 +80,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   const [widgetDrafts, setWidgetDrafts] = useState<Record<string, {
     label: string;
     key: string;
-    kind: "trend_chart" | "comparison_chart" | "device_donut";
+    kind: "trend_chart" | "comparison_chart" | "bar_chart" | "device_donut";
     enabled: boolean;
     widthPercent: string;
     primaryMetricKey: string;
@@ -645,6 +646,24 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
   };
 
   const availablePageOptions = DASHBOARD_PAGES.filter((page) => !visiblePages.includes(page.key));
+  const widgetSectionMeta = (sectionKey: string) => {
+    if (sectionKey === "google-ads") {
+      return {
+        title: "Gráficos da aba Google Ads",
+        description: "Configure os gráficos exibidos na aba Google Ads. Eles passam a fazer parte do template e não do fallback da página.",
+      };
+    }
+    if (sectionKey === "meta-ads") {
+      return {
+        title: "Gráficos da aba Meta Ads",
+        description: "Configure os gráficos exibidos na aba Meta Ads. Eles passam a fazer parte do template e não do fallback da página.",
+      };
+    }
+    return {
+      title: "Gráficos do Resumo Executivo",
+      description: "Ative ou desative os gráficos exibidos no dashboard. O layout do resumo executivo passa a seguir essa configuração.",
+    };
+  };
 
   const getWidgetMetricOptions = (sectionKey: string) => {
     const section = config.sections?.[sectionKey];
@@ -1372,13 +1391,11 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                   </div>
                 )}
 
-                {section.key === "executive-summary" && (
+                {["executive-summary", "google-ads", "meta-ads"].includes(section.key) && (
                   <div style={{ border: "1px solid #DBEAFE", borderRadius: 12, padding: 14, background: "#EFF6FF", display: "flex", flexDirection: "column", gap: 12 }}>
                     <div>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>Gráficos do Resumo Executivo</p>
-                      <p style={{ fontSize: 12, color: "#475569", marginTop: 4, lineHeight: 1.5 }}>
-                        Os gráficos ficam abaixo da lista de métricas. Você pode adicionar novos gráficos baseados nas métricas da seção.
-                      </p>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>{widgetSectionMeta(section.key).title}</p>
+                      <p style={{ fontSize: 12, color: "#475569", marginTop: 4, lineHeight: 1.5 }}>{widgetSectionMeta(section.key).description}</p>
                     </div>
 
                     <div style={{ border: "1px dashed #BFDBFE", borderRadius: 12, padding: 14, background: "#FFFFFF", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "end" }}>
@@ -1497,7 +1514,7 @@ export function TemplateMetricsConfigModal({ template, open, onClose, onSaved }:
                             <div style={{ minWidth: 0 }}>
                               <p style={{ fontSize: 12, fontWeight: 800, color: "#0F172A" }}>{widget.label || widget.key}</p>
                               <p style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>
-                                Tipo: {widget.kind === "trend_chart" ? "Evolução" : widget.kind === "comparison_chart" ? "Comparativo" : "Dispositivo"}
+                                Tipo: {widget.kind === "trend_chart" ? "Evolução" : widget.kind === "comparison_chart" ? "Comparativo" : widget.kind === "bar_chart" ? "Barras" : "Dispositivo"}
                               </p>
                               <p style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>
                                 Largura: {widget.widthPercent ?? 100}%
