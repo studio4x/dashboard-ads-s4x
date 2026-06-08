@@ -22,9 +22,10 @@ Os jobs usam sempre o segredo mais recente (`ORDER BY created_at DESC LIMIT 1`).
 
 ## 2) Aplicar migrations
 
-Aplicar a migration:
+Aplicar as migrations:
 
 - `supabase/migrations/20260601173000_migrate_crons_to_supabase.sql`
+- `supabase/migrations/20260608143000_reschedule_report_dispatch_cron.sql`
 
 ## 3) Validar jobs
 
@@ -42,6 +43,10 @@ from cron.job_run_details
 order by start_time desc
 limit 50;
 ```
+
+## Frequência do dispatch
+
+O job `report-dispatch-cron` roda a cada 5 minutos. O backend decide se o dashboard está realmente devido para disparo, respeitando o horário configurado em cada automação.
 
 ## Observação
 
