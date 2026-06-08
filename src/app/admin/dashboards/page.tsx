@@ -21,6 +21,12 @@ const DASHBOARD_TYPE_BADGE: Record<string, { label: string; bg: string; color: s
   google_ads: { label: "Google Ads (Legado)", bg: "#B45309", color: "#FFFFFF", border: "#B45309" },
   custom: { label: "Custom", bg: "#475569", color: "#FFFFFF", border: "#475569" },
 };
+const AUTOMATION_COMPLETION_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  success: { label: "Sucesso", bg: "#F0FDF4", color: "#166534", border: "#BBF7D0" },
+  partial: { label: "Parcial", bg: "#FFFBEB", color: "#92400E", border: "#FDE68A" },
+  error: { label: "Erro", bg: "#FEF2F2", color: "#991B1B", border: "#FECACA" },
+  pending: { label: "Pendente", bg: "#F8FAFC", color: "#475569", border: "#E2E8F0" },
+};
 const WEEK_DAYS = [
   { value: 0, label: "Domingo" },
   { value: 1, label: "Segunda" },
@@ -41,6 +47,28 @@ type AutomationForm = {
   includeToday: boolean;
   reportMode: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
 };
+
+function formatAutomationCompletionStatusLabel(value: string | null | undefined) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized || normalized === "pending") return "Pendente";
+  if (["success", "ok", "completed", "done"].includes(normalized)) return "Sucesso";
+  if (["partial", "warning", "success_with_warnings"].includes(normalized)) return "Parcial";
+  if (["error", "failed", "failure"].includes(normalized)) return "Erro";
+  return normalized;
+}
+
+function formatAutomationCompletionKey(value: string | null | undefined) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["success", "ok", "completed", "done"].includes(normalized)) return "success";
+  if (["partial", "warning", "success_with_warnings"].includes(normalized)) return "partial";
+  if (["error", "failed", "failure"].includes(normalized)) return "error";
+  return "pending";
+}
+
+function formatAutomationCompletionAtLabel(value: string | null | undefined) {
+  if (!value) return "Aguardando retorno do n8n";
+  return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
 
 export default function AdminDashboardsPage() {
   const { toast } = useToast();
@@ -1182,31 +1210,87 @@ export default function AdminDashboardsPage() {
                       </label>
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 12, color: "#475569" }}>
-                        Contatos padrão do cliente serão usados no payload.
-                      </span>
-                      <button
-                        onClick={() => handleSaveAutomation(d.id)}
-                        disabled={Boolean(savingAutomationByDashboardId[d.id])}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div
                         style={{
-                          display: "inline-flex",
+                          display: "flex",
                           alignItems: "center",
-                          gap: 6,
-                          padding: "8px 12px",
-                          borderRadius: 8,
-                          border: "1px solid #BFDBFE",
-                          background: "#EFF6FF",
-                          color: "#1D4ED8",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          opacity: savingAutomationByDashboardId[d.id] ? 0.7 : 1,
+                          justifyContent: "space-between",
+                          gap: 8,
+                          flexWrap: "wrap",
                         }}
                       >
-                        {savingAutomationByDashboardId[d.id] ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
-                        Salvar Programação
-                      </button>
+                        <span style={{ fontSize: 12, color: "#475569" }}>
+                          Contatos padrão do cliente serão usados no payload.
+                        </span>
+                        <button
+                          onClick={() => handleSaveAutomation(d.id)}
+                          disabled={Boolean(savingAutomationByDashboardId[d.id])}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "8px 12px",
+                            borderRadius: 8,
+                            border: "1px solid #BFDBFE",
+                            background: "#EFF6FF",
+                            color: "#1D4ED8",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            opacity: savingAutomationByDashboardId[d.id] ? 0.7 : 1,
+                          }}
+                        >
+                          {savingAutomationByDashboardId[d.id] ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                          Salvar Programação
+                        </button>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          flexWrap: "wrap",
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          border: "1px solid #E2E8F0",
+                          background: "#F8FAFC",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 12, color: "#334155", fontWeight: 700 }}>Última execução final</span>
+                          {(() => {
+                            const completionKey = formatAutomationCompletionKey(d.automation_last_completion_status);
+                            const completionCfg = AUTOMATION_COMPLETION_BADGE[completionKey] || AUTOMATION_COMPLETION_BADGE.pending;
+                            return (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  padding: "4px 8px",
+                                  borderRadius: 999,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  color: completionCfg.color,
+                                  background: completionCfg.bg,
+                                  border: `1px solid ${completionCfg.border}`,
+                                }}
+                              >
+                                {formatAutomationCompletionStatusLabel(d.automation_last_completion_status)}
+                              </span>
+                            );
+                          })()}
+                          <span style={{ fontSize: 12, color: "#475569" }}>
+                            {formatAutomationCompletionAtLabel(d.automation_last_completed_at)}
+                          </span>
+                        </div>
+                        {d.automation_last_completion_message ? (
+                          <span style={{ fontSize: 12, color: "#64748B" }}>{d.automation_last_completion_message}</span>
+                        ) : null}
+                      </div>
                     </div>
                       </>
                     )}

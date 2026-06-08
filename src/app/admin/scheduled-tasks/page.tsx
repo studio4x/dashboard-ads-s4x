@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, CheckCircle2, Clock3, RefreshCcw, Search, XCir
 import { EmptyState } from "@/components/ui/EmptyState";
 
 type TaskStatus = "ok" | "overdue" | "disabled" | "never_ran";
+type CompletionStatus = "success" | "partial" | "error" | "pending";
 
 function StatusBadge({ status }: { status: TaskStatus }) {
   const styles: Record<TaskStatus, { label: string; color: string; bg: string; border: string; Icon: any }> = {
@@ -14,6 +15,45 @@ function StatusBadge({ status }: { status: TaskStatus }) {
     never_ran: { label: "Nunca executado", color: "#92400E", bg: "#FFFBEB", border: "#FDE68A", Icon: Clock3 },
   };
   const cfg = styles[status];
+  const Icon = cfg.Icon;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 8px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 700,
+        color: cfg.color,
+        background: cfg.bg,
+        border: `1px solid ${cfg.border}`,
+      }}
+    >
+      <Icon size={12} />
+      {cfg.label}
+    </span>
+  );
+}
+
+function CompletionBadge({ status }: { status: string | null | undefined }) {
+  const normalized = String(status || "").trim().toLowerCase();
+  const key: CompletionStatus =
+    normalized === "success" || normalized === "ok" || normalized === "completed" || normalized === "done"
+      ? "success"
+      : normalized === "partial" || normalized === "warning" || normalized === "success_with_warnings"
+        ? "partial"
+        : normalized === "error" || normalized === "failed" || normalized === "failure"
+          ? "error"
+          : "pending";
+  const styles: Record<CompletionStatus, { label: string; color: string; bg: string; border: string; Icon: any }> = {
+    success: { label: "Sucesso", color: "#166534", bg: "#F0FDF4", border: "#BBF7D0", Icon: CheckCircle2 },
+    partial: { label: "Parcial", color: "#92400E", bg: "#FFFBEB", border: "#FDE68A", Icon: AlertTriangle },
+    error: { label: "Erro", color: "#991B1B", bg: "#FEF2F2", border: "#FECACA", Icon: XCircle },
+    pending: { label: "Pendente", color: "#475569", bg: "#F8FAFC", border: "#E2E8F0", Icon: Clock3 },
+  };
+  const cfg = styles[key];
   const Icon = cfg.Icon;
   return (
     <span
@@ -175,17 +215,18 @@ export default function ScheduledTasksPage() {
               <th style={{ padding: "12px 14px", color: "#64748B", fontWeight: 700 }}>Agendamento</th>
               <th style={{ padding: "12px 14px", color: "#64748B", fontWeight: 700 }}>Proxima janela</th>
               <th style={{ padding: "12px 14px", color: "#64748B", fontWeight: 700 }}>Ultimo disparo</th>
+              <th style={{ padding: "12px 14px", color: "#64748B", fontWeight: 700 }}>Conclusão final</th>
               <th style={{ padding: "12px 14px", color: "#64748B", fontWeight: 700 }}>Payload / Periodo</th>
             </tr>
           </thead>
           <tbody>
             {loading && tasks.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: 20, textAlign: "center" }}>Carregando monitoramento...</td>
+                <td colSpan={7} style={{ padding: 20, textAlign: "center" }}>Carregando monitoramento...</td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: 0 }}>
+                <td colSpan={7} style={{ padding: 0 }}>
                   <EmptyState
                     icon={Clock3}
                     title="Nenhuma tarefa encontrada"
@@ -207,6 +248,15 @@ export default function ScheduledTasksPage() {
                   <td style={{ padding: "12px 14px", color: "#334155" }}>{task.schedule}</td>
                   <td style={{ padding: "12px 14px", color: "#334155" }}>{task.nextWindow}</td>
                   <td style={{ padding: "12px 14px", color: "#334155" }}>{task.lastDispatchedAtLabel}</td>
+                  <td style={{ padding: "12px 14px", color: "#334155" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <CompletionBadge status={task.lastCompletionStatus} />
+                      <div style={{ fontSize: 12, color: "#64748B" }}>{task.lastCompletedAtLabel}</div>
+                      {task.lastCompletionMessage ? (
+                        <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.4 }}>{task.lastCompletionMessage}</div>
+                      ) : null}
+                    </div>
+                  </td>
                   <td style={{ padding: "12px 14px", color: "#334155" }}>
                     <div style={{ fontSize: 12 }}>Modo: <strong>{task.reportMode}</strong></div>
                     <div style={{ fontSize: 12 }}>Periodo: <strong>{task.periodLabel || `${task.periodDays} dias`}</strong></div>

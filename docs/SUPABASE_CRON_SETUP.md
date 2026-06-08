@@ -4,6 +4,10 @@ Este projeto usa `pg_cron` + `pg_net` para chamar:
 - `/api/cron/import-google-sheets`
 - `/api/cron/report-dispatch`
 
+O fluxo de automação funciona em duas fases:
+1. o cron dispara a rota `/api/cron/report-dispatch`, que envia o payload ao n8n;
+2. ao finalizar o workflow, o n8n chama `POST /api/admin/automations/report-dispatch/callback` para registrar a conclusão final na plataforma.
+
 ## 1) Criar segredo no Supabase Vault
 
 Execute no SQL Editor do Supabase (ajuste o valor):
@@ -42,6 +46,30 @@ select jobid, runid, status, return_message, start_time, end_time
 from cron.job_run_details
 order by start_time desc
 limit 50;
+```
+
+## 5) Callback do n8n
+
+O callback de conclusão deve enviar `Authorization: Bearer <CRON_SECRET>` e um payload com pelo menos:
+
+- `dashboardId`
+- `status` (`success`, `partial` ou `error`)
+- `completedAt` ou `finishedAt` opcional
+- `message` opcional
+- `details` opcional
+
+Exemplo:
+
+```json
+{
+  "dashboardId": "uuid-do-dashboard",
+  "status": "success",
+  "completedAt": "2026-06-08T14:35:00.000Z",
+  "message": "Disparo concluído com sucesso.",
+  "details": {
+    "workflowRunId": "n8n-run-123"
+  }
+}
 ```
 
 ## Frequência do dispatch

@@ -14,8 +14,8 @@ export const dynamic = "force-dynamic";
 
 const TZ = "America/Sao_Paulo";
 const WEEKDAYS_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
-const SCHEDULE_SELECT_BASE = "id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_report_mode, automation_last_dispatched_at, clients(name)";
-const SCHEDULE_SELECT_EXTENDED = "id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_period_preset, automation_include_today, automation_report_mode, automation_last_dispatched_at, clients(name)";
+const SCHEDULE_SELECT_BASE = "id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_report_mode, automation_last_dispatched_at, automation_last_completed_at, automation_last_completion_status, automation_last_completion_message, clients(name)";
+const SCHEDULE_SELECT_EXTENDED = "id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_period_preset, automation_include_today, automation_report_mode, automation_last_dispatched_at, automation_last_completed_at, automation_last_completion_status, automation_last_completion_message, clients(name)";
 
 type TaskStatus = "ok" | "overdue" | "disabled" | "never_ran";
 
@@ -55,7 +55,13 @@ function formatPeriodLabel(task: any, now: Date) {
 
 function isMissingAutomationSchemaColumn(error: any) {
   const message = String(error?.message || error || "").toLowerCase();
-  return message.includes("automation_period_preset") || message.includes("automation_include_today");
+  return (
+    message.includes("automation_period_preset") ||
+    message.includes("automation_include_today") ||
+    message.includes("automation_last_completed_at") ||
+    message.includes("automation_last_completion_status") ||
+    message.includes("automation_last_completion_message")
+  );
 }
 
 function formatNextWindow(task: any, now: Date) {
@@ -107,6 +113,21 @@ function resolveTaskStatus(task: any, now: Date): TaskStatus {
   return diffHours > thresholdHours ? "overdue" : "ok";
 }
 
+function formatCompletionStatusLabel(status: string | null | undefined) {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (!normalized) return "Pendente";
+  if (normalized === "success" || normalized === "ok" || normalized === "completed" || normalized === "done") {
+    return "Sucesso";
+  }
+  if (normalized === "partial" || normalized === "warning" || normalized === "success_with_warnings") {
+    return "Parcial";
+  }
+  if (normalized === "error" || normalized === "failed" || normalized === "failure") {
+    return "Erro";
+  }
+  return normalized;
+}
+
 export async function GET() {
   try {
     const authError = await requireAdmin();
@@ -143,6 +164,11 @@ export async function GET() {
         periodLabel: formatPeriodLabel(task, now),
         lastDispatchedAt: task.automation_last_dispatched_at || null,
         lastDispatchedAtLabel: formatLocalDateTime(task.automation_last_dispatched_at),
+        lastCompletedAt: task.automation_last_completed_at || null,
+        lastCompletedAtLabel: formatLocalDateTime(task.automation_last_completed_at),
+        lastCompletionStatus: task.automation_last_completion_status || null,
+        lastCompletionStatusLabel: formatCompletionStatusLabel(task.automation_last_completion_status),
+        lastCompletionMessage: task.automation_last_completion_message || null,
         status,
       };
     });

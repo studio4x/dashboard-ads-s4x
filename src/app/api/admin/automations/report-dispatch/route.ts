@@ -1123,6 +1123,16 @@ export async function POST(request: Request) {
         },
       },
       reportMode,
+      callbacks: {
+        completion: {
+          url: `${origin}/api/admin/automations/report-dispatch/callback`,
+          auth: {
+            type: "bearer",
+            secretSource: "CRON_SECRET",
+            header: "Authorization",
+          },
+        },
+      },
       report: reportPayload,
       pdf: {
         mode: includePdf ? "storage_signed_pdf_url" : "client_side_export",

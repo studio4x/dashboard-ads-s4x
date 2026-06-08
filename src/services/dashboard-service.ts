@@ -99,6 +99,10 @@ export const DashboardService = {
       automation_period_days?: number;
       automation_channels?: string[];
       automation_last_dispatched_at?: string | null;
+      automation_last_completed_at?: string | null;
+      automation_last_completion_status?: string | null;
+      automation_last_completion_message?: string | null;
+      automation_last_completion_details?: Record<string, unknown> | null;
       automation_report_mode?:
         | "analysis_only"
         | "metrics_only"

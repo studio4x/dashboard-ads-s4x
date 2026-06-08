@@ -28,6 +28,8 @@ Este documento lista as variáveis de ambiente necessárias para o funcionamento
 - **N8N_REPORT_DISPATCH_WEBHOOK_TEST_URL**: Webhook de teste usado durante homologação e validação manual no n8n.
 - **N8N_REPORT_DISPATCH_WEBHOOK_TOKEN**: Token opcional para autenticação do webhook.
 - **N8N_REPORT_DISPATCH_HMAC_SECRET**: Segredo opcional para assinatura HMAC do payload enviado ao n8n.
+- O workflow do n8n deve chamar o callback `POST /api/admin/automations/report-dispatch/callback` ao finalizar.
+- Esse callback usa autenticação Bearer baseada em `CRON_SECRET` e recebe o estado final da execução (`success`, `partial` ou `error`).
 
 ## Notas de Segurança
 - O arquivo `.env.local` deve ser ignorado pelo Git.
