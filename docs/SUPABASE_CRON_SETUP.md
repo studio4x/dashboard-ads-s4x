@@ -57,12 +57,19 @@ O callback de conclusão deve enviar `Authorization: Bearer <CRON_SECRET>` e um 
 - `completedAt` ou `finishedAt` opcional
 - `message` opcional
 - `details` opcional
+- `dashboard` opcional, mas recomendado, com `id`, `name`, `templateId` e `clientName`
 
 Exemplo:
 
 ```json
 {
   "dashboardId": "uuid-do-dashboard",
+  "dashboard": {
+    "id": "uuid-do-dashboard",
+    "name": "João 4 Cars",
+    "templateId": "google_meta_ads_s4x",
+    "clientName": "João 4 Cars"
+  },
   "status": "success",
   "completedAt": "2026-06-08T14:35:00.000Z",
   "message": "Disparo concluído com sucesso.",

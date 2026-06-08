@@ -52,8 +52,12 @@ export async function POST(request: Request) {
     const dashboardId = String(
       payload.dashboardId ||
         payload.dashboard_id ||
+        (payload.dashboard && typeof payload.dashboard === "object" ? (payload.dashboard as Record<string, unknown>).id : "") ||
         completionPayload.dashboardId ||
         completionPayload.dashboard_id ||
+        (completionPayload.dashboard && typeof completionPayload.dashboard === "object"
+          ? (completionPayload.dashboard as Record<string, unknown>).id
+          : "") ||
         ""
     ).trim();
     if (!dashboardId) {
@@ -92,11 +96,16 @@ export async function POST(request: Request) {
         ? (completionPayload.details as Record<string, unknown>)
         : {}),
     };
+    const dashboardPayload = (payload.dashboard && typeof payload.dashboard === "object" ? payload.dashboard : {}) as Record<string, unknown>;
     const workflowRunId = String(
       payload.workflowRunId ||
         payload.workflow_run_id ||
+        payload.runId ||
+        payload.run_id ||
         completionPayload.workflowRunId ||
         completionPayload.workflow_run_id ||
+        completionPayload.runId ||
+        completionPayload.run_id ||
         ""
     ).trim();
     const reportMode = String(
@@ -113,6 +122,12 @@ export async function POST(request: Request) {
       automation_last_completion_message: message || null,
       automation_last_completion_details: {
         ...details,
+        dashboard: {
+          id: dashboardId,
+          name: String(dashboardPayload.name || payload.dashboardName || completionPayload.dashboardName || "").trim() || null,
+          templateId: String(dashboardPayload.templateId || payload.templateId || completionPayload.templateId || "").trim() || null,
+          clientName: String(dashboardPayload.clientName || payload.clientName || completionPayload.clientName || "").trim() || null,
+        },
         workflowRunId: workflowRunId || null,
         reportMode: reportMode || null,
         source: "n8n_callback",
