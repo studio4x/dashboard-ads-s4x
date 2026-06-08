@@ -1099,6 +1099,8 @@ export async function POST(request: Request) {
         clientId: dashboard.client_id,
         clientName: dashboard.clients?.name || null,
         url: shareUrlWithRange,
+        shareLinkId: shareToken || body.shareLinkId || null,
+        shareUrl: shareUrl || null,
       },
       period: {
         from: body.from || null,
@@ -1114,6 +1116,7 @@ export async function POST(request: Request) {
         manual: body.recipients,
       }),
       share: {
+        linkId: shareToken || body.shareLinkId || null,
         url: shareUrlWithRange,
         period: {
           from: body.from || null,
