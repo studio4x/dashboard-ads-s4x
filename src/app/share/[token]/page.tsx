@@ -22,6 +22,7 @@ import { SharedDashboardFooter } from "@/components/dashboard/SharedDashboardFoo
 import { SharedDashboardTabs } from "@/components/dashboard/SharedDashboardTabs";
 import { AlertCircle } from "lucide-react";
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 
 const pageTitles: Record<string, string> = {
   "executive-summary": "Resumo Executivo",
@@ -62,6 +63,31 @@ const pdfSections: Array<{ key: string; title: string; node: ReactNode }> = [
   { key: "ads-assets", title: "Recursos de Anúncio", node: <AdsAssetsPage /> },
   { key: "negative-keywords", title: "Palavras-Chave Negativas", node: <NegativeKeywordsPage /> },
 ];
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ token: string }> }
+): Promise<Metadata> {
+  const { token } = await params;
+  const siteTitle = "Dashboard ADS S4X";
+  let clientName = "Cliente";
+  let dashboardTitle = "Dashboard";
+
+  try {
+    const validation = await ShareService.validateShareToken(token);
+    if (validation.isValid) {
+      clientName = validation.link?.dashboards?.clients?.name || "Cliente";
+      dashboardTitle = validation.link?.dashboards?.name || validation.link?.dashboards?.title || "Dashboard";
+    }
+  } catch {
+    // fallback silencioso
+  }
+
+  return {
+    title: {
+      absolute: `${clientName} | ${dashboardTitle} | ${siteTitle}`,
+    },
+  };
+}
 
 export default async function SharedDashboardPage(
   props: { 
