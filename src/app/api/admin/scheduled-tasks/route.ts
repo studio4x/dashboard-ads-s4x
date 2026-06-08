@@ -14,6 +14,8 @@ export const dynamic = "force-dynamic";
 
 const TZ = "America/Sao_Paulo";
 const WEEKDAYS_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+const SCHEDULE_SELECT_BASE = "id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_report_mode, automation_last_dispatched_at, clients(name)";
+const SCHEDULE_SELECT_EXTENDED = "id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_period_preset, automation_include_today, automation_report_mode, automation_last_dispatched_at, clients(name)";
 
 type TaskStatus = "ok" | "overdue" | "disabled" | "never_ran";
 
@@ -49,6 +51,11 @@ function formatPeriodLabel(task: any, now: Date) {
     task?.automation_period_preset || resolveAutomationPeriodPresetFromDays(task?.automation_period_days)
   );
   return formatAutomationPeriodSummary(preset, Boolean(task?.automation_include_today), getAutomationReferenceDate(now, AUTOMATION_TIME_ZONE));
+}
+
+function isMissingAutomationSchemaColumn(error: any) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return message.includes("automation_period_preset") || message.includes("automation_include_today");
 }
 
 function formatNextWindow(task: any, now: Date) {
@@ -106,11 +113,18 @@ export async function GET() {
     if (authError) return authError;
 
     const supabase = await createAdminClient({ actor: "api_admin", action: "list_scheduled_tasks" });
-    const { data, error } = await supabase
+    let queryResult: any = await supabase
       .from("dashboards")
-      .select("id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_period_preset, automation_include_today, automation_report_mode, automation_last_dispatched_at, clients(name)")
+      .select(SCHEDULE_SELECT_EXTENDED)
       .order("name", { ascending: true });
+    if (queryResult.error && isMissingAutomationSchemaColumn(queryResult.error)) {
+      queryResult = await supabase
+        .from("dashboards")
+        .select(SCHEDULE_SELECT_BASE)
+        .order("name", { ascending: true });
+    }
 
+    const { data, error } = queryResult;
     if (error) throw error;
 
     const now = new Date();
@@ -135,11 +149,11 @@ export async function GET() {
 
     const summary = {
       total: tasks.length,
-      enabled: tasks.filter((t) => t.automationEnabled).length,
-      disabled: tasks.filter((t) => !t.automationEnabled).length,
-      overdue: tasks.filter((t) => t.status === "overdue").length,
-      neverRan: tasks.filter((t) => t.status === "never_ran").length,
-      ok: tasks.filter((t) => t.status === "ok").length,
+      enabled: tasks.filter((t: any) => t.automationEnabled).length,
+      disabled: tasks.filter((t: any) => !t.automationEnabled).length,
+      overdue: tasks.filter((t: any) => t.status === "overdue").length,
+      neverRan: tasks.filter((t: any) => t.status === "never_ran").length,
+      ok: tasks.filter((t: any) => t.status === "ok").length,
     };
 
     return NextResponse.json({

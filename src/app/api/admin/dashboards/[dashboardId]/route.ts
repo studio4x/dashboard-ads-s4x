@@ -14,6 +14,11 @@ interface RouteParams {
   params: Promise<{ dashboardId: string }>;
 }
 
+function isMissingAutomationSchemaColumn(error: any) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return message.includes("automation_period_preset") || message.includes("automation_include_today");
+}
+
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
     const authError = await requireAdmin();
@@ -215,9 +220,18 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       }
     }
 
-    const dashboard = Object.keys(updates).length > 0
-      ? await DashboardService.updateDashboard(dashboardId, updates)
-      : templateUpdatedDashboard;
+    let dashboard = templateUpdatedDashboard;
+    if (Object.keys(updates).length > 0) {
+      try {
+        dashboard = await DashboardService.updateDashboard(dashboardId, updates);
+      } catch (error: any) {
+        if (!isMissingAutomationSchemaColumn(error)) throw error;
+        const legacyUpdates = { ...updates };
+        delete legacyUpdates.automation_period_preset;
+        delete legacyUpdates.automation_include_today;
+        dashboard = await DashboardService.updateDashboard(dashboardId, legacyUpdates);
+      }
+    }
 
     const shouldReprocess = templateWasRequested ? reprocess_template !== false : false;
     let reprocessResult: any = null;

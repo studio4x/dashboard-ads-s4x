@@ -19,6 +19,8 @@ type LocalNow = {
 };
 
 const TZ = "America/Sao_Paulo";
+const DASHBOARD_SELECT_BASE = "id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_report_mode, automation_last_dispatched_at";
+const DASHBOARD_SELECT_EXTENDED = "id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_period_preset, automation_include_today, automation_report_mode, automation_last_dispatched_at";
 
 function getLocalNow(date: Date): LocalNow {
   const weekdayStr = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: TZ }).format(date);
@@ -59,6 +61,11 @@ function shouldRunNow(dashboard: any, now: Date): boolean {
   return lastKey !== todayKey;
 }
 
+function isMissingAutomationSchemaColumn(error: any) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return message.includes("automation_period_preset") || message.includes("automation_include_today");
+}
+
 export async function GET(request: Request) {
   return handleCron(request);
 }
@@ -75,12 +82,20 @@ async function handleCron(request: Request) {
     }
 
     const supabase = await createAdminClient({ actor: "cron", action: "dispatch_reports" });
-    const { data: dashboards, error } = await supabase
+    let dashboardQuery: any = await supabase
       .from("dashboards")
-      .select("id, name, status, automation_enabled, automation_frequency, automation_day_of_week, automation_hour, automation_minute, automation_period_days, automation_period_preset, automation_include_today, automation_report_mode, automation_last_dispatched_at")
+      .select(DASHBOARD_SELECT_EXTENDED)
       .eq("status", "active")
       .eq("automation_enabled", true);
+    if (dashboardQuery.error && isMissingAutomationSchemaColumn(dashboardQuery.error)) {
+      dashboardQuery = await supabase
+        .from("dashboards")
+        .select(DASHBOARD_SELECT_BASE)
+        .eq("status", "active")
+        .eq("automation_enabled", true);
+    }
 
+    const { data: dashboards, error } = dashboardQuery;
     if (error) throw error;
     if (!dashboards || dashboards.length === 0) {
       return NextResponse.json({ success: true, processed: 0, message: "Nenhum dashboard com automação ativa." });
