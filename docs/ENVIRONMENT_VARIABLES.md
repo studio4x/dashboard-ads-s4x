@@ -36,6 +36,7 @@ Este documento lista as variáveis de ambiente necessárias para o funcionamento
 - **OPENAI_API_KEY**: Chave usada como primeira opção para gerar as análises automáticas dos relatórios.
 - **GEMINI_API_KEY**: Chave usada como fallback quando a OpenAI não responder ou estiver indisponível.
 - Se a chave do Gemini usar restrição por HTTP referrer, inclua o origin canônico da plataforma (`https://dashboardads.studio4x.com.br`).
+- Se o Gemini responder `Lightning dunning decision is deny`, o bloqueio costuma estar no billing/estado do projeto Google Cloud e não na URL da aplicação.
 - As credenciais podem ser atualizadas pela página `/admin/settings`, que grava as variáveis criptografadas na Vercel.
 
 ## Notas de Segurança

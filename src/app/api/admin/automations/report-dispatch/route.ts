@@ -464,6 +464,11 @@ async function generateAiInterpretation(params: {
         (raw.includes("API_KEY_HTTP_REFERRER_BLOCKED") ||
           raw.includes("referer <empty>") ||
           raw.includes("Requests from referer"));
+      const isBillingDenied =
+        response.status === 403 &&
+        (raw.includes("Lightning dunning decision is deny") ||
+          raw.includes("project has been denied access") ||
+          raw.includes("denied access"));
       return {
         enabled: true,
         provider: "gemini",
@@ -472,6 +477,8 @@ async function generateAiInterpretation(params: {
         text: null,
         error: isReferrerBlocked
           ? `Falha Gemini (${response.status}): a chave está bloqueada por HTTP referrer. Permita o origin da plataforma (${refererOrigin || "https://dashboardads.studio4x.com.br"}) ou use uma credencial sem restrição de referrer.`
+          : isBillingDenied
+            ? `Falha Gemini (${response.status}): o projeto do Gemini está bloqueado por billing/abuso no Google Cloud. Verifique a conta de faturamento, saldo, método de pagamento e eventual revisão de confiança do projeto.`
           : `Falha Gemini (${response.status}): ${raw.slice(0, 300)}${openAiError ? ` | OpenAI: ${openAiError}` : ""}`,
         fallbackUsed: true,
       };

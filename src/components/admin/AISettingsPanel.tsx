@@ -26,7 +26,7 @@ const PROVIDER_LABELS: Record<ProviderKey, string> = {
 
 const PROVIDER_HELP: Record<ProviderKey, string> = {
   openai: "Usado como primeira opção na geração de análise por IA dos relatórios.",
-  gemini: "Usado como fallback quando a OpenAI não responder ou estiver indisponível. Se a chave tiver restrição por HTTP referrer, inclua o domínio canônico da plataforma.",
+  gemini: "Usado como fallback quando a OpenAI não responder ou estiver indisponível. Se a chave tiver restrição por HTTP referrer, inclua o domínio canônico da plataforma. Se aparecer 403 com dunning/billing, revise a conta de faturamento do projeto Gemini.",
 };
 
 const SETTINGS_ENDPOINT = "/api/admin/settings/ai-credentials";
