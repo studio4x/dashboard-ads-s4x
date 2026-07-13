@@ -25,7 +25,7 @@ A primeira etapa da Fase 4 foi concluída com sucesso, focando na segurança e i
 
 ## 🚀 Fase 4.4 — Validação Final e Deploy (Concluída)
 *   **Data/Hora**: 14/05/2026 18:20
-*   **URL de Produção**: [https://dashboard-ads-s4x.vercel.app](https://dashboard-ads-s4x.vercel.app)
+*   **URL de Produção**: [https://dashboardads.studio4x.com.br](https://dashboardads.studio4x.com.br)
 *   **Status do Build**: ✅ Sucesso (Next.js 16.2.6)
 *   **Status do Deploy**: ✅ Sucesso (Vercel Cloud)
 *   **Variáveis Verificadas**: Todas as 13 variáveis críticas configuradas na Vercel.

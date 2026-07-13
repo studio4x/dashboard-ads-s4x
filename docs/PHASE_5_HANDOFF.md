@@ -120,7 +120,7 @@ A Fase 5 consolida a transição de um sistema MVP de leitura estática para uma
 - Indicadores visuais robustos (Skeletons, Toasts e Empty States).
 - Dashboards dinâmicos com filtros de período (7d, 14d, 30d) e lógicas de variação (crescimento/queda).
 - Um Cockpit Admin E2E (gestão de clientes, painéis, planilhas e logs).
-- **Vercel:** URL final live (dashboard-ads-s4x.vercel.app).
+   - **Vercel:** URL final live (dashboardads.studio4x.com.br).
 - **Supabase:** Storage e Auth rodando em nuvem com regras de RLS baseadas em Service Role onde necessário.
 - **Google Sheets:** Integração via Service Account.
 
@@ -168,7 +168,7 @@ Siga este roteiro sempre que um novo cliente entrar na plataforma:
 Para garantir a total segurança da aplicação e fechar a Fase 5 com uma base blindada:
 - **`CRON_SECRET` Rotacionado**: Novo segredo de 64 caracteres gerado (randômico, alphanumerico), injetado no `.env.local` e Vercel sem logs locais.
 - **Vercel Atualizada**: `CRON_SECRET` anterior expurgado e novo sincronizado com os ambientes de *Production* e *Preview*.
-- **Redeploy Realizado**: Plataforma atualizada com sucesso (`dashboard-ads-s4x.vercel.app`).
+   - **Redeploy Realizado**: Plataforma atualizada com sucesso (`dashboardads.studio4x.com.br`).
 - **Cron Validado**: Requisições GET/POST retornam `401 Unauthorized` sem o token rotacionado e operam perfeitamente no acesso restrito via CLI/Cloud Scheduler.
 - **Auditoria de Secrets Validada**: Arquivos de log e history locais saneados.
 - **Produção Testada**: Todas as rotas críticas de admin, navegação, filtros e carregamento dos snapshots validados após rotação.

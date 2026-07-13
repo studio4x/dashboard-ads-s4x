@@ -5,6 +5,7 @@ Este documento lista as variáveis de ambiente necessárias para o funcionamento
 ## Supabase (Auth & Database)
 - **NEXT_PUBLIC_SUPABASE_URL**: URL da API do Supabase.
 - **NEXT_PUBLIC_SUPABASE_ANON_KEY**: Chave anônima pública.
+- **NEXT_PUBLIC_SITE_URL**: URL canônica pública da plataforma (`https://dashboardads.studio4x.com.br`).
 - **SUPABASE_SERVICE_ROLE_KEY**: Chave de serviço (privada, bypass RLS).
 - **SUPABASE_PROJECT_ID**: ID de referência do projeto.
 - **SUPABASE_DB_PASSWORD**: Senha do banco de dados PostgreSQL.

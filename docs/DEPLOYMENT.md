@@ -11,7 +11,7 @@ npm run dev
 ```
 
 ### 2. Produção (Vercel)
-O deploy para o domínio principal [dashboard-ads-s4x.vercel.app](https://dashboard-ads-s4x.vercel.app) ocorre via Vercel.
+O deploy para o domínio principal [dashboardads.studio4x.com.br](https://dashboardads.studio4x.com.br) ocorre via Vercel.
 
 #### Comandos de Deploy
 Se precisar disparar um deploy manual:
@@ -35,7 +35,7 @@ Sempre que uma nova solicitação for concluída com alteração de código/docu
 3. atualizar a versão do build exibida na plataforma para refletir a nova entrega;
 4. publicar deploy necessário;
 5. validar que o deploy de produção está `READY`;
-6. validar que o domínio canônico `dashboard-ads-s4x.vercel.app` aponta para a versão recém-publicada.
+6. validar que o domínio canônico `dashboardads.studio4x.com.br` aponta para a versão recém-publicada.
 
 Não considerar tarefa concluída se a mudança estiver apenas local.
 

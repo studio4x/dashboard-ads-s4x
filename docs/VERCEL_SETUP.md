@@ -4,7 +4,7 @@ Este documento descreve a configuração do projeto na Vercel para a plataforma 
 
 ## Detalhes do Projeto
 - **Project ID**: `prj_ItBuzwCzFtKw36WXgZtHxsrXxHfF`
-- **URL de Produção**: [https://dashboard-ads-s4x.vercel.app](https://dashboard-ads-s4x.vercel.app)
+- **URL de Produção**: [https://dashboardads.studio4x.com.br](https://dashboardads.studio4x.com.br)
 - **Framework Preset**: Next.js
 - **Build Command**: `npm run build`
 - **Install Command**: `npm install`

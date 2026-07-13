@@ -51,7 +51,7 @@ A Fase 3 transformou o protótipo em uma aplicação real com banco de dados per
 
 ### Deploy na Vercel
 - **Project ID:** prj_ItBuzwCzFtKw36WXgZtHxsrXxHfF
-- **URL:** https://dashboard-ads-s4x.vercel.app/
+- **URL:** https://dashboardads.studio4x.com.br/
 - **Framework Preset:** Next.js
 - **Build Command:** npm run build
 - **Install Command:** npm install
@@ -61,7 +61,7 @@ A Fase 3 transformou o protótipo em uma aplicação real com banco de dados per
 
 ### Validação Operacional em Produção
 - **Data/Hora:** 14/05/2026 16:48
-- **URL:** https://dashboard-ads-s4x.vercel.app/
+- **URL:** https://dashboardads.studio4x.com.br/
 - **Primeiro Owner:** contato@studio4x.com.br (Criado e validado)
 - **Profile Automático:** Validado via Trigger SQL.
 - **Login:** Testado e funcional.

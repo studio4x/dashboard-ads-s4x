@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { DateRangeSelector } from "@/components/dashboard/DateRangeSelector";
 import { DateRangePreset, formatDateISO, getDateRangePreset } from "@/lib/dashboard/date-utils";
 
-const APP_BASE_URL = "https://dashboard-ads-s4x.vercel.app";
+const APP_BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://dashboardads.studio4x.com.br";
 const DISPATCH_ENDPOINT = `${APP_BASE_URL}/api/admin/automations/report-dispatch`;
 
 type DispatchPayloadCandidate = {
