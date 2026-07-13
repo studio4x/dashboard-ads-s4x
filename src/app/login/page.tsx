@@ -4,6 +4,7 @@ import { useState } from "react";
 import { login } from "./actions";
 import { BarChart3, Lock, Mail, Loader2, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { BrandingLogo } from "@/components/branding/BrandingLogo";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -30,10 +31,11 @@ export default function LoginPage() {
 
       <div style={{ width: "100%", maxWidth: 440, position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 64, height: 64, borderRadius: 16, background: "linear-gradient(135deg, #2563EB, #4338CA)", color: "#FFFFFF", boxShadow: "0 18px 40px rgba(37,99,235,0.2)", marginBottom: 24 }}>
-            <BarChart3 size={32} />
-          </div>
-          <h1 style={{ fontSize: 32, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>Dashboard ADS</h1>
+          <BrandingLogo
+            alt="Dashboard ADS S4X"
+            style={{ width: 300, height: 88, marginBottom: 10 }}
+            fallback={<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}><div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 64, height: 64, borderRadius: 16, background: "linear-gradient(135deg, #2563EB, #4338CA)", color: "#FFFFFF", boxShadow: "0 18px 40px rgba(37,99,235,0.2)" }}><BarChart3 size={32} /></div><h1 style={{ fontSize: 32, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>Dashboard ADS</h1></div>}
+          />
           <p style={{ color: "#64748B", marginTop: 8, fontWeight: 600, fontSize: 14 }}>S4X Platform — Acesso Restrito</p>
         </div>
 

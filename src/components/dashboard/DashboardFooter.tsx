@@ -3,6 +3,7 @@
 import React from "react";
 import { Clock } from "lucide-react";
 import { useDashboard } from "./DashboardDataContext";
+import { BrandingLogo } from "@/components/branding/BrandingLogo";
 
 export function DashboardFooter() {
   const { data } = useDashboard();
@@ -39,17 +40,11 @@ export function DashboardFooter() {
           </span>
         </div>
 
-        <div 
-          style={{ 
-            fontSize: 10, 
-            color: "#94A3B8", 
-            fontWeight: 700, 
-            letterSpacing: "0.05em",
-            textTransform: "uppercase"
-          }}
-        >
-          Studio 4x — Inteligência de Dados
-        </div>
+        <BrandingLogo
+          alt="Dashboard ADS S4X"
+          style={{ width: 150, height: 24, justifyContent: "flex-end" }}
+          fallback={<span style={{ fontSize: 10, color: "#94A3B8", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>Studio 4x — Inteligência de Dados</span>}
+        />
       </div>
     </footer>
   );

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 import { apiErrorResponse, parseJsonObject, requireString } from "@/lib/security/api-safety";
 import { DashboardService } from "@/services/dashboard-service";
+import { BrandingService } from "@/services/branding-service";
 import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
 import { PROMPT_ANALISE_IA_TEMPLATE } from "@/lib/ai/prompt-analise-ia";
 import {
@@ -1050,12 +1051,14 @@ export async function POST(request: Request) {
 
     if (includePdf && !body.dryRun && storagePath) {
       try {
+        const branding = await BrandingService.getBranding();
         await renderAndStoreSharePdf({
           dashboardName: dashboard.name,
           clientName: dashboard.clients?.name || null,
           clientLogoUrl: dashboard.clients?.logo_url || null,
           studioLogoUrl:
             String(process.env.S4X_STUDIO_LOGO_URL || "").trim() ||
+            branding.logoLightUrl ||
             `${origin}/logotipo-s4x.svg`,
           periodLabel:
             periodFromDisplay && periodToDisplay

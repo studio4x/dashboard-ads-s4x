@@ -6,6 +6,7 @@ import { useDashboard } from "./DashboardDataContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { APP_BUILD_LABEL } from "@/lib/constants";
+import { BrandingLogo } from "@/components/branding/BrandingLogo";
 
 interface SharedDashboardFooterProps {
   clientLogoUrl?: string | null;
@@ -58,9 +59,11 @@ export function SharedDashboardFooter({ clientLogoUrl, clientName }: SharedDashb
                  <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} className="h-full w-auto object-contain" />
                </div>
              ) : null}
-             <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold leading-5">
-               Studio 4x — Inteligência em Tráfego Pago
-             </div>
+             <BrandingLogo
+               alt="Dashboard ADS S4X"
+               style={{ width: 170, height: 30, justifyContent: "flex-start" }}
+               fallback={<div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold leading-5">Studio 4x — Inteligência em Tráfego Pago</div>}
+             />
            </div>
             <div className="flex flex-wrap justify-center sm:justify-end gap-x-4 gap-y-2 text-[10px] text-slate-400 leading-5">
               <span>Suporte: studio4x.com.br</span>

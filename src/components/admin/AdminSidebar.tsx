@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { APP_NAME, APP_BUILD_HASH, APP_VERSION } from "@/lib/constants";
 import { logout } from "@/app/login/actions";
+import { BrandingLogo } from "@/components/branding/BrandingLogo";
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Building2, PieChart, Database,
@@ -59,27 +60,21 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
           justifyContent: "space-between",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: "linear-gradient(135deg, #2563EB, #7C3AED)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <BarChart3 size={18} color="white" />
-          </div>
-          <div>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", lineHeight: 1.2 }}>
-              Dashboard ADS
-            </p>
-            <p style={{ fontSize: 10, color: "#94A3B8", fontWeight: 500 }}>S4X Platform</p>
-          </div>
-        </div>
+        <BrandingLogo
+          alt="Dashboard ADS S4X"
+          style={{ width: 196, height: 42, justifyContent: "flex-start" }}
+          fallback={
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <BarChart3 size={18} color="white" />
+              </div>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", lineHeight: 1.2 }}>Dashboard ADS</p>
+                <p style={{ fontSize: 10, color: "#94A3B8", fontWeight: 500 }}>S4X Platform</p>
+              </div>
+            </div>
+          }
+        />
         {onClose && (
           <button onClick={onClose} style={{ color: "#94A3B8", cursor: "pointer", background: "none", border: "none" }}>
             <X size={18} />

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { resetPassword } from "./actions";
 import { BarChart3, Lock, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { BrandingLogo } from "@/components/branding/BrandingLogo";
 
 export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
@@ -36,9 +37,11 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-[440px] relative z-10">
         {/* Header */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl shadow-blue-200 mb-6">
-            <BarChart3 size={32} />
-          </div>
+          <BrandingLogo
+            alt="Dashboard ADS S4X"
+            style={{ width: 280, height: 82, marginBottom: 12 }}
+            fallback={<div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl shadow-blue-200"><BarChart3 size={32} /></div>}
+          />
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Nova Senha</h1>
           <p className="text-slate-500 mt-2 font-medium">S4X Platform — Definição de Acesso</p>
         </div>

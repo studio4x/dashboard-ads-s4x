@@ -8,6 +8,7 @@ import { useDashboard } from "./DashboardDataContext";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_PAGES } from "@/lib/constants";
 import { getVisiblePages } from "@/lib/dashboard/templates";
+import { BrandingLogo } from "@/components/branding/BrandingLogo";
 
 interface SharedDashboardHeaderProps {
   clientName?: string;
@@ -278,9 +279,11 @@ export function SharedDashboardHeader({
                  <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} className="h-full w-auto object-contain" />
                </div>
              ) : (
-               <div className="text-2xl sm:text-3xl font-black tracking-tighter text-blue-600">
-                 Studio 4x
-               </div>
+               <BrandingLogo
+                 alt="Dashboard ADS S4X"
+                 style={{ width: 180, height: 48, justifyContent: "flex-start" }}
+                 fallback={<div className="text-2xl sm:text-3xl font-black tracking-tighter text-blue-600">Studio 4x</div>}
+               />
              )}
              <div className="hidden sm:block h-12 w-px bg-slate-200" />
              <div className="flex flex-col min-w-0">

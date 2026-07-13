@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BarChart3, ArrowRight, PieChart } from "lucide-react";
 import { DashboardService } from "@/services/dashboard-service";
+import { BrandingLogo } from "@/components/branding/BrandingLogo";
 
 export const metadata: Metadata = { title: "Meus Dashboards | Dashboard ADS S4X" };
 
@@ -12,12 +13,11 @@ export default async function DashboardsListPage() {
     <div style={{ minHeight: "100vh", background: "#F8FAFC" }}>
       {/* Header */}
       <header style={{ background: "white", borderBottom: "1px solid #E2E8F0", padding: "0 32px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <BarChart3 size={17} color="white" />
-          </div>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#0F172A" }}>Dashboard ADS S4X</span>
-        </div>
+        <BrandingLogo
+          alt="Dashboard ADS S4X"
+          style={{ width: 190, height: 38, justifyContent: "flex-start" }}
+          fallback={<div style={{ display: "flex", alignItems: "center", gap: 10 }}><div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center" }}><BarChart3 size={17} color="white" /></div><span style={{ fontSize: 15, fontWeight: 700, color: "#0F172A" }}>Dashboard ADS S4X</span></div>}
+        />
         <Link href="/admin" style={{ fontSize: 13, color: "#64748B", textDecoration: "none" }}>Admin →</Link>
       </header>
 

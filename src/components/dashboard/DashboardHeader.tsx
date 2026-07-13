@@ -9,6 +9,7 @@ import { DateRangeSelector } from "./DateRangeSelector";
 import { useDashboard } from "./DashboardDataContext";
 import { DASHBOARD_PAGES } from "@/lib/constants";
 import { getVisiblePages } from "@/lib/dashboard/templates";
+import { BrandingLogo } from "@/components/branding/BrandingLogo";
 
 interface DashboardHeaderProps {
   clientName: string;
@@ -315,19 +316,11 @@ export function DashboardHeader({
         {/* Left: Logo + breadcrumb */}
         <div className="dashboard-header-left" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <Link href="/app/dashboards" style={{ textDecoration: "none" }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: "linear-gradient(135deg, #2563EB, #7C3AED)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <BarChart3 size={17} color="white" />
-            </div>
+            <BrandingLogo
+              alt="Dashboard ADS S4X"
+              style={{ width: 142, height: 36, justifyContent: "flex-start" }}
+              fallback={<div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center" }}><BarChart3 size={17} color="white" /></div>}
+            />
           </Link>
           <div className="dashboard-header-breadcrumb" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
             <span style={{ fontSize: 13, color: "#94A3B8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "30vw" }}>{clientName}</span>

@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   description:
     "Plataforma de dashboards executivos para tráfego pago — Google Ads, Meta Ads, GA4 e Search Console.",
   keywords: ["dashboard", "tráfego pago", "google ads", "meta ads", "analytics"],
+  icons: {
+    icon: "/api/branding/favicon",
+  },
 };
 
 export default function RootLayout({
