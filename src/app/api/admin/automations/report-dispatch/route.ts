@@ -351,6 +351,7 @@ async function generateAiInterpretation(params: {
   clientName: string | null;
   periodFrom: string | null;
   periodTo: string | null;
+  requestOrigin?: string | null;
 }): Promise<AiInterpretationResult> {
   const openAiApiKey = await resolveOpenAiApiKey();
   const geminiApiKey = await resolveGeminiApiKey();
@@ -435,11 +436,18 @@ async function generateAiInterpretation(params: {
   }
 
   try {
+    const refererOrigin = String(params.requestOrigin || process.env.NEXT_PUBLIC_SITE_URL || "").trim();
+    const geminiHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (refererOrigin) {
+      geminiHeaders.Referer = refererOrigin;
+      geminiHeaders.Origin = refererOrigin;
+    }
+
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${encodeURIComponent(geminiApiKey)}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: geminiHeaders,
       body: JSON.stringify({
         contents: [
           {
@@ -451,13 +459,20 @@ async function generateAiInterpretation(params: {
 
     if (!response.ok) {
       const raw = await response.text();
+      const isReferrerBlocked =
+        response.status === 403 &&
+        (raw.includes("API_KEY_HTTP_REFERRER_BLOCKED") ||
+          raw.includes("referer <empty>") ||
+          raw.includes("Requests from referer"));
       return {
         enabled: true,
         provider: "gemini",
         model: geminiModel,
         generated: false,
         text: null,
-        error: `Falha Gemini (${response.status}): ${raw.slice(0, 300)}${openAiError ? ` | OpenAI: ${openAiError}` : ""}`,
+        error: isReferrerBlocked
+          ? `Falha Gemini (${response.status}): a chave está bloqueada por HTTP referrer. Permita o origin da plataforma (${refererOrigin || "https://dashboardads.studio4x.com.br"}) ou use uma credencial sem restrição de referrer.`
+          : `Falha Gemini (${response.status}): ${raw.slice(0, 300)}${openAiError ? ` | OpenAI: ${openAiError}` : ""}`,
         fallbackUsed: true,
       };
     }
@@ -1016,6 +1031,7 @@ export async function POST(request: Request) {
           clientName: dashboard.clients?.name || null,
           periodFrom: body.from || null,
           periodTo: body.to || null,
+          requestOrigin: origin,
         })
       : {
           enabled: false,
