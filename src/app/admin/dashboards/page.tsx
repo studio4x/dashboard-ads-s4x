@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/Toast";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 import { DateRangeSelector } from "@/components/dashboard/DateRangeSelector";
-import { DateRangePreset } from "@/lib/dashboard/date-utils";
+import { DateRangePreset, formatDateISO, getDateRangePreset } from "@/lib/dashboard/date-utils";
 import { resolveAutomationPeriodDays, resolveAutomationPeriodPresetFromDays, normalizeAutomationPeriodPreset, formatAutomationPeriodSummary } from "@/lib/dashboard/automation-period";
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
 type MetaObjective = (typeof META_ADS_OBJECTIVES)[number]["id"];
@@ -26,6 +26,12 @@ const AUTOMATION_COMPLETION_BADGE: Record<string, { label: string; bg: string; c
   partial: { label: "Parcial", bg: "#FFFBEB", color: "#92400E", border: "#FDE68A" },
   error: { label: "Erro", bg: "#FEF2F2", color: "#991B1B", border: "#FECACA" },
   pending: { label: "Pendente", bg: "#F8FAFC", color: "#475569", border: "#E2E8F0" },
+};
+const ANALYSIS_GENERATION_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  generating: { label: "Gerando", bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
+  success: { label: "Disponível", bg: "#F0FDF4", color: "#166534", border: "#BBF7D0" },
+  error: { label: "Erro", bg: "#FEF2F2", color: "#991B1B", border: "#FECACA" },
+  pending: { label: "Ainda não gerada", bg: "#F8FAFC", color: "#475569", border: "#E2E8F0" },
 };
 const WEEK_DAYS = [
   { value: 0, label: "Domingo" },
@@ -70,6 +76,16 @@ function formatAutomationCompletionAtLabel(value: string | null | undefined) {
   return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
+function formatAnalysisGenerationKey(value: string | null | undefined) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["generating", "success", "error"].includes(normalized) ? normalized : "pending";
+}
+
+function formatAnalysisGenerationAtLabel(value: string | null | undefined) {
+  if (!value) return "Aguardando geração";
+  return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
 export default function AdminDashboardsPage() {
   const { toast } = useToast();
   const [dashboards, setDashboards] = useState<any[]>([]);
@@ -105,6 +121,7 @@ export default function AdminDashboardsPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSavingIntegration, setIsSavingIntegration] = useState(false);
   const [runningDispatchByDashboardId, setRunningDispatchByDashboardId] = useState<Record<string, boolean>>({});
+  const [runningAnalysisByDashboardId, setRunningAnalysisByDashboardId] = useState<Record<string, boolean>>({});
   const [automationForms, setAutomationForms] = useState<Record<string, AutomationForm>>({});
   const [savingAutomationByDashboardId, setSavingAutomationByDashboardId] = useState<Record<string, boolean>>({});
   const [expandedAutomationByDashboardId, setExpandedAutomationByDashboardId] = useState<Record<string, boolean>>({});
@@ -672,6 +689,47 @@ export default function AdminDashboardsPage() {
       toast("Erro ao conectar com o servidor para disparo da automação.");
     } finally {
       setRunningDispatchByDashboardId((prev) => ({ ...prev, [dashboard.id]: false }));
+    }
+  }
+
+  async function handleRegenerateAnalysis(dashboard: any) {
+    const form = automationForms[dashboard.id];
+    const period = getDateRangePreset(form?.periodPreset || "last_7_days", undefined, Boolean(form?.includeToday));
+    const confirmRun = confirm(
+      `Regenerar a análise e o PDF de "${dashboard.name}" agora?\n\nPeríodo: ${formatDateISO(period.from)} a ${formatDateISO(period.to)}.\nO webhook do n8n não será reenviado.`
+    );
+    if (!confirmRun) return;
+
+    setRunningAnalysisByDashboardId((prev) => ({ ...prev, [dashboard.id]: true }));
+    try {
+      const response = await fetch("/api/admin/automations/report-dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dashboardId: dashboard.id,
+          from: formatDateISO(period.from),
+          to: formatDateISO(period.to),
+          source: "manual",
+          reportMode: "both_pdf",
+          forceAnalysis: true,
+          skipWebhook: true,
+          automationPeriod: {
+            preset: form?.periodPreset || "last_7_days",
+            includeToday: Boolean(form?.includeToday),
+          },
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        toast(`Falha ao regenerar análise: ${result.error || "erro desconhecido"}`);
+        return;
+      }
+      toast("Análise e PDF regenerados com sucesso.");
+    } catch {
+      toast("Erro ao conectar com o servidor para regenerar a análise.");
+    } finally {
+      setRunningAnalysisByDashboardId((prev) => ({ ...prev, [dashboard.id]: false }));
+      await fetchData();
     }
   }
 
@@ -1298,6 +1356,54 @@ export default function AdminDashboardsPage() {
                 );
               })()}
 
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #E2E8F0",
+                  background: "#F8FAFC",
+                  marginTop: 10,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, color: "#334155", fontWeight: 700 }}>Status da análise</span>
+                  {(() => {
+                    const analysisKey = formatAnalysisGenerationKey(d.automation_last_analysis_status);
+                    const analysisCfg = ANALYSIS_GENERATION_BADGE[analysisKey] || ANALYSIS_GENERATION_BADGE.pending;
+                    return (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "4px 8px",
+                          borderRadius: 999,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: analysisCfg.color,
+                          background: analysisCfg.bg,
+                          border: `1px solid ${analysisCfg.border}`,
+                        }}
+                      >
+                        {analysisKey === "generating" ? <Loader2 className="animate-spin" size={12} /> : null}
+                        {analysisCfg.label}
+                      </span>
+                    );
+                  })()}
+                  <span style={{ fontSize: 12, color: "#475569" }}>
+                    {formatAnalysisGenerationAtLabel(d.automation_last_analysis_generated_at)}
+                  </span>
+                </div>
+                {d.automation_last_analysis_message ? (
+                  <span style={{ fontSize: 12, color: "#64748B" }}>{d.automation_last_analysis_message}</span>
+                ) : null}
+              </div>
+
               {/* METADATA INFO ROW */}
               <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 12, color: "#64748B", borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
                 <div>
@@ -1351,7 +1457,22 @@ export default function AdminDashboardsPage() {
                     {runningDispatchByDashboardId[d.id] ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}
                     Disparar Automação
                   </button>
-                  
+
+                  <button
+                    onClick={() => handleRegenerateAnalysis(d)}
+                    disabled={Boolean(runningAnalysisByDashboardId[d.id])}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+                      borderRadius: 8, background: "#FFF7ED", fontSize: 13, color: "#C2410C",
+                      border: "1px solid #FED7AA", cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.2s", opacity: runningAnalysisByDashboardId[d.id] ? 0.7 : 1
+                    }}
+                    title="Regenerar a analise e o PDF sem reenviar o webhook"
+                  >
+                    {runningAnalysisByDashboardId[d.id] ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+                    Regenerar Analise
+                  </button>
+
                   <button 
                     onClick={() => handleDuplicate(d)}
                     style={{ 

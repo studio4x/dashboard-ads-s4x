@@ -29,6 +29,8 @@ type DispatchBody = {
   };
   shareLinkId?: string;
   dryRun?: boolean;
+  forceAnalysis?: boolean;
+  skipWebhook?: boolean;
   source?: "manual" | "scheduled";
   reportMode?: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
   webhookEnvironment?: "production" | "test";
@@ -134,6 +136,23 @@ function getErrorDetails(error: unknown) {
         }
       : null,
   };
+}
+
+async function updateAnalysisGenerationStatus(
+  dashboardId: string,
+  status: "generating" | "success" | "error",
+  message: string,
+  generatedAt?: string | null
+) {
+  try {
+    await DashboardService.updateDashboard(dashboardId, {
+      automation_last_analysis_status: status,
+      automation_last_analysis_generated_at: status === "success" ? generatedAt || new Date().toISOString() : null,
+      automation_last_analysis_message: message || null,
+    });
+  } catch (error) {
+    console.error("Falha ao atualizar status da analise de IA:", error);
+  }
 }
 
 function parseListValue(value: unknown): string[] {
@@ -924,6 +943,9 @@ async function ensureShareUrl(params: {
 }
 
 export async function POST(request: Request) {
+  let trackedDashboardId = "";
+  let analysisGenerationInProgress = false;
+
   try {
     const authHeader = request.headers.get("authorization");
     const isCronAuthorized =
@@ -941,6 +963,7 @@ export async function POST(request: Request) {
     if (!parsedBody.ok) return parsedBody.response;
     const body = parsedBody.body as DispatchBody;
     const dashboardId = requireString(parsedBody.body, "dashboardId") || "";
+    trackedDashboardId = dashboardId;
 
     if (!dashboardId) {
       return NextResponse.json({ success: false, error: "dashboardId é obrigatório." }, { status: 400 });
@@ -981,6 +1004,11 @@ export async function POST(request: Request) {
     const reportMode = normalizeReportMode(body.reportMode || dashboard.automation_report_mode);
     const includePdf = reportMode === "pdf_only" || reportMode === "analysis_pdf" || reportMode === "both_pdf";
     const report = getReportMetrics(data);
+    const analysisRequested = reportMode !== "metrics_only";
+    if (!body.dryRun && analysisRequested) {
+      analysisGenerationInProgress = true;
+      await updateAnalysisGenerationStatus(dashboardId, "generating", "Gerando nova analise de IA...");
+    }
     const aiInterpretation = reportMode !== "metrics_only" || includePdf
       ? await generateAiInterpretation({
           report,
@@ -998,6 +1026,22 @@ export async function POST(request: Request) {
           error: "Interpretação desativada pelo modo metrics_only.",
           fallbackUsed: false,
         };
+
+    if (!body.dryRun && analysisRequested && (!aiInterpretation.generated || !aiInterpretation.text)) {
+      const analysisError = aiInterpretation.error || "A analise de IA nao retornou texto.";
+      await updateAnalysisGenerationStatus(dashboardId, "error", analysisError);
+      analysisGenerationInProgress = false;
+      if (includePdf || body.forceAnalysis) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "A analise nao foi gerada. O PDF nao foi substituido.",
+            analysis: aiInterpretation,
+          },
+          { status: 502 }
+        );
+      }
+    }
 
     const reportPayload =
       reportMode === "pdf_only"
@@ -1080,6 +1124,12 @@ export async function POST(request: Request) {
             : ""
         }`;
       } catch (pdfWarmupError) {
+        await updateAnalysisGenerationStatus(
+          dashboardId,
+          "error",
+          `Falha ao gerar o PDF: ${getErrorDetails(pdfWarmupError).message}`
+        );
+        analysisGenerationInProgress = false;
         return NextResponse.json(
           {
             success: false,
@@ -1151,8 +1201,29 @@ export async function POST(request: Request) {
       },
     };
 
+    if (!body.dryRun && analysisRequested && aiInterpretation.generated) {
+      const generatedAt = new Date().toISOString();
+      await updateAnalysisGenerationStatus(
+        dashboardId,
+        "success",
+        includePdf ? "Analise e PDF regenerados com sucesso." : "Analise de IA gerada com sucesso.",
+        generatedAt
+      );
+      analysisGenerationInProgress = false;
+    }
+
     if (body.dryRun) {
       return NextResponse.json({ success: true, dryRun: true, payload });
+    }
+
+    if (body.skipWebhook) {
+      return NextResponse.json({
+        success: true,
+        message: "Analise e PDF regenerados sem reenviar o webhook.",
+        dashboardId,
+        skippedWebhook: true,
+        pdf: payload.pdf,
+      });
     }
 
     const webhookEnvironment = body.webhookEnvironment === "test" ? "test" : "production";
@@ -1274,6 +1345,13 @@ export async function POST(request: Request) {
       pdf: payload.pdf,
     });
   } catch (error: any) {
+    if (trackedDashboardId && analysisGenerationInProgress) {
+      await updateAnalysisGenerationStatus(
+        trackedDashboardId,
+        "error",
+        `Falha inesperada na geracao da analise: ${getErrorDetails(error).message}`
+      );
+    }
     return apiErrorResponse(error, "Erro interno no disparo de automação.");
   }
 }

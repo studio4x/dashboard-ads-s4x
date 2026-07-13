@@ -103,6 +103,9 @@ export const DashboardService = {
       automation_last_completion_status?: string | null;
       automation_last_completion_message?: string | null;
       automation_last_completion_details?: Record<string, unknown> | null;
+      automation_last_analysis_status?: string | null;
+      automation_last_analysis_generated_at?: string | null;
+      automation_last_analysis_message?: string | null;
       automation_report_mode?:
         | "analysis_only"
         | "metrics_only"
