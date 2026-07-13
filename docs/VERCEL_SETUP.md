@@ -28,6 +28,12 @@ As variáveis de ambiente foram configuradas para os ambientes de **Production**
 - `GOOGLE_PROJECT_ID`
 - `GOOGLE_SHEETS_USE_MOCKS` (Definido inicialmente como `true`)
 
+### IA / Automação
+- `OPENAI_API_KEY`
+- `GEMINI_API_KEY`
+- `OPENAI_REPORT_MODEL`
+- `GEMINI_REPORT_MODEL`
+
 ## Fluxo de Deploy
 O deploy é realizado automaticamente via integração com o GitHub ou manualmente via Vercel CLI:
 

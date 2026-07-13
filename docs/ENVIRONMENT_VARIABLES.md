@@ -31,6 +31,11 @@ Este documento lista as variáveis de ambiente necessárias para o funcionamento
 - O workflow do n8n deve chamar o callback `POST /api/admin/automations/report-dispatch/callback` ao finalizar.
 - Esse callback usa autenticação Bearer baseada em `CRON_SECRET` e recebe o estado final da execução (`success`, `partial` ou `error`).
 
+## IA (Análises Automáticas)
+- **OPENAI_API_KEY**: Chave usada como primeira opção para gerar as análises automáticas dos relatórios.
+- **GEMINI_API_KEY**: Chave usada como fallback quando a OpenAI não responder ou estiver indisponível.
+- As credenciais podem ser atualizadas pela página `/admin/settings`, que grava as variáveis criptografadas na Vercel.
+
 ## Notas de Segurança
 - O arquivo `.env.local` deve ser ignorado pelo Git.
 - Variáveis sensíveis **não** devem ter o prefixo `NEXT_PUBLIC_`.
