@@ -18,6 +18,8 @@ import {
   sanitizePdfFilePart,
 } from "@/lib/share-pdf";
 
+export const maxDuration = 300;
+
 type DispatchBody = {
   dashboardId?: string;
   from?: string;

@@ -11,6 +11,10 @@ import {
 } from "@/lib/dashboard/automation-period";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
+
+const CRON_LOCK_NAME = "report-dispatch";
+const CRON_LOCK_TTL_SECONDS = 330;
 
 type LocalNow = {
   weekday: number;
@@ -75,13 +79,32 @@ export async function POST(request: Request) {
 }
 
 async function handleCron(request: Request) {
+  let supabase: any = null;
+  let lockToken: string | null = null;
+
   try {
     const authHeader = request.headers.get("authorization");
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    const supabase = await createAdminClient({ actor: "cron", action: "dispatch_reports" });
+    supabase = await createAdminClient({ actor: "cron", action: "dispatch_reports" });
+    const lockResult = await supabase.rpc("acquire_automation_cron_lock", {
+      p_lock_name: CRON_LOCK_NAME,
+      p_ttl_seconds: CRON_LOCK_TTL_SECONDS,
+    });
+    if (lockResult.error) throw lockResult.error;
+    lockToken = lockResult.data ? String(lockResult.data) : null;
+
+    if (!lockToken) {
+      console.info("[CRON][report-dispatch] Ciclo ignorado: já existe uma execução em andamento.");
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        reason: "already_running",
+      });
+    }
+
     let dashboardQuery: any = await supabase
       .from("dashboards")
       .select(DASHBOARD_SELECT_EXTENDED)
@@ -177,8 +200,19 @@ async function handleCron(request: Request) {
       }
     }
 
+    console.info("[CRON][report-dispatch] Ciclo concluído", summary);
     return NextResponse.json({ success: true, summary });
   } catch (error: any) {
     return apiErrorResponse(error, "Erro no cron de automação.");
+  } finally {
+    if (supabase && lockToken) {
+      const releaseResult = await supabase.rpc("release_automation_cron_lock", {
+        p_lock_name: CRON_LOCK_NAME,
+        p_lock_token: lockToken,
+      });
+      if (releaseResult.error) {
+        console.error("[CRON][report-dispatch] Falha ao liberar lock", releaseResult.error);
+      }
+    }
   }
 }
