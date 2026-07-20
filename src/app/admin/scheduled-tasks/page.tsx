@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, CheckCircle2, Clock3, RefreshCcw, Search, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, Clock3, Loader2, RefreshCcw, Search, Send, XCircle } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 type TaskStatus = "ok" | "overdue" | "disabled" | "never_ran";
@@ -82,8 +82,51 @@ export default function ScheduledTasksPage() {
   const [generatedAtLabel, setGeneratedAtLabel] = useState<string>("-");
   const [timezone, setTimezone] = useState("America/Sao_Paulo");
   const [loading, setLoading] = useState(true);
+  const [forcingTaskById, setForcingTaskById] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
+  async function forceExecution(task: any) {
+    const confirmRun = window.confirm(
+      `Forçar a execução de "${task.dashboardName}" agora?\n\nPeríodo: ${task.periodFrom} a ${task.periodTo}.\nIsso enviará o relatório ao webhook de produção do n8n.`
+    );
+    if (!confirmRun) return;
+
+    setForcingTaskById((prev) => ({ ...prev, [task.dashboardId]: true }));
+    try {
+      const response = await fetch("/api/admin/automations/report-dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dashboardId: task.dashboardId,
+          from: task.periodFrom,
+          to: task.periodTo,
+          source: "scheduled",
+          reportMode: task.reportMode,
+          automationPeriod: {
+            preset: task.periodPreset,
+            includeToday: Boolean(task.includeToday),
+          },
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || "Falha ao forçar a execução.");
+      }
+      window.alert("Execução forçada enviada ao n8n com sucesso.");
+      await fetchData();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Erro ao forçar a execução.");
+    } finally {
+      setForcingTaskById((prev) => ({ ...prev, [task.dashboardId]: false }));
+    }
+  }
+
+  function shouldOfferForce(task: any) {
+    if (!task?.automationEnabled) return false;
+    const completionStatus = String(task.lastCompletionStatus || "").toLowerCase();
+    return task.status !== "ok" || completionStatus === "error" || completionStatus === "partial";
+  }
 
   async function fetchData() {
     setLoading(true);
@@ -217,16 +260,17 @@ export default function ScheduledTasksPage() {
               <th style={{ padding: "12px 14px", color: "#64748B", fontWeight: 700 }}>Ultimo disparo</th>
               <th style={{ padding: "12px 14px", color: "#64748B", fontWeight: 700 }}>Conclusão final</th>
               <th style={{ padding: "12px 14px", color: "#64748B", fontWeight: 700 }}>Payload / Periodo</th>
+              <th style={{ padding: "12px 14px", color: "#64748B", fontWeight: 700 }}>Ação</th>
             </tr>
           </thead>
           <tbody>
             {loading && tasks.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: 20, textAlign: "center" }}>Carregando monitoramento...</td>
+                <td colSpan={8} style={{ padding: 20, textAlign: "center" }}>Carregando monitoramento...</td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: 0 }}>
+                <td colSpan={8} style={{ padding: 0 }}>
                   <EmptyState
                     icon={Clock3}
                     title="Nenhuma tarefa encontrada"
@@ -260,6 +304,37 @@ export default function ScheduledTasksPage() {
                   <td style={{ padding: "12px 14px", color: "#334155" }}>
                     <div style={{ fontSize: 12 }}>Modo: <strong>{task.reportMode}</strong></div>
                     <div style={{ fontSize: 12 }}>Periodo: <strong>{task.periodLabel || `${task.periodDays} dias`}</strong></div>
+                  </td>
+                  <td style={{ padding: "12px 14px" }}>
+                    {shouldOfferForce(task) ? (
+                      <button
+                        type="button"
+                        onClick={() => forceExecution(task)}
+                        disabled={Boolean(forcingTaskById[task.dashboardId])}
+                        title="Forçar execução desta automação"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 6,
+                          border: "1px solid #F59E0B",
+                          background: "#FFFBEB",
+                          color: "#92400E",
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          padding: "8px 10px",
+                          cursor: forcingTaskById[task.dashboardId] ? "wait" : "pointer",
+                          opacity: forcingTaskById[task.dashboardId] ? 0.7 : 1,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {forcingTaskById[task.dashboardId] ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                        {forcingTaskById[task.dashboardId] ? "Executando..." : "Forçar execução"}
+                      </button>
+                    ) : (
+                      <span style={{ color: "#94A3B8" }}>—</span>
+                    )}
                   </td>
                 </tr>
               ))

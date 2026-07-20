@@ -4,10 +4,12 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { apiErrorResponse } from "@/lib/security/api-safety";
 import {
   AUTOMATION_TIME_ZONE,
+  formatAutomationDateKey,
   formatAutomationPeriodSummary,
   getAutomationReferenceDate,
   normalizeAutomationPeriodPreset,
   resolveAutomationPeriodPresetFromDays,
+  resolveAutomationPeriodRange,
 } from "@/lib/dashboard/automation-period";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +53,21 @@ function formatPeriodLabel(task: any, now: Date) {
     task?.automation_period_preset || resolveAutomationPeriodPresetFromDays(task?.automation_period_days)
   );
   return formatAutomationPeriodSummary(preset, Boolean(task?.automation_include_today), getAutomationReferenceDate(now, AUTOMATION_TIME_ZONE));
+}
+
+function resolvePeriodDetails(task: any, now: Date) {
+  const preset = normalizeAutomationPeriodPreset(
+    task?.automation_period_preset || resolveAutomationPeriodPresetFromDays(task?.automation_period_days)
+  );
+  const includeToday = Boolean(task?.automation_include_today);
+  const range = resolveAutomationPeriodRange(preset, includeToday, getAutomationReferenceDate(now, AUTOMATION_TIME_ZONE));
+
+  return {
+    preset,
+    includeToday,
+    from: formatAutomationDateKey(range.from, AUTOMATION_TIME_ZONE),
+    to: formatAutomationDateKey(range.to, AUTOMATION_TIME_ZONE),
+  };
 }
 
 function isMissingAutomationSchemaColumn(error: any) {
@@ -151,6 +168,7 @@ export async function GET() {
     const now = new Date();
     const tasks = (data || []).map((task: any) => {
       const status = resolveTaskStatus(task, now);
+      const period = resolvePeriodDetails(task, now);
       return {
         dashboardId: task.id,
         dashboardName: task.name,
@@ -162,6 +180,10 @@ export async function GET() {
         reportMode: String(task.automation_report_mode || "both"),
         periodDays: Number(task.automation_period_days || 7),
         periodLabel: formatPeriodLabel(task, now),
+        periodPreset: period.preset,
+        includeToday: period.includeToday,
+        periodFrom: period.from,
+        periodTo: period.to,
         lastDispatchedAt: task.automation_last_dispatched_at || null,
         lastDispatchedAtLabel: formatLocalDateTime(task.automation_last_dispatched_at),
         lastCompletedAt: task.automation_last_completed_at || null,

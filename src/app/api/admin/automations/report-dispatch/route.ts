@@ -1363,6 +1363,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!body.dryRun && body.source === "scheduled") {
+      try {
+        await DashboardService.updateDashboard(dashboardId, {
+          automation_last_dispatched_at: new Date().toISOString(),
+        });
+      } catch (trackingError) {
+        console.error("Falha ao registrar disparo agendado:", trackingError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: "Disparo enviado ao n8n com sucesso.",
