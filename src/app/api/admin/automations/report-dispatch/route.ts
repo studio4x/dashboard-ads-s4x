@@ -1029,6 +1029,8 @@ export async function POST(request: Request) {
     const includePdf = reportMode === "pdf_only" || reportMode === "analysis_pdf" || reportMode === "both_pdf";
     const report = getReportMetrics(data);
     const analysisRequested = reportMode !== "metrics_only";
+    const isScheduledDispatch = body.source === "scheduled";
+    let analysisFallbackUsed = false;
     if (!body.dryRun && analysisRequested) {
       analysisGenerationInProgress = true;
       await updateAnalysisGenerationStatus(dashboardId, "generating", "Gerando nova analise de IA...");
@@ -1056,7 +1058,7 @@ export async function POST(request: Request) {
       const analysisError = aiInterpretation.error || "A analise de IA nao retornou texto.";
       await updateAnalysisGenerationStatus(dashboardId, "error", analysisError);
       analysisGenerationInProgress = false;
-      if (includePdf || body.forceAnalysis) {
+      if ((includePdf || body.forceAnalysis) && !isScheduledDispatch) {
         return NextResponse.json(
           {
             success: false,
@@ -1066,13 +1068,16 @@ export async function POST(request: Request) {
           { status: 502 }
         );
       }
+      analysisFallbackUsed = isScheduledDispatch;
     }
 
     const reportPayload =
       reportMode === "pdf_only"
         ? {}
         : reportMode === "analysis_only" || reportMode === "analysis_pdf"
-        ? { aiInterpretation }
+        ? aiInterpretation.generated && aiInterpretation.text
+          ? { aiInterpretation }
+          : { ...report, aiInterpretation, analysisFallbackUsed: true }
         : reportMode === "metrics_only"
           ? report
           : { ...report, aiInterpretation };
@@ -1204,6 +1209,12 @@ export async function POST(request: Request) {
         },
       },
       reportMode,
+      analysis: {
+        requested: analysisRequested,
+        generated: Boolean(aiInterpretation.generated && aiInterpretation.text),
+        fallbackUsed: analysisFallbackUsed,
+        error: aiInterpretation.generated ? null : aiInterpretation.error || null,
+      },
       callbacks: {
         completion: {
           url: `${origin}/api/admin/automations/report-dispatch/callback`,
@@ -1365,6 +1376,7 @@ export async function POST(request: Request) {
       },
       dispatchedAt: payload.dispatchedAt,
       dashboardId,
+      analysisFallbackUsed,
       shareUrl: shareUrlWithRange,
       shareUrlWithRange,
       pdf: payload.pdf,
