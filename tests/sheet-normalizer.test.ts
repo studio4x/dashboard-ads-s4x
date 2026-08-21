@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { SheetNormalizer } from "../src/lib/google-sheets/sheet-normalizer.ts";
+import { buildBoundedSheetRowsRange } from "../src/lib/google-sheets/sheet-range.ts";
 
 test("SheetNormalizer.toNumber parses BRL and comma decimals", () => {
   assert.equal(SheetNormalizer.toNumber("R$ 1.234,56"), 1234.56);
@@ -23,4 +24,9 @@ test("SheetNormalizer.shouldIgnoreRow ignores TOTAL and MÉDIA", () => {
   assert.equal(SheetNormalizer.shouldIgnoreRow("TOTAL"), true);
   assert.equal(SheetNormalizer.shouldIgnoreRow("MÉDIA"), true);
   assert.equal(SheetNormalizer.shouldIgnoreRow("Campanha A"), false);
+});
+
+test("sheet row range keeps columns after Z available to the importer", () => {
+  assert.equal(buildBoundedSheetRowsRange("Página1"), "Página1!1:2000");
+  assert.equal(buildBoundedSheetRowsRange("Performance Diária", 500), "Performance Diária!1:500");
 });
