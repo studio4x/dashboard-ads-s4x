@@ -11,6 +11,7 @@ import { SchemaValidator } from "./schema-validator";
 import { GOOGLE_ADS_S4X_SCHEMA } from "./schemas/google-ads-s4x";
 import { META_ADS_S4X_SCHEMA, META_ADS_REQUIRED_COLUMNS } from "./schemas/meta-ads-s4x";
 import { getSpreadsheetMetadata, readMultipleRanges } from "./read-sheet-range";
+import { buildBoundedSheetRowsRange } from "./sheet-range";
 import { MetricsHelper } from "./metrics-helper";
 import { SheetNormalizer } from "./sheet-normalizer";
 import { ImportResult, ImportError } from "@/types/import";
@@ -519,7 +520,10 @@ export const GoogleSheetsImportService = {
         try {
           if (!spreadsheetTabs.includes(tab.name)) continue;
 
-          const rows = await readSheetRange(spreadsheetId, `${tab.name}!A1:Z2000`);
+          const rows = await readSheetRange(
+            spreadsheetId,
+            buildBoundedSheetRowsRange(tab.name)
+          );
           
           if (rows && rows.length > 0) {
             const normalized = tab.reader(rows);
