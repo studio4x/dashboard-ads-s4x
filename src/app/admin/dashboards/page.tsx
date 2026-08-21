@@ -662,8 +662,12 @@ export default function AdminDashboardsPage() {
   }
 
   async function handleDispatchAutomation(dashboard: any) {
+    const form = automationForms[dashboard.id];
+    const periodPreset = form?.periodPreset || "last_7_days";
+    const includeToday = Boolean(form?.includeToday);
+    const period = getDateRangePreset(periodPreset, undefined, includeToday);
     const confirmRun = confirm(
-      `Disparar automação para "${dashboard.name}" agora?\n\nIsso enviará os dados para o webhook do n8n configurado no ambiente.`
+      `Disparar automação para "${dashboard.name}" agora?\n\nPeríodo: ${formatDateISO(period.from)} a ${formatDateISO(period.to)}.\nIsso enviará os dados para o webhook do n8n configurado no ambiente.`
     );
     if (!confirmRun) return;
 
@@ -674,7 +678,14 @@ export default function AdminDashboardsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           dashboardId: dashboard.id,
-          reportMode: automationForms[dashboard.id]?.reportMode || "both",
+          from: formatDateISO(period.from),
+          to: formatDateISO(period.to),
+          source: "manual",
+          reportMode: form?.reportMode || "both",
+          automationPeriod: {
+            preset: periodPreset,
+            includeToday,
+          },
         }),
       });
 
@@ -2286,4 +2297,3 @@ export default function AdminDashboardsPage() {
     </div>
   );
 }
-
