@@ -932,7 +932,7 @@ export default function ExecutiveSummaryPage() {
         )}
 
         {/* Bottom Insights Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className={cn("grid grid-cols-1 gap-5", isAdminView && "md:grid-cols-2")}>
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
@@ -965,22 +965,24 @@ export default function ExecutiveSummaryPage() {
             </div>
           </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
-                <ClipboardCheck size={18} />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900">Próximos passos sugeridos</h2>
-            </div>
-            <div className="space-y-3">
-              {(nextSteps.length > 0 ? nextSteps : ["Conecte mais métricas na planilha para recomendações mais precisas."]).map((step, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-3 border-b border-slate-100 last:border-0 group">
-                  <CheckCircle2 size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
-                  <span className="text-[15px] font-medium text-slate-700">{step}</span>
+          {isAdminView && (
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
+                  <ClipboardCheck size={18} />
                 </div>
-              ))}
-            </div>
-          </Card>
+                <h2 className="text-lg font-bold text-slate-900">Próximos passos sugeridos</h2>
+              </div>
+              <div className="space-y-3">
+                {(nextSteps.length > 0 ? nextSteps : ["Conecte mais métricas na planilha para recomendações mais precisas."]).map((step, idx) => (
+                  <div key={idx} className="flex items-center gap-3 p-3 border-b border-slate-100 last:border-0 group">
+                    <CheckCircle2 size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
+                    <span className="text-[15px] font-medium text-slate-700">{step}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
 
         {isAdminView && (
@@ -1005,4 +1007,3 @@ export default function ExecutiveSummaryPage() {
     </DashboardPageShell>
   );
 }
-
