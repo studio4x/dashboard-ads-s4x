@@ -70,6 +70,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       automation_period_days,
       automation_report_mode,
       automation_channels,
+      metrics_source_id,
       reprocess_template,
     } = body || {};
 
@@ -121,7 +122,21 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       automation_period_days?: number;
       automation_report_mode?: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
       automation_channels?: string[];
+      metrics_source_id?: string | null;
     } = {};
+
+    if (metrics_source_id !== undefined) {
+      const sourceId = metrics_source_id === null || String(metrics_source_id).trim() === ""
+        ? null
+        : String(metrics_source_id).trim();
+      if (sourceId) {
+        const selectedSource = await DataSourceService.getActiveSourceForDashboard(sourceId, dashboardId);
+        if (!selectedSource) {
+          return NextResponse.json({ error: "A fonte selecionada não está ativa ou não pertence a este dashboard." }, { status: 400 });
+        }
+      }
+      updates.metrics_source_id = sourceId;
+    }
 
     if (name !== undefined) {
       if (!name || String(name).trim().length < 3) {

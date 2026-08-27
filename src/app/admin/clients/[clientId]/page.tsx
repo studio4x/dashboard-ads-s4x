@@ -2,7 +2,7 @@ import { AdminService } from "@/services/admin-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, FileSpreadsheet, Users, CheckCircle2, Circle, ArrowLeft, Link as LinkIcon } from "lucide-react";
+import { LayoutDashboard, Database, Users, CheckCircle2, Circle, ArrowLeft, Link as LinkIcon } from "lucide-react";
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 import { ClientLogoUploader } from "@/components/admin/ClientLogoUploader";
 import { ClientContactForm } from "@/components/admin/ClientContactForm";
@@ -44,7 +44,7 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
   const checklist = [
     { label: "Cliente criado", done: hasClient },
     { label: "Dashboard criado", done: hasDashboard },
-    { label: "Fonte Google Sheets cadastrada", done: hasSource },
+    { label: "Fonte de dados cadastrada", done: hasSource },
     { label: "Primeira importação realizada com sucesso", done: hasImport },
     { label: "Usuário client vinculado", done: hasUser },
   ];
@@ -166,7 +166,7 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
           <div className="card" style={{ padding: 24 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A", display: "flex", alignItems: "center", gap: 8 }}>
-                <FileSpreadsheet size={20} color="#059669" /> Fontes Google Sheets
+                <Database size={20} color="#059669" /> Fontes Conectadas
               </h2>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <ClientSourceLinker

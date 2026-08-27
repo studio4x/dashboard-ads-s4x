@@ -133,6 +133,8 @@ export default function AdminDashboardsPage() {
   const [savingAutomationByDashboardId, setSavingAutomationByDashboardId] = useState<Record<string, boolean>>({});
   const [expandedAutomationByDashboardId, setExpandedAutomationByDashboardId] = useState<Record<string, boolean>>({});
   const [expandedCardsByDashboardId, setExpandedCardsByDashboardId] = useState<Record<string, boolean>>({});
+  const [selectedMetricsSourceByDashboardId, setSelectedMetricsSourceByDashboardId] = useState<Record<string, string>>({});
+  const [savingMetricsSourceByDashboardId, setSavingMetricsSourceByDashboardId] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState({
     name: "",
@@ -156,7 +158,7 @@ export default function AdminDashboardsPage() {
       const [dashRes, clientsRes, sourcesRes, templatesRes] = await Promise.all([
         fetch("/api/admin/dashboards/list-all"),
         fetch("/api/admin/clients"),
-        fetch("/api/admin/google-sheets"),
+        fetch("/api/admin/data-sources"),
         fetch("/api/admin/templates")
       ]);
       const dashboardsData = await dashRes.json();
@@ -169,8 +171,10 @@ export default function AdminDashboardsPage() {
       setSources(Array.isArray(sourcesData) ? sourcesData : []);
       setTemplates(Array.isArray(templatesData) ? templatesData.filter((template: any) => template.status !== "deprecated") : []);
       if (Array.isArray(dashboardsData)) {
+        const nextSelectedMetricsSources: Record<string, string> = {};
         const nextForms: Record<string, AutomationForm> = {};
         dashboardsData.forEach((d: any) => {
+          nextSelectedMetricsSources[d.id] = d.metrics_source_id || "";
           const periodPreset = normalizeAutomationPeriodPreset(d.automation_period_preset || resolveAutomationPeriodPresetFromDays(d.automation_period_days));
           nextForms[d.id] = {
             enabled: Boolean(d.automation_enabled),
@@ -185,6 +189,7 @@ export default function AdminDashboardsPage() {
               : "both",
           };
         });
+        setSelectedMetricsSourceByDashboardId(nextSelectedMetricsSources);
         setAutomationForms(nextForms);
       }
     } catch (error) {
@@ -227,6 +232,46 @@ export default function AdminDashboardsPage() {
 
   const getDashboardSheetSources = (dashboardId: string) => {
     return sources.filter((s: any) => s.dashboard_id === dashboardId && s.type === "google_sheets");
+  };
+
+  const getDashboardConnectedSources = (dashboardId: string) => {
+    return sources.filter((s: any) => s.dashboard_id === dashboardId && s.status === "active");
+  };
+
+  const getSourceTypeLabel = (source: any) => {
+    if (source?.type === "meta_ads") return "Meta Marketing API";
+    if (source?.type === "google_sheets") return "Google Sheets";
+    if (source?.type === "google_ads") return "Google Ads";
+    if (source?.type === "ga4") return "GA4";
+    if (source?.type === "search_console") return "Search Console";
+    return "Fonte de dados";
+  };
+
+  const handleSaveMetricsSource = async (dashboard: any) => {
+    const sourceId = selectedMetricsSourceByDashboardId[dashboard.id] || "";
+    if (!sourceId) {
+      toast("Selecione uma fonte de métricas.");
+      return;
+    }
+
+    setSavingMetricsSourceByDashboardId((prev) => ({ ...prev, [dashboard.id]: true }));
+    try {
+      const response = await fetch(`/api/admin/dashboards/${dashboard.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ metrics_source_id: sourceId }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result?.error || "Não foi possível trocar a fonte de métricas.");
+      }
+      setDashboards((prev) => prev.map((item) => item.id === dashboard.id ? { ...item, metrics_source_id: sourceId } : item));
+      toast("Fonte de métricas atualizada.");
+    } catch (error: any) {
+      toast(error instanceof Error ? error.message : "Não foi possível trocar a fonte de métricas.");
+    } finally {
+      setSavingMetricsSourceByDashboardId((prev) => ({ ...prev, [dashboard.id]: false }));
+    }
   };
 
   const inferSourceRole = (source: any): "google_ads" | "meta_ads" | null => {
@@ -1001,18 +1046,20 @@ export default function AdminDashboardsPage() {
                 </div>
               )}
 
-              {/* MIDDLE ROW: Spreadsheet Integration Status (Spanning full width!) */}
+              {/* MIDDLE ROW: Connected sources and selected metrics source */}
               <div style={{ width: "100%" }}>
                 {(() => {
-                  const dashSources = getDashboardSheetSources(d.id);
-                  if (dashSources.length > 0) {
-                    const firstSource = dashSources[0];
+                  const connectedSources = getDashboardConnectedSources(d.id);
+                  const defaultSourceId = String(d.metrics_source_id || connectedSources[0]?.id || "");
+                  const selectedSourceId = selectedMetricsSourceByDashboardId[d.id] || defaultSourceId;
+                  const currentSource = connectedSources.find((source: any) => source.id === d.metrics_source_id) || connectedSources[0];
+                  if (connectedSources.length > 0) {
                     return (
                       <div 
                         style={{ 
                           width: "100%",
                           fontSize: 13, 
-                          color: "#15803d", 
+                          color: "#15803d",
                           background: "#f0fdf4", 
                           padding: "10px 14px", 
                           borderRadius: 8, 
@@ -1026,19 +1073,12 @@ export default function AdminDashboardsPage() {
                         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }}></span>
                           <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                            {dashSources.length > 1 ? "Planilhas Vinculadas" : "Planilha Vinculada"}: <strong>{dashSources.length > 1 ? `${dashSources.length} fontes` : firstSource.name}</strong>
+                            Fontes conectadas: <strong>{connectedSources.length}</strong>
                           </span>
                         </div>
-                        {firstSource.google_sheet_sources?.spreadsheet_id && (
-                          <a 
-                            href={`https://docs.google.com/spreadsheets/d/${firstSource.google_sheet_sources.spreadsheet_id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ fontSize: 11, color: "#166534", fontWeight: 600, textDecoration: "underline", flexShrink: 0 }}
-                          >
-                            Ver Sheets ↗
-                          </a>
-                        )}
+                        <span style={{ fontSize: 11, color: "#166534", fontWeight: 600, flexShrink: 0 }}>
+                          Atual: {currentSource?.name || "Nenhuma"}
+                        </span>
                       </div>
                     );
                   }
@@ -1058,11 +1098,64 @@ export default function AdminDashboardsPage() {
                       }}
                     >
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }}></span>
-                      <span>Sem planilha vinculada. Clique em <strong>Integração</strong> para configurar.</span>
+                      <span>Sem fonte conectada. Configure uma fonte para alimentar este dashboard.</span>
                     </div>
                   );
                 })()}
               </div>
+
+              {(() => {
+                const connectedSources = getDashboardConnectedSources(d.id);
+                if (connectedSources.length === 0) return null;
+                const defaultSourceId = String(d.metrics_source_id || connectedSources[0]?.id || "");
+                const selectedSourceId = selectedMetricsSourceByDashboardId[d.id] || defaultSourceId;
+                const selectedSource = connectedSources.find((source: any) => source.id === selectedSourceId) || connectedSources[0];
+                const selectedSheetId = selectedSource?.type === "google_sheets"
+                  ? selectedSource?.google_sheet_sources?.spreadsheet_id
+                  : null;
+
+                return (
+                  <div style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #BFDBFE", background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                      <Database size={15} color="#2563EB" />
+                      <span style={{ fontSize: 12, color: "#1E3A8A", fontWeight: 700 }}>Fonte das métricas</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <select
+                        value={selectedSourceId}
+                        onChange={(event) => setSelectedMetricsSourceByDashboardId((prev) => ({ ...prev, [d.id]: event.target.value }))}
+                        aria-label={`Fonte das métricas do dashboard ${d.name}`}
+                        style={{ minWidth: 240, maxWidth: 360, padding: "7px 10px", borderRadius: 6, border: "1px solid #BFDBFE", background: "#FFFFFF", color: "#1E3A8A", fontSize: 12 }}
+                      >
+                        {connectedSources.map((source: any) => (
+                          <option key={source.id} value={source.id}>
+                            {source.name} · {getSourceTypeLabel(source)}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveMetricsSource(d)}
+                        disabled={Boolean(savingMetricsSourceByDashboardId[d.id]) || selectedSourceId === String(d.metrics_source_id || defaultSourceId)}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #93C5FD", background: "#DBEAFE", color: "#1D4ED8", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: savingMetricsSourceByDashboardId[d.id] ? 0.7 : 1 }}
+                      >
+                        {savingMetricsSourceByDashboardId[d.id] ? <Loader2 className="animate-spin" size={13} /> : <Save size={13} />}
+                        Usar fonte
+                      </button>
+                      {selectedSheetId ? (
+                        <a
+                          href={`https://docs.google.com/spreadsheets/d/${selectedSheetId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: 11, color: "#1D4ED8", fontWeight: 600, textDecoration: "underline" }}
+                        >
+                          Ver Sheets ↗
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {(d.dashboard_type === META_TEMPLATE_ID || d.dashboard_type === INTEGRATED_TEMPLATE_ID) && (() => {
                 const source = sources.find((s: any) => s.dashboard_id === d.id);

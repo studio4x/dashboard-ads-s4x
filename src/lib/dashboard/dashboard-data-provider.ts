@@ -65,7 +65,11 @@ export async function getDashboardData(
 
   // 1. Tenta buscar snapshot no Banco de Dados (Supabase) primeiro
   try {
-    const snapshot = await DashboardService.getLatestSnapshot(dashboardId, { bypassRls: options?.bypassRls });
+    const dashboard = await DashboardService.getDashboardById(dashboardId, { bypassRls: options?.bypassRls });
+    const snapshot = await DashboardService.getLatestSnapshot(dashboardId, {
+      bypassRls: options?.bypassRls,
+      dataSourceId: dashboard?.metrics_source_id || undefined,
+    });
     if (snapshot && snapshot.payload_json) {
       let data = snapshot.payload_json;
       const availableDateRange = extractAvailableDateRange(data);
@@ -193,7 +197,6 @@ export async function getDashboardData(
       }
 
       // 2. Busca informações do dashboard para o template
-      const dashboard = await DashboardService.getDashboardById(dashboardId, { bypassRls: options?.bypassRls });
       const templateDefinition = await DashboardTemplateCatalogService.getTemplateDefinition(dashboard?.dashboard_type || "google_ads_s4x").catch(() => null);
       const templateBaseId = resolveTemplateBaseId(dashboard, templateDefinition);
       const templatePageKeys = templateDefinition?.visiblePages?.length ? templateDefinition.visiblePages : getVisiblePages(templateBaseId);

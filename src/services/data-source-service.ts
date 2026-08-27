@@ -36,9 +36,23 @@ export const DataSourceService = {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('data_sources')
-      .select('*, google_sheet_sources(*), clients(name), dashboards(name, dashboard_type)')
+      .select('*, google_sheet_sources(*), meta_ad_sources(*), clients(name), dashboards(name, dashboard_type)')
       .order('created_at', { ascending: false })
     
+    if (error) throw error
+    return data
+  },
+
+  async getActiveSourceForDashboard(sourceId: string, dashboardId: string) {
+    const supabase = await createAdminClient()
+    const { data, error } = await supabase
+      .from('data_sources')
+      .select('id, dashboard_id, client_id, name, type, status')
+      .eq('id', sourceId)
+      .eq('dashboard_id', dashboardId)
+      .eq('status', 'active')
+      .maybeSingle()
+
     if (error) throw error
     return data
   },

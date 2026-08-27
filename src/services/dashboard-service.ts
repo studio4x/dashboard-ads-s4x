@@ -89,6 +89,7 @@ export const DashboardService = {
       meta_validation_notes?: Record<string, unknown>;
       meta_validation_updated_at?: string | null;
       template_config?: Record<string, unknown>;
+      metrics_source_id?: string | null;
       automation_enabled?: boolean;
       automation_frequency?: "daily" | "weekly";
       automation_day_of_week?: number;
@@ -162,12 +163,16 @@ export const DashboardService = {
   /**
    * Obtém o snapshot mais recente de um dashboard.
    */
-  async getLatestSnapshot(dashboardId: string, options?: { bypassRls?: boolean }) {
+  async getLatestSnapshot(dashboardId: string, options?: { bypassRls?: boolean; dataSourceId?: string }) {
     const supabase = options?.bypassRls ? await createAdminClient() : await createClient()
-    const { data, error } = await supabase
+    let query = supabase
       .from('dashboard_data_snapshots')
       .select('*')
       .eq('dashboard_id', dashboardId)
+    if (options?.dataSourceId) {
+      query = query.eq('data_source_id', options.dataSourceId)
+    }
+    const { data, error } = await query
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
