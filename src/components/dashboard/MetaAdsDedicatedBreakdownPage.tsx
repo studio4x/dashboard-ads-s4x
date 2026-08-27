@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import MetaAdsPage from "@/app/app/dashboards/[dashboardId]/meta-ads/page";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { DataTableWidget } from "@/components/dashboard/DataTableWidget";
@@ -137,19 +137,13 @@ export function MetaAdsDedicatedBreakdownPage({ level }: { level: BreakdownLevel
       ? data.meta_ads
       : [];
 
-  const aggregated = useMemo(() => aggregateRows(rawRows, level), [rawRows, level]);
-  const campaigns = useMemo(
-    () => Array.from(new Set(aggregated.map((row) => row.campaignName))).filter(Boolean),
-    [aggregated]
-  );
-  const adSets = useMemo(
-    () => Array.from(new Set(
-      aggregated
-        .filter((row) => campaignFilter === "all" || row.campaignName === campaignFilter)
-        .map((row) => row.adSetName || "")
-    )).filter(Boolean),
-    [aggregated, campaignFilter]
-  );
+  const aggregated = aggregateRows(rawRows, level);
+  const campaigns = Array.from(new Set(aggregated.map((row) => row.campaignName))).filter(Boolean);
+  const adSets = Array.from(new Set(
+    aggregated
+      .filter((row) => campaignFilter === "all" || row.campaignName === campaignFilter)
+      .map((row) => row.adSetName || "")
+  )).filter(Boolean);
 
   const filteredRows = aggregated.filter((row) => {
     const campaignMatch = campaignFilter === "all" || row.campaignName === campaignFilter;
