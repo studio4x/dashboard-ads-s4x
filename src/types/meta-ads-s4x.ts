@@ -41,9 +41,15 @@ export interface MetaAdsS4XSummary {
 
 export interface MetaAdsS4XDailyPerformance {
   date: string; // Day
+  accountId?: string | null;
+  accountName?: string | null;
+  campaignId?: string | null;
   campaignName: string;
+  adSetId?: string | null;
   adSetName: string;
+  adId?: string | null;
   adName: string;
+  objective?: string | null;
   reach: number | null;
   impressions: number | null;
   frequency: number | null;
@@ -60,10 +66,12 @@ export interface MetaAdsS4XDailyPerformance {
   onFacebookLeads?: number | null;
   websiteLeads?: number | null;
   offlineLeads?: number | null;
+  purchases?: number | null;
   costPerLead?: number | null;
   costPerOnFacebookLead?: number | null;
   costPerWebsiteLead?: number | null;
   costPerOfflineLead?: number | null;
+  conversionValue?: number | null;
   postEngagement: number | null;
   postComments: number | null;
   postReactions: number | null;

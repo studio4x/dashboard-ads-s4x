@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Building2, PieChart, Database,
   FileSpreadsheet, LayoutTemplate, ScrollText, Settings,
-  ChevronRight, BarChart3, X, Send, Clock3,
+  ChevronRight, BarChart3, X, Send, Clock3, Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME, APP_BUILD_HASH, APP_VERSION } from "@/lib/constants";
@@ -15,7 +15,7 @@ import { BrandingLogo } from "@/components/branding/BrandingLogo";
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Building2, PieChart, Database,
   FileSpreadsheet, LayoutTemplate, ScrollText, Settings, Send,
-  Clock3,
+  Clock3, Share2,
 };
 
 const navItems = [
@@ -26,6 +26,7 @@ const navItems = [
   { href: "/admin/scheduled-tasks", label: "Monitor Agendamentos", icon: "Clock3" },
   { href: "/admin/data-sources", label: "Fontes de Dados", icon: "Database" },
   { href: "/admin/google-sheets", label: "Google Sheets", icon: "FileSpreadsheet" },
+  { href: "/admin/meta-marketing", label: "Meta Marketing API", icon: "Share2" },
   { href: "/admin/templates", label: "Templates", icon: "LayoutTemplate" },
   { href: "/admin/import-logs", label: "Logs de Importação", icon: "ScrollText" },
   { href: "/admin/settings", label: "Configurações", icon: "Settings" },

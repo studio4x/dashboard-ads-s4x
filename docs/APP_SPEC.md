@@ -14,8 +14,9 @@
 3. Admin: /admin — gerenciamento completo
 
 ### Fontes de Dados
-- MVP: Google Sheets (mocks na Fase 1)
-- Futuro: Google Ads API, Meta API, GA4 API, Search Console API
+- Google Sheets: importação consolidada por planilha.
+- Meta Marketing API: integração direta OAuth com contas de anúncios próprias e compartilhadas por gerenciadores de negócios.
+- Futuro: Google Ads API, GA4 API, Search Console API.
 
 ### Páginas do Dashboard
 1. Resumo Executivo — KPIs consolidados + gráficos + insights

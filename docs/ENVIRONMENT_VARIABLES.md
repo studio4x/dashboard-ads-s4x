@@ -17,6 +17,13 @@ Este documento lista as variáveis de ambiente necessárias para o funcionamento
 - **GOOGLE_PROJECT_ID**: ID do projeto no Google Cloud.
 - **GOOGLE_SHEETS_USE_MOCKS**: `true` usa dados mockados, `false` usa API real.
 
+## Meta Marketing API (Data Source)
+- **META_APP_SECRET**: segredo do aplicativo Meta. Obrigatório, exclusivamente server-side e configurado na Vercel; nunca usar prefixo `NEXT_PUBLIC_`.
+- **META_APP_ID**: fallback opcional para o App ID. Normalmente o App ID não sensível é informado em `/admin/meta-marketing`.
+- **META_GRAPH_API_VERSION**: fallback opcional da versão da Graph API. A configuração persistida pelo painel tem precedência (`v26.0` por padrão).
+- Tokens OAuth dos usuários Meta não são variáveis de ambiente: são gravados criptografados no Supabase Vault pela aplicação.
+- A URI de redirecionamento exibida pelo painel deve ser cadastrada exatamente no Facebook Login for Business.
+
 - **VERCEL_TOKEN**: Token de autenticação para o CLI (apenas local/CI).
 
 ## Automação (Cron)

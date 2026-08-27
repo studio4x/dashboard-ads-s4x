@@ -44,7 +44,7 @@ interface DashboardData {
   templateConfig?: DashboardTemplateMetricConfig;
   templatePageKeys?: string[];
   viewerRole?: string;
-  source: "mock" | "google_sheets" | "google_sheets_cache";
+  source: "mock" | "google_sheets" | "google_sheets_cache" | "meta_ads";
   lastUpdated?: string;
   availableDateRange?: { from: string; to: string } | null;
 }

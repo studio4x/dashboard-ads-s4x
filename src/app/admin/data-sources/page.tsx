@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Database, FileSpreadsheet, TrendingUp, Globe, BarChart3 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Fontes de Dados" };
@@ -6,7 +7,7 @@ export const metadata: Metadata = { title: "Fontes de Dados" };
 const sources = [
   { id: "google-sheets", icon: FileSpreadsheet, title: "Google Sheets", desc: "Planilhas compartilhadas como fonte central de dados consolidados. Principal fonte do MVP.", status: "active", color: "#34A853" },
   { id: "google-ads", icon: BarChart3, title: "Google Ads API", desc: "Integração direta com a API do Google Ads. Dados de campanhas, grupos e palavras-chave em tempo real.", status: "planned", color: "#4285F4" },
-  { id: "meta-ads", icon: TrendingUp, title: "Meta Marketing API", desc: "Integração com Facebook e Instagram Ads. Dados de campanhas, conjuntos e criativos.", status: "planned", color: "#1877F2" },
+  { id: "meta-ads", icon: TrendingUp, title: "Meta Marketing API", desc: "Integração direta com Facebook e Instagram Ads, incluindo contas próprias e compartilhadas por gerenciadores de negócios.", status: "active", color: "#1877F2" },
   { id: "ga4", icon: Database, title: "Google Analytics 4 API", desc: "Integração com GA4 Data API. Eventos, sessões, funis e comportamento de usuários.", status: "planned", color: "#E37400" },
   { id: "search-console", icon: Globe, title: "Search Console API", desc: "Integração com Search Console API. Queries, impressões, cliques e posições orgânicas.", status: "planned", color: "#34A853" },
 ];
@@ -37,6 +38,7 @@ export default function DataSourcesPage() {
                   </span>
                 </div>
                 <p style={{ fontSize: 13, color: "#64748B", marginTop: 4, lineHeight: 1.5 }}>{source.desc}</p>
+                {source.id === "meta-ads" && <Link href="/admin/meta-marketing" style={{ display: "inline-block", marginTop: 7, color: "#1877F2", fontSize: 12, fontWeight: 700 }}>Configurar integração →</Link>}
               </div>
             </div>
           );

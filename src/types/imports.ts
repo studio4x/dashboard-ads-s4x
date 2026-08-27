@@ -14,7 +14,7 @@ export interface ImportLogEntry {
   rowsRead: number;
   warnings: number;
   errors: number;
-  source: "google_sheets" | "mock";
+  source: "google_sheets" | "meta_ads" | "mock";
   durationMs?: number;
   errorDetails?: string;
   dataSourceId?: string;

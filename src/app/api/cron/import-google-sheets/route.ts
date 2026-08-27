@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DataSourceService } from "@/services/data-source-service";
 import { GoogleSheetsImportService } from "@/lib/google-sheets/google-sheets-import-service";
+import { shouldSync } from "@/lib/imports/sync-schedule";
 
 export const dynamic = 'force-dynamic';
 
@@ -129,38 +130,3 @@ async function handleCron(request: Request) {
  * Função utilitária para verificar se a fonte de dados deve ser sincronizada
  * baseado no intervalo de sincronização e na data da última importação.
  */
-function shouldSync(syncInterval: string | null | undefined, lastImportAtStr: string | null | undefined): boolean {
-  // Se for configurado como manual, nunca roda na cron automática
-  if (syncInterval === 'manual') {
-    return false;
-  }
-
-  // Se nunca foi importado, deve sincronizar
-  if (!lastImportAtStr) {
-    return true;
-  }
-
-  const lastImportAt = new Date(lastImportAtStr);
-  const now = new Date();
-  const diffMs = now.getTime() - lastImportAt.getTime();
-  const diffHours = diffMs / (1000 * 60 * 60);
-
-  switch (syncInterval) {
-    case 'one_hour':
-      // Tolerância de 5 minutos (0.08h) para sincronizações horárias
-      return diffHours >= 0.92;
-    case 'six_hours':
-      // Tolerância de 12 minutos (0.2h) para evitar pular por pequenos desvios de segundos
-      return diffHours >= 5.8;
-    case 'twelve_hours':
-      // Tolerância de 12 minutos (0.2h)
-      return diffHours >= 11.8;
-    case 'weekly':
-      // Tolerância de 1 hora
-      return diffHours >= (24 * 7 - 1.0);
-    case 'daily':
-    default:
-      // Padrão: 23 horas de tolerância para sincronizações diárias executadas no mesmo período
-      return diffHours >= 23.0;
-  }
-}
