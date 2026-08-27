@@ -1,1 +1,5 @@
-export { default } from "@/app/app/dashboards/[dashboardId]/meta-ads/page";
+import { MetaAdsDedicatedBreakdownPage } from "@/components/dashboard/MetaAdsDedicatedBreakdownPage";
+
+export default function CampaignsPage() {
+  return <MetaAdsDedicatedBreakdownPage level="campaigns" />;
+}
