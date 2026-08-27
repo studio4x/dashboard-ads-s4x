@@ -10,6 +10,7 @@ interface AggregatedMetrics {
   postEngagement: number;
   ctr: number;
   cpc: number;
+  cpm: number;
   cpa: number;
   roas: number;
 }
@@ -27,6 +28,7 @@ interface ComparisonResult {
     postEngagement: number;
     ctr: number;
     cpc: number;
+    cpm: number;
     cpa: number;
     roas: number;
   };
@@ -59,6 +61,7 @@ export const DashboardAggregator = {
       postEngagement: totals.postEngagement,
       ctr: totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0,
       cpc: totals.clicks > 0 ? totals.spend / totals.clicks : 0,
+      cpm: totals.impressions > 0 ? (totals.spend / totals.impressions) * 1000 : 0,
       cpa: totals.conversions > 0 ? totals.spend / totals.conversions : 0,
       roas: totals.spend > 0 ? totals.revenue / totals.spend : 0,
     };
@@ -94,6 +97,7 @@ export const DashboardAggregator = {
         postEngagement: this.calculateChange(current.postEngagement, previous.postEngagement),
         ctr: this.calculateChange(current.ctr, previous.ctr),
         cpc: this.calculateChange(current.cpc, previous.cpc),
+        cpm: this.calculateChange(current.cpm, previous.cpm),
         cpa: this.calculateChange(current.cpa, previous.cpa),
         roas: this.calculateChange(current.roas, previous.roas),
       }
