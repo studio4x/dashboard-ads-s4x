@@ -134,7 +134,13 @@ export function DashboardPageShell({
                 "text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider",
                 data.source === "mock" ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
               )}>
-                {data.source === "mock" ? "Ambiente de Teste (Mock)" : "Dados Reais (Google Sheets)"}
+                {data.source === "mock"
+                  ? "Ambiente de Teste (Mock)"
+                  : data.source === "google_ads"
+                    ? "Dados Reais (Google Ads API)"
+                    : data.source === "meta_ads"
+                      ? "Dados Reais (Meta API)"
+                      : "Dados Reais (Google Sheets)"}
               </span>
               {data.lastUpdated && (
                 <span className="text-[10px] text-slate-400 font-medium">

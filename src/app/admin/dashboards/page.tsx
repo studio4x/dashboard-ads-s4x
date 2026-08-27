@@ -241,7 +241,7 @@ export default function AdminDashboardsPage() {
   const getSourceTypeLabel = (source: any) => {
     if (source?.type === "meta_ads") return "Meta Marketing API";
     if (source?.type === "google_sheets") return "Google Sheets";
-    if (source?.type === "google_ads") return "Google Ads";
+    if (source?.type === "google_ads") return "Google Ads API";
     if (source?.type === "ga4") return "GA4";
     if (source?.type === "search_console") return "Search Console";
     return "Fonte de dados";

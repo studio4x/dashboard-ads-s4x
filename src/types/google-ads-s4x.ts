@@ -42,6 +42,7 @@ export interface GoogleAdsS4XSummary {
 
 export interface GoogleAdsS4XDailyPerformance {
   date: string;
+  campaignId?: string | null;
   campaignName: string;
   campaignStatus: string;
   channelType: string;
@@ -63,6 +64,7 @@ export interface GoogleAdsS4XDailyPerformance {
 }
 
 export interface GoogleAdsS4XCampaign {
+  campaignId?: string | null;
   campaignName: string;
   campaignStatus: string;
   channelType: string;
@@ -89,6 +91,8 @@ export interface GoogleAdsS4XCampaign {
 }
 
 export interface GoogleAdsS4XAdGroup {
+  campaignId?: string | null;
+  adGroupId?: string | null;
   campaignName: string;
   adGroupName: string;
   adGroupStatus: string;
@@ -113,6 +117,9 @@ export interface GoogleAdsS4XAdGroup {
 }
 
 export interface GoogleAdsS4XKeyword {
+  campaignId?: string | null;
+  adGroupId?: string | null;
+  criterionId?: string | null;
   campaignName: string;
   adGroupName: string;
   keyword: string;
@@ -139,6 +146,8 @@ export interface GoogleAdsS4XKeyword {
 }
 
 export interface GoogleAdsS4XSearchTerm {
+  campaignId?: string | null;
+  adGroupId?: string | null;
   campaignName: string;
   adGroupName: string;
   termMatchType: string;
@@ -162,6 +171,9 @@ export interface GoogleAdsS4XSearchTerm {
 }
 
 export interface GoogleAdsS4XNegativeKeyword {
+  campaignId?: string | null;
+  criterionId?: string | null;
+  sharedSetId?: string | null;
   campaignName: string;
   negativeOrigin: string | null;
   negativeList: string | null;
@@ -171,6 +183,10 @@ export interface GoogleAdsS4XNegativeKeyword {
 }
 
 export interface GoogleAdsS4XAdAsset {
+  campaignId?: string | null;
+  adGroupId?: string | null;
+  adId?: string | null;
+  assetId?: string | null;
   campaignName: string;
   adGroupName: string;
   adStatus: string | null;
@@ -203,7 +219,11 @@ export interface GoogleAdsS4XDiagnostics {
   exportLogs?: any[];
   rowCounts: Record<string, number>;
   ignoredRows: number;
-  sourceSpreadsheetId: string;
+  sourceSpreadsheetId?: string;
+  sourceCustomerId?: string;
+  sourceManagerCustomerId?: string | null;
+  sourceType?: "google_sheets" | "google_ads_api";
+  apiVersion?: string;
   importedAt: string;
   snapshotVersion: string;
 }

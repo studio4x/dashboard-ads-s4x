@@ -16,6 +16,7 @@ import { parseISO } from "date-fns";
 import { isDateInRange } from "./date-utils";
 import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
 import { getVisiblePages } from "@/lib/dashboard/templates";
+import { DataSourceService } from "@/services/data-source-service";
 
 function resolveTemplateBaseId(dashboard: any, templateDefinition: any) {
   return (
@@ -66,9 +67,14 @@ export async function getDashboardData(
   // 1. Tenta buscar snapshot no Banco de Dados (Supabase) primeiro
   try {
     const dashboard = await DashboardService.getDashboardById(dashboardId, { bypassRls: options?.bypassRls });
+    const preferredSourceIds = await DataSourceService.getPreferredSnapshotSourceIds(
+      dashboardId,
+      dashboard?.dashboard_type || "google_ads_s4x",
+      dashboard?.metrics_source_id || null,
+    ).catch(() => dashboard?.metrics_source_id ? [dashboard.metrics_source_id] : []);
     const snapshot = await DashboardService.getLatestSnapshot(dashboardId, {
       bypassRls: options?.bypassRls,
-      dataSourceId: dashboard?.metrics_source_id || undefined,
+      dataSourceIds: preferredSourceIds.length > 0 ? preferredSourceIds : undefined,
     });
     if (snapshot && snapshot.payload_json) {
       let data = snapshot.payload_json;

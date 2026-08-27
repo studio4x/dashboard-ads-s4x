@@ -163,7 +163,7 @@ export const DashboardService = {
   /**
    * Obtém o snapshot mais recente de um dashboard.
    */
-  async getLatestSnapshot(dashboardId: string, options?: { bypassRls?: boolean; dataSourceId?: string }) {
+  async getLatestSnapshot(dashboardId: string, options?: { bypassRls?: boolean; dataSourceId?: string; dataSourceIds?: string[] }) {
     const supabase = options?.bypassRls ? await createAdminClient() : await createClient()
     let query = supabase
       .from('dashboard_data_snapshots')
@@ -171,6 +171,8 @@ export const DashboardService = {
       .eq('dashboard_id', dashboardId)
     if (options?.dataSourceId) {
       query = query.eq('data_source_id', options.dataSourceId)
+    } else if (options?.dataSourceIds?.length) {
+      query = query.in('data_source_id', options.dataSourceIds)
     }
     const { data, error } = await query
       .order('created_at', { ascending: false })

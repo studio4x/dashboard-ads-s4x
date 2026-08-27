@@ -16,7 +16,8 @@
 ### Fontes de Dados
 - Google Sheets: importação consolidada por planilha.
 - Meta Marketing API: integração direta OAuth com contas de anúncios próprias e compartilhadas por gerenciadores de negócios.
-- Futuro: Google Ads API, GA4 API, Search Console API.
+- Google Ads API: integração direta OAuth, descoberta de MCC/contas e payload compatível com o fluxo Google Sheets.
+- Futuro: GA4 API, Search Console API.
 
 ### Páginas do Dashboard
 1. Resumo Executivo — KPIs consolidados + gráficos + insights

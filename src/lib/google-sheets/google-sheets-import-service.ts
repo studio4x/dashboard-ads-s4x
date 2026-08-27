@@ -24,6 +24,8 @@ import {
   META_ADS_METRIC_FIELD_LABELS,
   getMetaObjectiveLabel,
 } from "@/lib/meta-ads/objectives";
+import { buildIntegratedAdsPayload } from "@/lib/dashboard/integrated-payload";
+import { selectPreferredSnapshotSourceIds, shouldPreferNativeOverSheet } from "@/lib/dashboard/source-priority";
 
 export const GoogleSheetsImportService = {
   isIntegratedDashboardTemplate(templateId?: string) {
@@ -680,21 +682,36 @@ export const GoogleSheetsImportService = {
       }
 
       if (this.isIntegratedDashboardTemplate(sheetTemplateId) && sourceRole && errors.length === 0) {
-        const { data: previousSnapshot } = await supabase
-          .from("dashboard_data_snapshots")
-          .select("payload_json")
-          .eq("dashboard_id", dashboardId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const sheetPayloadForComparison = finalPayload;
+        const candidates = await DataSourceService.getDashboardSourceCandidates(dashboardId);
+        const preferredSourceIds = selectPreferredSnapshotSourceIds(sheetTemplateId, candidates);
+        const previousSnapshot = await DashboardService.getLatestSnapshot(dashboardId, {
+          bypassRls: true,
+          dataSourceIds: preferredSourceIds.length ? preferredSourceIds : undefined,
+        });
+        const nativePreferred = shouldPreferNativeOverSheet(sourceRole, candidates);
+        if (nativePreferred) {
+          warnings.push({
+            severity: "warning",
+            stage: "snapshot_creation",
+            message: `A fonte Google Sheets foi sincronizada para comparação, mas o papel ${sourceRole} continua usando a integração nativa válida.`,
+          });
+        }
 
-        finalPayload = this.buildIntegratedPayload({
+        finalPayload = buildIntegratedAdsPayload({
           sourceRole,
           importedPayload: finalPayload,
           previousPayload: previousSnapshot?.payload_json || null,
-          spreadsheetId,
-          warnings,
+          sourceLabel: nativePreferred ? "Fontes nativas com fallback Google Sheets" : "Google Sheets",
+          sourceReference: spreadsheetId,
+          preferPreviousRolePayload: nativePreferred,
         });
+        if (nativePreferred) {
+          finalPayload.comparisonPayloads = {
+            ...(previousSnapshot?.payload_json?.comparisonPayloads || {}),
+            [sourceRole]: sheetPayloadForComparison,
+          };
+        }
       }
 
       const success = errors.length === 0;

@@ -1,4 +1,9 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { selectPreferredSnapshotSourceIds, type DashboardSourceCandidate } from '@/lib/dashboard/source-priority'
+
+function relation<T>(value: T | T[] | null | undefined): T | null {
+  return Array.isArray(value) ? value[0] || null : value || null
+}
 
 export const DataSourceService = {
   async getDashboardSourcesByRole(dashboardId: string) {
@@ -36,11 +41,37 @@ export const DataSourceService = {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('data_sources')
-      .select('*, google_sheet_sources(*), meta_ad_sources(*), clients(name), dashboards(name, dashboard_type)')
+      .select('*, google_sheet_sources(*), google_ads_sources(*), meta_ad_sources(*), clients(name), dashboards(name, dashboard_type)')
       .order('created_at', { ascending: false })
     
     if (error) throw error
     return data
+  },
+
+  async getDashboardSourceCandidates(dashboardId: string): Promise<DashboardSourceCandidate[]> {
+    const supabase = await createAdminClient({ actor: "system", action: "resolve_dashboard_source_priority" })
+    const { data, error } = await supabase
+      .from('data_sources')
+      .select('id,type,status,google_sheet_sources(source_role,last_import_status),google_ads_sources(last_import_status),meta_ad_sources(last_import_status)')
+      .eq('dashboard_id', dashboardId)
+    if (error) throw error
+    return (data || []).map((source: any) => {
+      const sheet = relation<any>(source.google_sheet_sources)
+      const google = relation<any>(source.google_ads_sources)
+      const meta = relation<any>(source.meta_ad_sources)
+      return {
+        id: source.id,
+        type: source.type,
+        status: source.status,
+        sourceRole: sheet?.source_role || null,
+        lastImportStatus: google?.last_import_status || meta?.last_import_status || sheet?.last_import_status || null,
+      }
+    })
+  },
+
+  async getPreferredSnapshotSourceIds(dashboardId: string, templateId: string, configuredSourceId?: string | null) {
+    const candidates = await this.getDashboardSourceCandidates(dashboardId)
+    return selectPreferredSnapshotSourceIds(templateId, candidates, configuredSourceId)
   },
 
   async getActiveSourceForDashboard(sourceId: string, dashboardId: string) {

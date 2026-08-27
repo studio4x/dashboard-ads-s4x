@@ -26,6 +26,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/admin/clients")) return "Clientes";
     if (pathname.startsWith("/admin/dashboards")) return "Dashboards";
     if (pathname.startsWith("/admin/google-sheets")) return "Google Sheets";
+    if (pathname.startsWith("/admin/google-ads-api")) return "Google Ads API";
     if (pathname.startsWith("/admin/meta-marketing")) return "Meta Marketing API";
     if (pathname.startsWith("/admin/import-logs")) return "Logs";
     return "Admin";

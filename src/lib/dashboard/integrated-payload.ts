@@ -43,12 +43,13 @@ export function buildIntegratedAdsPayload(params: {
   previousPayload?: any | null;
   sourceLabel: string;
   sourceReference?: string | null;
+  preferPreviousRolePayload?: boolean;
 }) {
   const previous = params.previousPayload || {};
-  const googlePayload = params.sourceRole === "google_ads"
+  const googlePayload = params.sourceRole === "google_ads" && !params.preferPreviousRolePayload
     ? params.importedPayload
     : previous.googlePayload || (previous.diagnostics?.googleSnapshotVersion?.startsWith?.("google_ads_s4x") ? previous : null);
-  const metaPayload = params.sourceRole === "meta_ads"
+  const metaPayload = params.sourceRole === "meta_ads" && !params.preferPreviousRolePayload
     ? params.importedPayload
     : previous.metaPayload || (previous.diagnostics?.metaSnapshotVersion?.startsWith?.("meta_ads_s4x") ? previous : null);
 

@@ -235,7 +235,15 @@ export const MetaMarketingService = {
       const apiVersion = resolveMetaApiVersion(settings);
       const token = await readMetaAccessToken(connection.id);
       const client = new MetaGraphClient(token, apiVersion, requireMetaAppSecret());
-      const previousSnapshot = await DashboardService.getLatestSnapshot(source.dashboard_id, { bypassRls: true });
+      const preferredIds = await DataSourceService.getPreferredSnapshotSourceIds(
+        source.dashboard_id,
+        dashboard.dashboard_type,
+        null,
+      );
+      const previousSnapshot = await DashboardService.getLatestSnapshot(source.dashboard_id, {
+        bypassRls: true,
+        dataSourceIds: preferredIds.length ? preferredIds : undefined,
+      });
       const previousMetaPayload = extractPreviousMetaPayload(previousSnapshot?.payload_json);
       const historyDays = Number(config.history_days || settings.default_history_days);
       const lookbackDays = Number(config.lookback_days || settings.default_lookback_days);

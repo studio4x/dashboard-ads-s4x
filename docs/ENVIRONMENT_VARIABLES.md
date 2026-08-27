@@ -24,6 +24,14 @@ Este documento lista as variáveis de ambiente necessárias para o funcionamento
 - Tokens OAuth dos usuários Meta não são variáveis de ambiente: são gravados criptografados no Supabase Vault pela aplicação.
 - A URI de redirecionamento exibida pelo painel deve ser cadastrada exatamente no Facebook Login for Business.
 
+## Google Ads API (Data Source)
+- **GOOGLE_ADS_CLIENT_SECRET**: segredo do OAuth Client Web. Obrigatório, exclusivamente server-side e sem prefixo `NEXT_PUBLIC_`.
+- **GOOGLE_ADS_DEVELOPER_TOKEN**: token obtido na API Center de uma conta Google Ads Manager. Obrigatório e exclusivamente server-side.
+- **GOOGLE_ADS_CLIENT_ID**: fallback opcional para o OAuth Client ID. Normalmente o valor não sensível é informado em `/admin/google-ads-api`.
+- **GOOGLE_ADS_API_VERSION**: fallback opcional da versão REST, `v25` por padrão. A configuração persistida no painel tem precedência.
+- Refresh tokens não são variáveis de ambiente: são gravados criptografados no Supabase Vault.
+- Redirect URI de produção: `https://dashboardads.studio4x.com.br/api/admin/google-ads/oauth/callback`.
+
 - **VERCEL_TOKEN**: Token de autenticação para o CLI (apenas local/CI).
 
 ## Automação (Cron)

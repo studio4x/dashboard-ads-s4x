@@ -7,10 +7,15 @@
 - Rate limit: 100 requests/100s por usuário
 - Cache: ISR de 1h (revalidateTag)
 
-### Fase 5 — Google Ads API
-- OAuth 2.0 + Developer Token
-- Biblioteca: google-ads-api (npm)
-- Reports: campaigns, ad_groups, keywords, search_terms
+### Implementado — Google Ads API
+- OAuth 2.0 Web com acesso offline e escopo `adwords`.
+- Refresh token criptografado no Supabase Vault; Client Secret e Developer Token somente server-side.
+- REST oficial Google Ads API `v25`, centralizada e configurável; `googleapis` é usado apenas no fluxo OAuth.
+- Descoberta via `ListAccessibleCustomers`, hierarquia `customer_client`, MCC e `login-customer-id` separados do Customer ID alvo.
+- GAQL para performance diária, campanhas, grupos, keywords, termos de pesquisa, negativas, anúncios e assets.
+- Normalização compatível com `GoogleAdsS4XPayload`, incluindo IDs estáveis, `aiKey`, `metricsOrigin` e `isAggregatable`.
+- Sincronização manual e automática por `pg_cron`, com reconsulta do período completo para evitar merge incorreto de coleções agregadas.
+- Prioridade nativa por papel com fallback para Google Sheets e comparação administrativa de paridade.
 
 ### Implementado — Meta Marketing API
 - OAuth com Facebook Login for Business e permissões somente leitura (`ads_read` e `business_management`).
@@ -35,7 +40,7 @@
 - `src/lib/meta-marketing/*` e `src/services/meta-marketing-service.ts`
 - OAuth e operações administrativas em `src/app/api/admin/meta/*`
 - sincronização automática em `src/app/api/cron/sync-meta-ads`
-- src/connectors/google-ads.ts
+- `src/lib/google-ads-api/*` e `src/services/google-ads-service.ts`
 - src/connectors/ga4.ts
 - src/connectors/search-console.ts
 - src/connectors/google-sheets.ts
