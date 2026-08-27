@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, Download, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff } from "lucide-react";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 import { useToast } from "@/components/ui/Toast";
 
@@ -84,6 +84,13 @@ function formatAnalysisGenerationKey(value: string | null | undefined) {
 function formatAnalysisGenerationAtLabel(value: string | null | undefined) {
   if (!value) return "Aguardando geração";
   return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
+function isAnalysisPdfAvailable(dashboard: any) {
+  if (formatAnalysisGenerationKey(dashboard?.automation_last_analysis_status) !== "success") return false;
+  const reportMode = String(dashboard?.automation_report_mode || "").trim().toLowerCase();
+  const message = String(dashboard?.automation_last_analysis_message || "").trim().toLowerCase();
+  return ["pdf_only", "analysis_pdf", "both_pdf"].includes(reportMode) || message.includes("pdf");
 }
 
 export default function AdminDashboardsPage() {
@@ -736,6 +743,7 @@ export default function AdminDashboardsPage() {
         return;
       }
       toast("Análise e PDF regenerados com sucesso.");
+      await fetchData();
     } catch {
       toast("Erro ao conectar com o servidor para regenerar a análise.");
     } finally {
@@ -1483,6 +1491,22 @@ export default function AdminDashboardsPage() {
                     {runningAnalysisByDashboardId[d.id] ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
                     Regenerar Analise
                   </button>
+
+                  {isAnalysisPdfAvailable(d) ? (
+                    <a
+                      href={`/api/admin/dashboards/${d.id}/analysis-pdf`}
+                      download
+                      style={{
+                        display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+                        borderRadius: 8, background: "#EEF2FF", fontSize: 13, color: "#4338CA",
+                        border: "1px solid #C7D2FE", cursor: "pointer", fontWeight: 600,
+                        transition: "all 0.2s", textDecoration: "none",
+                      }}
+                      title="Baixar o PDF da análise mais recente"
+                    >
+                      <Download size={14} /> Baixar PDF da análise
+                    </a>
+                  ) : null}
 
                   <button 
                     onClick={() => handleDuplicate(d)}

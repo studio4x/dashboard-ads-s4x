@@ -554,6 +554,67 @@ export async function getCachedSharePdf(path: string) {
   return Buffer.from(await data.arrayBuffer());
 }
 
+export async function getLatestSharePdf(shareToken: string) {
+  const supabase = await ensurePdfBucket();
+  const storage = supabase.storage.from(PDF_BUCKET);
+  const prefix = `dashboard-pdfs/${shareToken}`;
+  const { data: entries, error: entriesError } = await storage.list(prefix, {
+    limit: 1000,
+    sortBy: { column: "updated_at", order: "desc" },
+  });
+
+  if (entriesError) {
+    throw new Error(`Falha ao listar PDFs salvos: ${entriesError.message}`);
+  }
+
+  const candidates: Array<{ path: string; filename: string; updatedAt: string | null }> = [];
+
+  for (const entry of entries || []) {
+    const entryPrefix = `${prefix}/${entry.name}`;
+    if (entry.id !== null) {
+      if (entry.name.toLowerCase().endsWith(".pdf")) {
+        candidates.push({
+          path: entryPrefix,
+          filename: entry.name,
+          updatedAt: entry.updated_at || entry.created_at || null,
+        });
+      }
+      continue;
+    }
+
+    const { data: files, error: filesError } = await storage.list(entryPrefix, {
+      limit: 1000,
+      sortBy: { column: "updated_at", order: "desc" },
+    });
+
+    if (filesError) {
+      throw new Error(`Falha ao listar PDFs salvos: ${filesError.message}`);
+    }
+
+    for (const file of files || []) {
+      if (file.id !== null && file.name.toLowerCase().endsWith(".pdf")) {
+        candidates.push({
+          path: `${entryPrefix}/${file.name}`,
+          filename: file.name,
+          updatedAt: file.updated_at || file.created_at || null,
+        });
+      }
+    }
+  }
+
+  candidates.sort((a, b) => {
+    const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  const latest = candidates[0];
+  if (!latest) return null;
+
+  const pdf = await getCachedSharePdf(latest.path);
+  return pdf ? { pdf, filename: latest.filename } : null;
+}
+
 export async function storeSharePdf(path: string, pdf: Buffer) {
   const supabase = await ensurePdfBucket();
   const { error } = await supabase.storage.from(PDF_BUCKET).upload(path, pdf, {
