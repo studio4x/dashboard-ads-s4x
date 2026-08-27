@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 const PDF_BUCKET = process.env.PDF_STORAGE_BUCKET || "reports";
 const PDF_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
+const DEFAULT_STUDIO_LOGO_URL = "/logotipo-s4x.svg";
 
 type ReportData = {
   summary?: Record<string, unknown>;
@@ -276,6 +277,56 @@ function renderAiBlock(text: string | null | undefined) {
   `;
 }
 
+function buildTextLogoDataUri(label: string, fontSize = 20) {
+  const safeLabel = escapeHtml(label || "Studio 4x");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="64" viewBox="0 0 320 64"><text x="160" y="40" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="700">${safeLabel}</text></svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
+}
+
+async function resolvePdfImageDataUri(
+  source: string | null | undefined,
+  fallback: string,
+  origin?: string
+) {
+  const rawSource = String(source || "").trim();
+  if (!rawSource || rawSource === DEFAULT_STUDIO_LOGO_URL) return fallback;
+  if (rawSource.startsWith("data:image/")) return rawSource;
+
+  let resolvedUrl: URL;
+  try {
+    resolvedUrl = new URL(rawSource, origin);
+  } catch {
+    return fallback;
+  }
+
+  if (!["http:", "https:"].includes(resolvedUrl.protocol)) return fallback;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const response = await fetch(resolvedUrl, {
+      cache: "no-store",
+      redirect: "error",
+      signal: controller.signal,
+    });
+    if (!response.ok) return fallback;
+
+    const contentType = String(response.headers.get("content-type") || "")
+      .split(";", 1)[0]
+      .trim()
+      .toLowerCase();
+    if (!contentType.startsWith("image/")) return fallback;
+
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (!bytes.length || bytes.length > 5 * 1024 * 1024) return fallback;
+    return `data:${contentType};base64,${bytes.toString("base64")}`;
+  } catch {
+    return fallback;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function buildPdfHtml(params: {
   dashboardName: string;
   clientName: string | null;
@@ -298,10 +349,9 @@ function buildPdfHtml(params: {
     second: "2-digit",
     hour12: false,
   }).format(new Date());
-  const studioFallbackLogoSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="56" viewBox="0 0 220 56"><text x="2" y="36" fill="#ffffff" font-family="Arial, sans-serif" font-size="24" font-weight="700">Studio 4x</text></svg>`;
-  const studioFallbackLogoDataUri = `data:image/svg+xml;utf8,${encodeURIComponent(studioFallbackLogoSvg)}`;
+  const studioFallbackLogoDataUri = buildTextLogoDataUri("Studio 4x", 24);
   const studioLogoToUse = params.studioLogoUrl || studioFallbackLogoDataUri;
-  const clientLogoToUse = params.clientLogoUrl || studioLogoToUse;
+  const clientLogoToUse = params.clientLogoUrl || buildTextLogoDataUri(params.clientName || "Cliente", 18);
 
   return `
     <!DOCTYPE html>
@@ -358,18 +408,27 @@ function buildPdfHtml(params: {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 0;
-            min-height: 42px;
-            min-width: 104px;
+            height: 44px;
+            min-width: 0;
+            overflow: hidden;
           }
           .client-logo {
-            max-width: 180px;
+            width: 180px;
+            background: #ffffff;
+            border-radius: 8px;
           }
           .studio-logo {
-            max-width: 150px;
+            width: 150px;
             justify-self: end;
           }
-          .brand-logo img {
+          .client-logo img {
+            display: block;
+            width: 100%;
+            height: 44px;
+            object-fit: cover;
+            object-position: center;
+          }
+          .studio-logo img {
             display: block;
             max-height: 32px;
             max-width: 100%;
@@ -631,6 +690,7 @@ export async function renderAndStoreSharePdf(params: {
   clientName: string | null;
   clientLogoUrl?: string | null;
   studioLogoUrl?: string | null;
+  origin?: string;
   periodLabel: string;
   report: ReportData;
   storagePath: string;
@@ -652,17 +712,40 @@ export async function renderAndStoreSharePdf(params: {
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 1024, deviceScaleFactor: 2 });
+    const studioFallbackLogoDataUri = buildTextLogoDataUri("Studio 4x", 24);
+    const clientFallbackLogoDataUri = buildTextLogoDataUri(params.clientName || "Cliente", 18);
+    const studioLogoDataUri = await resolvePdfImageDataUri(
+      params.studioLogoUrl,
+      studioFallbackLogoDataUri,
+      params.origin
+    );
+    const clientLogoDataUri = await resolvePdfImageDataUri(
+      params.clientLogoUrl,
+      clientFallbackLogoDataUri,
+      params.origin
+    );
     await page.setContent(
       buildPdfHtml({
         dashboardName: params.dashboardName,
         clientName: params.clientName,
-        clientLogoUrl: params.clientLogoUrl,
-        studioLogoUrl: params.studioLogoUrl,
+        clientLogoUrl: clientLogoDataUri,
+        studioLogoUrl: studioLogoDataUri,
         periodLabel: params.periodLabel,
         report: params.report,
       }),
       { waitUntil: "load" }
     );
+    await page.evaluate(async () => {
+      await Promise.all(
+        Array.from(document.images).map((image) => {
+          if (image.complete) return Promise.resolve();
+          return new Promise<void>((resolve) => {
+            image.addEventListener("load", () => resolve(), { once: true });
+            image.addEventListener("error", () => resolve(), { once: true });
+          });
+        })
+      );
+    });
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     const pdf = Buffer.from(

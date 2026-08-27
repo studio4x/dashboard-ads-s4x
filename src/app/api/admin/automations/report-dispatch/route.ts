@@ -1134,6 +1134,7 @@ export async function POST(request: Request) {
             String(process.env.S4X_STUDIO_LOGO_URL || "").trim() ||
             branding.logoLightUrl ||
             `${origin}/logotipo-s4x.svg`,
+          origin,
           periodLabel:
             periodFromDisplay && periodToDisplay
               ? `${periodFromDisplay} a ${periodToDisplay}`
