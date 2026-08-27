@@ -1,1 +1,1 @@
-export { default } from "@/app/app/dashboards/[dashboardId]/meta-ads/page";
+export { default } from "@/components/dashboard/MetaAdsMessagingFunnelPage";
