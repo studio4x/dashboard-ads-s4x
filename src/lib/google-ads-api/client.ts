@@ -1,5 +1,6 @@
 import { google } from "googleapis";
-import type { GoogleAdsApiRow, GoogleAdsQueryResult, GoogleAdsSettings } from "@/types/google-ads-api";
+import type { GoogleAdsApiRow, GoogleAdsErrorClassification, GoogleAdsQueryResult, GoogleAdsSettings } from "@/types/google-ads-api";
+import { classifyGoogleAdsError } from "./error-classification";
 import {
   requireGoogleAdsClientSecret,
   requireGoogleAdsDeveloperToken,
@@ -12,15 +13,31 @@ type GoogleAdsErrorBody = {
     code?: number;
     message?: string;
     status?: string;
-    details?: Array<{ errors?: Array<{ message?: string; errorCode?: Record<string, string> }> }>;
+    requestId?: string;
+    details?: Array<{
+      requestId?: string;
+      errors?: Array<{ message?: string; errorCode?: Record<string, unknown> }>;
+    }>;
   };
 };
+
+function googleAdsErrorDetails(body: GoogleAdsErrorBody) {
+  return body.error?.details?.flatMap((detail) => detail.errors || []) || [];
+}
+
+function googleAdsErrorCodes(body: GoogleAdsErrorBody) {
+  return Array.from(new Set(googleAdsErrorDetails(body)
+    .flatMap((detail) => Object.values(detail.errorCode || {}))
+    .filter((value): value is string => typeof value === "string" && Boolean(value))));
+}
 
 export class GoogleAdsApiError extends Error {
   readonly statusCode: number;
   readonly apiStatus: string | null;
   readonly requestId: string | null;
   readonly errorCode: string | null;
+  readonly errorCodes: string[];
+  readonly classification: GoogleAdsErrorClassification | null;
   readonly transient: boolean;
   readonly authRelated: boolean;
 
@@ -29,12 +46,18 @@ export class GoogleAdsApiError extends Error {
     this.name = "GoogleAdsApiError";
     this.statusCode = statusCode;
     this.apiStatus = body.error?.status || null;
-    this.requestId = requestId;
-    const firstCode = body.error?.details?.flatMap((detail) => detail.errors || [])[0]?.errorCode;
-    this.errorCode = firstCode ? Object.values(firstCode)[0] || null : null;
+    this.errorCodes = googleAdsErrorCodes(body);
+    this.errorCode = this.errorCodes[0] || null;
+    this.requestId = requestId || body.error?.requestId || body.error?.details?.find((detail) => detail.requestId)?.requestId || null;
+    this.classification = classifyGoogleAdsError({ statusCode, apiStatus: this.apiStatus, errorCodes: this.errorCodes, message });
     this.transient = statusCode === 429 || statusCode >= 500;
     this.authRelated = statusCode === 401 || ["AUTHENTICATION_ERROR", "OAUTH_TOKEN_HEADER_INVALID", "CUSTOMER_NOT_ENABLED"].includes(String(this.errorCode));
   }
+}
+
+export function classifyGoogleAdsApiError(error: unknown): GoogleAdsErrorClassification | null {
+  if (!(error instanceof GoogleAdsApiError)) return null;
+  return classifyGoogleAdsError({ statusCode: error.statusCode, apiStatus: error.apiStatus, errorCodes: error.errorCodes, message: error.message });
 }
 
 function normalizeCustomerId(value: string) {
@@ -87,7 +110,7 @@ export class GoogleAdsRestClient {
     const body = await response.json().catch(() => ({}));
     if (!response.ok || (body as GoogleAdsErrorBody).error) {
       const errorBody = body as GoogleAdsErrorBody;
-      const detailMessage = errorBody.error?.details?.flatMap((detail) => detail.errors || [])[0]?.message;
+      const detailMessage = googleAdsErrorDetails(errorBody)[0]?.message;
       const safeMessage = detailMessage || errorBody.error?.message || `Google Ads API respondeu HTTP ${response.status}.`;
       throw new GoogleAdsApiError(safeMessage.slice(0, 900), response.status, errorBody, response.headers.get("request-id"));
     }

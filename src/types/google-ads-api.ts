@@ -1,5 +1,20 @@
 export type GoogleAdsConnectionStatus = "pending" | "active" | "expired" | "revoked" | "error";
 
+export type GoogleAdsErrorClassification = "developer_token_production_access_required";
+
+export interface GoogleAdsDiscoveryDiagnostic {
+  operation: "customer" | "hierarchy";
+  customerId: string;
+  loginCustomerId: string | null;
+  statusCode: number | null;
+  apiStatus: string | null;
+  errorCode: string | null;
+  errorCodes: string[];
+  requestId: string | null;
+  classification: GoogleAdsErrorClassification | null;
+  message: string;
+}
+
 export type GoogleAdsSyncInterval = "manual" | "one_hour" | "six_hours" | "twelve_hours" | "daily" | "weekly";
 
 export interface GoogleAdsSettings {

@@ -1,6 +1,7 @@
-import { formatGoogleAdsCustomerId, GoogleAdsRestClient } from "./client";
+import { formatGoogleAdsCustomerId, GoogleAdsApiError, GoogleAdsRestClient } from "./client";
+import { buildDeveloperTokenSummary, buildDiscoveryWarnings, type DiscoveryWarning } from "./discovery-diagnostics";
 import { googleAdsQueries } from "./queries";
-import type { GoogleAdsAccessibleAccount, GoogleAdsApiRow } from "@/types/google-ads-api";
+import type { GoogleAdsAccessibleAccount, GoogleAdsApiRow, GoogleAdsDiscoveryDiagnostic } from "@/types/google-ads-api";
 import { deduplicateGoogleAdsAccounts } from "./account-utils";
 
 type UnknownRecord = Record<string, unknown>;
@@ -57,9 +58,38 @@ function childAccount(row: GoogleAdsApiRow, manager: GoogleAdsAccessibleAccount)
   };
 }
 
-export async function discoverGoogleAdsAccounts(client: GoogleAdsRestClient) {
+function diagnosticFor(
+  operation: GoogleAdsDiscoveryDiagnostic["operation"],
+  customerId: string,
+  loginCustomerId: string | null,
+  error: unknown,
+): GoogleAdsDiscoveryDiagnostic {
+  const apiError = error instanceof GoogleAdsApiError ? error : null;
+  return {
+    operation,
+    customerId,
+    loginCustomerId,
+    statusCode: apiError?.statusCode ?? null,
+    apiStatus: apiError?.apiStatus ?? null,
+    errorCode: apiError?.errorCode ?? null,
+    errorCodes: apiError?.errorCodes || [],
+    requestId: apiError?.requestId ?? null,
+    classification: apiError?.classification ?? null,
+    message: error instanceof Error ? error.message.slice(0, 900) : "erro desconhecido",
+  };
+}
+
+export type GoogleAdsDiscoveryResult = {
+  accounts: GoogleAdsAccessibleAccount[];
+  warnings: string[];
+  summaryWarnings: string[];
+  diagnostics: GoogleAdsDiscoveryDiagnostic[];
+};
+
+export async function discoverGoogleAdsAccounts(client: GoogleAdsRestClient): Promise<GoogleAdsDiscoveryResult> {
   const accessibleIds = await client.listAccessibleCustomers();
-  const warnings: string[] = [];
+  const warningRecords: DiscoveryWarning[] = [];
+  const diagnostics: GoogleAdsDiscoveryDiagnostic[] = [];
   const direct: GoogleAdsAccessibleAccount[] = [];
 
   for (const customerId of accessibleIds) {
@@ -67,7 +97,12 @@ export async function discoverGoogleAdsAccounts(client: GoogleAdsRestClient) {
       const result = await client.search(customerId, googleAdsQueries.customer);
       direct.push(directAccount(result.rows[0] || {}, customerId));
     } catch (error) {
-      warnings.push(`Não foi possível validar ${formatGoogleAdsCustomerId(customerId)}: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+      const diagnostic = diagnosticFor("customer", customerId, null, error);
+      diagnostics.push(diagnostic);
+      console.warn("[GOOGLE_ADS_DISCOVERY_ERROR]", diagnostic);
+      if (!diagnostic.classification) {
+        warningRecords.push({ diagnostic, message: `Não foi possível validar ${formatGoogleAdsCustomerId(customerId)}: ${diagnostic.message}` });
+      }
     }
   }
 
@@ -80,9 +115,20 @@ export async function discoverGoogleAdsAccounts(client: GoogleAdsRestClient) {
         if (account) discovered.push(account);
       });
     } catch (error) {
-      warnings.push(`Não foi possível consultar a hierarquia de ${manager.formattedCustomerId}: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+      const diagnostic = diagnosticFor("hierarchy", manager.customerId, manager.customerId, error);
+      diagnostics.push(diagnostic);
+      console.warn("[GOOGLE_ADS_DISCOVERY_ERROR]", diagnostic);
+      if (!diagnostic.classification) {
+        warningRecords.push({ diagnostic, message: `Não foi possível consultar a hierarquia de ${manager.formattedCustomerId}: ${diagnostic.message}` });
+      }
     }
   }
 
-  return { accounts: deduplicateGoogleAdsAccounts(discovered), warnings };
+  const developerTokenDiagnostics = diagnostics.filter((diagnostic) => diagnostic.classification === "developer_token_production_access_required");
+  return {
+    accounts: deduplicateGoogleAdsAccounts(discovered),
+    warnings: buildDiscoveryWarnings(warningRecords),
+    summaryWarnings: buildDeveloperTokenSummary(developerTokenDiagnostics),
+    diagnostics,
+  };
 }

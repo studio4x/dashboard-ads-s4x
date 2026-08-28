@@ -191,7 +191,8 @@ export const GoogleAdsService = {
     const settings = await getGoogleAdsSettings();
     const client = new GoogleAdsRestClient(settings, await readGoogleAdsRefreshToken(input.connectionId));
     const verification = await client.search(customerId, googleAdsQueries.customer, managerCustomerId);
-    const verified = verification.rows[0]?.customer || {};
+    const verified = verification.rows[0]?.customer;
+    if (!verified || Object.keys(verified).length === 0) throw new Error("A conta Google Ads não retornou dados de validação e não pode ser vinculada.");
     if (Boolean(verified.manager)) throw new Error("A conta escolhida é uma gerenciadora/MCC e não pode ser usada como conta de relatório.");
 
     const { data: source, error: sourceError } = await supabase.from("data_sources").insert({

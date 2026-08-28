@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, BadgeCheck, Check, ExternalLink, KeyRound, Link2, Loader2, RefreshCw, Save, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, BadgeCheck, Check, ExternalLink, KeyRound, Link2, Loader2, RefreshCw, Save, Search, ShieldCheck, Trash2 } from "lucide-react";
 import type { GoogleAdsAccessibleAccount, GoogleAdsConnection, GoogleAdsSettings } from "@/types/google-ads-api";
 
 type SettingsResponse = {
@@ -16,7 +16,22 @@ type SettingsResponse = {
   };
 };
 
-type AccountDiscovery = { accounts: GoogleAdsAccessibleAccount[]; warnings: string[] };
+type AccountDiscovery = {
+  accounts: GoogleAdsAccessibleAccount[];
+  warnings: string[];
+  summaryWarnings?: string[];
+  diagnostics?: Array<{
+    operation: "customer" | "hierarchy";
+    customerId: string;
+    loginCustomerId: string | null;
+    statusCode: number | null;
+    apiStatus: string | null;
+    errorCode: string | null;
+    requestId: string | null;
+    classification: string | null;
+    message: string;
+  }>;
+};
 type ClientRow = { id: string; name: string };
 type DashboardRow = { id: string; client_id: string; name: string; dashboard_type?: string | null };
 type NamedRelation = { name?: string | null };
@@ -131,7 +146,7 @@ export function GoogleAdsApiPanel() {
     try {
       const data = await jsonRequest<AccountDiscovery>(`/api/admin/google-ads/connections/${connectionId}/accounts`);
       setDiscovery(data); setSourceForm((current) => ({ ...current, connectionId, managerCustomerId: "", customerId: "" }));
-      if (!data.accounts?.length) setNotice({ type: "error", text: "Nenhuma conta Google Ads acessível foi encontrada para este usuário." });
+      if (!data.accounts?.length && !data.summaryWarnings?.length) setNotice({ type: "error", text: "Nenhuma conta Google Ads acessível foi encontrada para este usuário." });
     } catch (error) { setNotice({ type: "error", text: error instanceof Error ? error.message : "Erro ao consultar contas." }); }
     finally { setBusy(null); }
   }
@@ -212,6 +227,8 @@ export function GoogleAdsApiPanel() {
 
     {discovery && <section className="card" style={{ padding: 22, marginBottom: 18 }}>
       <div style={{ display: "flex", gap: 11, alignItems: "center", marginBottom: 18 }}><Link2 color="#4285F4" size={21} /><div><h2 style={{ fontSize: 16, fontWeight: 700 }}>3. Vincular conta ao dashboard</h2><p style={{ fontSize: 12, color: "#64748B" }}>{managers.length} MCC(s) e {discovery.accounts.filter((account) => !account.manager).length} conta(s) cliente encontradas.</p></div></div>
+      {discovery.summaryWarnings?.length ? <div role="alert" style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: 14, marginBottom: 16, borderRadius: 9, background: "#FFFBEB", color: "#92400E", border: "1px solid #FCD34D", fontSize: 13 }}><AlertTriangle size={19} style={{ flex: "0 0 auto", marginTop: 1 }} /><div><strong style={{ display: "block", marginBottom: 5 }}>Developer Token ainda sem acesso à produção</strong><p>{discovery.summaryWarnings.join(" ")}</p>{discovery.diagnostics?.some((diagnostic) => diagnostic.classification === "developer_token_production_access_required") && <details style={{ marginTop: 9, fontSize: 11 }}><summary style={{ cursor: "pointer", fontWeight: 650 }}>Ver detalhes técnicos</summary><div style={{ marginTop: 7, display: "grid", gap: 4 }}>{discovery.diagnostics.filter((diagnostic) => diagnostic.classification === "developer_token_production_access_required").map((diagnostic) => <div key={`${diagnostic.operation}:${diagnostic.customerId}:${diagnostic.requestId || "no-request"}`}>{diagnostic.operation === "customer" ? "Customer" : "MCC"} {diagnostic.customerId} · {diagnostic.errorCode || diagnostic.apiStatus || `HTTP ${diagnostic.statusCode || "n/d"}`}{diagnostic.requestId ? ` · request-id ${diagnostic.requestId}` : ""}</div>)}</div></details>}</div></div> : null}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14, fontSize: 11, color: "#475569" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 8px", borderRadius: 999, background: "#ECFDF5", color: "#047857" }}><Check size={13} /> OAuth conectado</span><span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 8px", borderRadius: 999, background: "#EFF6FF", color: "#1D4ED8" }}><Check size={13} /> Customer IDs descobertos</span>{discovery.summaryWarnings?.length ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 8px", borderRadius: 999, background: "#FEF3C7", color: "#92400E" }}><AlertTriangle size={13} /> Validação de produção pendente</span> : null}</div>
       <form onSubmit={createSource}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 13 }}>
         <label style={labelStyle}>Cliente<select required style={fieldStyle} value={sourceForm.clientId} onChange={(e) => setSourceForm({ ...sourceForm, clientId: e.target.value, dashboardId: "" })}><option value="">Selecione</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
         <label style={labelStyle}>Dashboard Google<select required style={fieldStyle} value={sourceForm.dashboardId} onChange={(e) => setSourceForm({ ...sourceForm, dashboardId: e.target.value })}><option value="">Selecione</option>{filteredDashboards.map((dashboard) => <option key={dashboard.id} value={dashboard.id}>{dashboard.name}</option>)}</select></label>
@@ -221,7 +238,7 @@ export function GoogleAdsApiPanel() {
         <label style={labelStyle}>Histórico (dias)<input type="number" min={1} max={730} style={fieldStyle} value={sourceForm.historyDays} onChange={(e) => setSourceForm({ ...sourceForm, historyDays: Number(e.target.value) })} /></label>
         <label style={labelStyle}>Lookback (dias)<input type="number" min={1} max={90} style={fieldStyle} value={sourceForm.lookbackDays} onChange={(e) => setSourceForm({ ...sourceForm, lookbackDays: Number(e.target.value) })} /></label>
         <label style={labelStyle}>Sincronização<select style={fieldStyle} value={sourceForm.syncInterval} onChange={(e) => setSourceForm({ ...sourceForm, syncInterval: e.target.value })}><option value="manual">Manual</option><option value="one_hour">A cada hora</option><option value="six_hours">A cada 6 horas</option><option value="twelve_hours">A cada 12 horas</option><option value="daily">Diária</option><option value="weekly">Semanal</option></select></label>
-      </div>{discovery.warnings.length > 0 && <p style={{ marginTop: 10, color: "#B45309", fontSize: 11 }}>{discovery.warnings.join(" · ")}</p>}<button disabled={busy === "source" || !selectedAccount} style={{ ...buttonStyle, marginTop: 14, background: "#4285F4", color: "white", opacity: selectedAccount ? 1 : .55 }}>{busy === "source" ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />} Vincular conta</button></form>
+      </div>{discovery.warnings.length > 0 && <p style={{ marginTop: 10, color: "#B45309", fontSize: 11 }}>{discovery.warnings.join(" · ")}</p>}<button disabled={Boolean(busy) || !selectedAccount} style={{ ...buttonStyle, marginTop: 14, background: "#4285F4", color: "white", opacity: selectedAccount ? 1 : .55 }}>{busy === "source" ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />} Vincular conta</button></form>
     </section>}
 
     <section className="card" style={{ padding: 22 }}><h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>Fontes Google Ads API vinculadas</h2>{sources.length === 0 ? <p style={{ fontSize: 13, color: "#64748B" }}>Ainda não há fontes Google Ads API vinculadas.</p> : <div style={{ display: "grid", gap: 10 }}>{sources.map((source) => { const config = relation(source.google_ads_sources); return <div key={source.id} style={{ padding: 13, border: "1px solid #E2E8F0", borderRadius: 9, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><div style={{ flex: 1, minWidth: 260 }}><strong style={{ fontSize: 13 }}>{source.name}</strong><p style={{ fontSize: 11, color: "#64748B", marginTop: 3 }}>{relation(source.clients)?.name} · {relation(source.dashboards)?.name} · {config?.customer_name} ({config?.customer_id}){config?.manager_customer_id ? ` via MCC ${config.manager_customer_id}` : ""}</p><p style={{ fontSize: 11, color: config?.last_import_status === "failed" ? "#DC2626" : "#64748B", marginTop: 3 }}>Última sincronização: {config?.last_import_at ? new Date(config.last_import_at).toLocaleString("pt-BR") : "nunca"}{config?.last_error ? ` · ${config.last_error}` : ""}</p></div><button onClick={() => void compareSource(source.id)} disabled={Boolean(busy)} style={{ ...buttonStyle, background: "#FFF7ED", color: "#C2410C" }}>{busy === `compare:${source.id}` ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />} Comparar Sheets</button><button onClick={() => void syncSource(source.id)} disabled={Boolean(busy)} style={{ ...buttonStyle, background: "#ECFDF5", color: "#047857" }}>{busy === `sync:${source.id}` ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Sincronizar agora</button><button aria-label="Remover fonte" onClick={() => void removeSource(source.id)} disabled={Boolean(busy)} style={{ ...buttonStyle, padding: 9, background: "#FEF2F2", color: "#DC2626" }}><Trash2 size={14} /></button></div>; })}</div>}</section>
