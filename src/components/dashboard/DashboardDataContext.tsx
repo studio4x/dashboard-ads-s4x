@@ -28,6 +28,10 @@ interface DashboardData {
   diagnostics?: any;
   googlePayload?: any;
   metaPayload?: any;
+  financialStatus?: import("@/lib/ads-financial").AdsFinancialStatus | null;
+  financialStatuses?: import("@/lib/ads-financial").AdsFinancialStatus[];
+  googleFinancialStatus?: import("@/lib/ads-financial").AdsFinancialStatus | null;
+  metaFinancialStatuses?: import("@/lib/ads-financial").AdsFinancialStatus[];
 
   // Sumários e Metadados
   summary?: any;

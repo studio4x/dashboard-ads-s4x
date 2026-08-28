@@ -126,3 +126,13 @@ Essa escolha preserva a correção de campanhas, grupos, keywords, termos, anún
 - erro GAQL: consulte o request ID salvo no log e valide o campo contra a versão configurada.
 - conta manager escolhida: selecione uma conta cliente sob o MCC.
 - termos de pesquisa ausentes: o Google pode omitir consultas por privacidade/baixo volume; isso não é tratado como falha.
+
+## 10. Financial / Billing Data
+
+Durante a sincronização, a aplicação faz uma consulta opcional ao recurso `account_budget` usando `adjusted_spending_limit_micros`, `amount_served_micros`, `adjusted_spending_limit_type` e `status`. Campos `*_micros` são convertidos dividindo por 1.000.000 e a moeda vem de `customer.currency_code`/da fonte.
+
+Quando há um AccountBudget aprovado e finito, o dashboard exibe `Orçamento de conta restante`, calculado como limite ajustado menos `amount_served_micros`, limitado a zero. Esse valor é um orçamento de conta aplicável ao recurso, não um saldo financeiro universal ou saldo pré-pago.
+
+Quando o tipo é `INFINITE`, a UI exibe `Sem limite de orçamento de conta definido`. Sem recurso aplicável, ou quando a consulta opcional falha, a performance continua sendo sincronizada e o status financeiro fica indisponível/temporariamente indisponível com warning no snapshot.
+
+`Account budget remaining is not equivalent to a universal prepaid account balance.`

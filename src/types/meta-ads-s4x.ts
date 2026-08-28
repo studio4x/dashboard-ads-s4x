@@ -103,4 +103,6 @@ export interface MetaAdsS4XPayload {
   metaPrimaryObjective?: string | null;
   metaValidationStatus?: "not_configured" | "ok" | "missing_metrics";
   metaValidationNotes?: Record<string, unknown>;
+  financialStatus?: import("@/lib/ads-financial").AdsFinancialStatus | null;
+  financialStatuses?: import("@/lib/ads-financial").AdsFinancialStatus[];
 }

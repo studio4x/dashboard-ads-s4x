@@ -59,6 +59,12 @@ export function buildIntegratedAdsPayload(params: {
   const metaRows = Array.isArray(metaPayload?.dailyPerformance)
     ? metaPayload.dailyPerformance.map((row: any) => mapIntegratedDailyRow(row, "meta_ads"))
     : [];
+  const googleFinancialStatus = googlePayload?.financialStatus || null;
+  const metaFinancialStatuses = Array.isArray(metaPayload?.financialStatuses)
+    ? metaPayload.financialStatuses
+    : metaPayload?.financialStatus
+      ? [metaPayload.financialStatus]
+      : [];
   const dailyPerformance = [...googleRows, ...metaRows]
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
 
@@ -77,6 +83,9 @@ export function buildIntegratedAdsPayload(params: {
     summary: calculateIntegratedSummary(dailyPerformance),
     google_ads_summary: googlePayload?.summary || null,
     meta_ads_summary: metaPayload?.summary || null,
+    googleFinancialStatus,
+    metaFinancialStatuses,
+    financialStatuses: [googleFinancialStatus, ...metaFinancialStatuses].filter(Boolean),
     overview: dailyPerformance,
     dailyPerformance,
     google_ads: googleRows,

@@ -240,4 +240,5 @@ export interface GoogleAdsS4XPayload {
   negativeKeywords: GoogleAdsS4XNegativeKeyword[];
   adsAndAssets: GoogleAdsS4XAdAsset[];
   diagnostics: GoogleAdsS4XDiagnostics;
+  financialStatus?: import("@/lib/ads-financial").AdsFinancialStatus | null;
 }

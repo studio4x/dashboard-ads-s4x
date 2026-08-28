@@ -32,3 +32,13 @@
 - A primeira sincronização usa o histórico configurado; as seguintes substituem apenas a janela móvel recente, preservando o histórico anterior.
 - O job `sync-meta-marketing-api-cron` roda a cada hora no Supabase e respeita a frequência individual de cada fonte.
 - Erro Meta de token inválido/expirado (código 190) marca a conexão como expirada e exige uma nova autorização.
+
+## Financial / Billing Data
+
+Na sincronização, cada conta de anúncios é consultada com `balance`, `amount_spent`, `spend_cap`, `currency`, `funding_source_details` e `is_prepay_account`. Os valores monetários da resposta são tratados na unidade da moeda da conta; não são convertidos como micros do Google Ads.
+
+`spend_cap` com valor positivo e `amount_spent` válido gera `Disponível até o limite`, com limite e gasto acumulado. A cobertura estimada usa somente esse valor restante e a média dos dias recentes com gasto positivo.
+
+`balance` não é automaticamente exibido como saldo disponível. Em conta identificada como pré-paga (`is_prepay_account`), ele pode ser exibido como `Saldo pré-pago disponível`; nos demais casos aparece como `Saldo / valor de faturamento informado pela Meta`, sem estimativa de cobertura. A ausência ou falha de campos financeiros não invalida o snapshot de performance.
+
+`balance, spend_cap and amount_spent have different meanings and must not be presented as interchangeable values.`

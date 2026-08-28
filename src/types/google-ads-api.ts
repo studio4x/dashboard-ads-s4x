@@ -70,6 +70,7 @@ export interface GoogleAdsApiRow {
   asset?: Record<string, unknown>;
   assetGroup?: Record<string, unknown>;
   assetGroupAsset?: Record<string, unknown>;
+  accountBudget?: Record<string, unknown>;
   segments?: Record<string, unknown>;
   metrics?: Record<string, unknown>;
 }

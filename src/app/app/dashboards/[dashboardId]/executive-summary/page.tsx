@@ -38,6 +38,8 @@ import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { getMetaConversionLabel, getMetaCostLabel, getMetaCostMetric, getMetaResultMetric, resolveMetaObjectivePresentation } from "@/lib/meta-ads/objectives";
 import { applyTemplateMetricConfigToKpis, getDefaultTemplateMetricConfig, getTemplateSectionWidgets, getTemplateMetricSection, getMetricLabel, type TemplateWidgetItem } from "@/lib/dashboard/template-metric-config";
 import type { KpiSummary } from "@/types/entities";
+import { FinancialStatusSection } from "@/components/dashboard/FinancialStatusSection";
+import type { AdsFinancialStatus } from "@/lib/ads-financial";
 
 // Cores da referência
 const BLUE = "#2563EB";
@@ -112,6 +114,15 @@ export default function ExecutiveSummaryPage() {
   if (!data) return null;
 
   const { summary, overview, audience, insights, google_ads_summary: googleAdsSummary, meta_ads_summary: metaAdsSummary } = data;
+  const googleFinancialStatus = (data.googleFinancialStatus || data.googlePayload?.financialStatus || (
+    data.financialStatus?.provider === "google_ads" ? data.financialStatus : null
+  )) as AdsFinancialStatus | null;
+  const metaFinancialStatuses = (
+    data.metaFinancialStatuses
+    || data.metaPayload?.financialStatuses
+    || (data.metaPayload?.financialStatus ? [data.metaPayload.financialStatus] : [])
+    || (data.financialStatuses || (data.financialStatus?.provider === "meta_ads" ? [data.financialStatus] : []))
+  ) as AdsFinancialStatus[];
   const isAdminView = data.viewerRole === "admin" || data.viewerRole === "owner";
   const current = summary?.current || {};
   const changes = summary?.change || {};
@@ -915,6 +926,8 @@ export default function ExecutiveSummaryPage() {
             </div>
           ))}
         </div>
+
+        <FinancialStatusSection googleStatus={googleFinancialStatus} metaStatuses={metaFinancialStatuses} />
 
         {/* Middle Charts Section */}
         {executiveWidgetRows.length > 0 ? (

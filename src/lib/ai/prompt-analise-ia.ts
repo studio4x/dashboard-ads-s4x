@@ -53,6 +53,9 @@ Para cada métrica, informe:
 14. Não inclua CSS.
 15. Não use tabelas.
 16. Não use emojis além das setas ▲, ▼ e →.
+17. Se houver informações financeiras/orçamentárias, preserve o nome e a semântica da plataforma. Nunca chame AccountBudget ou spend_cap de "saldo disponível" universal.
+18. Não some valores financeiros de Google Ads e Meta Ads. "Orçamento de conta restante", "Disponível até o limite", "saldo pré-pago", "valor de faturamento" e "gasto acumulado" são conceitos diferentes.
+19. Só descreva cobertura estimada quando o dado recebido indicar verba/limite restante confiável; nunca calcule cobertura usando dívida, valor de faturamento ou balance inconclusivo.
 
 # FORMATO DE SAÍDA OBRIGATÓRIO
 

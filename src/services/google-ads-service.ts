@@ -23,7 +23,7 @@ type SourceCreateInput = {
 };
 
 type DatasetName = "dailyRows" | "campaignRows" | "adGroupRows" | "keywordRows" | "searchTermRows"
-  | "campaignNegativeRows" | "sharedNegativeRows" | "campaignSharedSetRows" | "adRows" | "adAssetRows" | "pmaxAssetRows";
+  | "campaignNegativeRows" | "sharedNegativeRows" | "campaignSharedSetRows" | "adRows" | "adAssetRows" | "pmaxAssetRows" | "accountBudgetRows";
 
 type GooglePayloadLike = {
   dailyPerformance?: unknown[];
@@ -80,6 +80,7 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
     ["searchTermRows", googleAdsQueries.searchTerms(start, end)],
   ];
   const optional: Array<[DatasetName, string]> = [
+    ["accountBudgetRows", googleAdsQueries.accountBudget],
     ["campaignNegativeRows", googleAdsQueries.campaignNegatives],
     ["sharedNegativeRows", googleAdsQueries.sharedNegatives],
     ["campaignSharedSetRows", googleAdsQueries.campaignSharedSets],
@@ -90,10 +91,11 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
   const data: Record<DatasetName, GoogleAdsApiRow[]> = {
     dailyRows: [], campaignRows: [], adGroupRows: [], keywordRows: [], searchTermRows: [],
     campaignNegativeRows: [], sharedNegativeRows: [], campaignSharedSetRows: [],
-    adRows: [], adAssetRows: [], pmaxAssetRows: [],
+    adRows: [], adAssetRows: [], pmaxAssetRows: [], accountBudgetRows: [],
   };
   const requestIds: string[] = [];
   const warnings: string[] = [];
+  let financialError: string | null = null;
 
   const requiredResults = await Promise.all(required.map(async ([name, query]) => [name, await client.search(customerId, query, loginCustomerId)] as const));
   requiredResults.forEach(([name, result]) => {
@@ -108,11 +110,13 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
       data[name] = result.value[1].rows;
       requestIds.push(...result.value[1].requestIds);
     } else {
-      warnings.push(`${name}: ${result.reason instanceof Error ? result.reason.message : "consulta indisponível"}`);
+      const message = result.reason instanceof Error ? result.reason.message : "consulta indisponível";
+      warnings.push(`${name}: ${message}`);
+      if (name === "accountBudgetRows") financialError = message;
     }
   });
 
-  return { data, warnings, requestIds: Array.from(new Set(requestIds)) };
+  return { data, warnings, requestIds: Array.from(new Set(requestIds)), financialError };
 }
 
 function compareMetric(apiValue: number, sheetValue: number, tolerancePercent: number) {
@@ -260,7 +264,9 @@ export const GoogleAdsService = {
       const payload = buildGoogleAdsApiPayload({
         customerId: config.customer_id, customerName: config.customer_name,
         managerCustomerId: config.manager_customer_id, timezone: config.timezone, apiVersion, dateStart, dateEnd,
+        currency: config.currency_code,
         ...queried.data, warnings: queried.warnings,
+        financialError: queried.financialError,
       });
       const preferredIds = await DataSourceService.getPreferredSnapshotSourceIds(source.dashboard_id, dashboard.dashboard_type, dashboard.metrics_source_id);
       const previousSnapshot = await DashboardService.getLatestSnapshot(source.dashboard_id, {

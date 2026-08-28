@@ -7,6 +7,7 @@ import { MetaGraphClient, MetaGraphError } from "@/lib/meta-marketing/graph-clie
 import { getMetaMarketingSettings, requireMetaAppSecret, resolveMetaApiVersion } from "@/lib/meta-marketing/settings";
 import { readMetaAccessToken } from "@/lib/meta-marketing/token-vault";
 import { buildMetaAdsApiPayload, mergeMetaDailyRows, normalizeMetaInsightRow } from "@/lib/meta-marketing/normalizer";
+import { buildFinancialErrorStatus, buildMetaAdsFinancialStatus, calculateAverageDailySpend } from "@/lib/ads-financial";
 import { buildIntegratedAdsPayload } from "@/lib/dashboard/integrated-payload";
 import type { MetaAdAccountAsset, MetaCampaignAsset, MetaInsightRow } from "@/types/meta-marketing";
 
@@ -85,6 +86,31 @@ async function fetchCampaigns(client: MetaGraphClient, accountId: string) {
     fields: "id,name,status,effective_status",
     limit: 500,
   }, 100);
+}
+
+async function fetchAccountFinancialStatus(
+  client: MetaGraphClient,
+  accountId: string,
+  accountName: string,
+  averageDailySpend: number | null,
+) {
+  let account: Record<string, unknown>;
+  try {
+    account = await client.get<Record<string, unknown>>(`act_${accountId}`, {
+      fields: "id,account_id,name,currency,amount_spent,spend_cap,balance,funding_source_details,is_prepay_account",
+    });
+  } catch (primaryError) {
+    // Alguns modelos/permissões da Graph API podem rejeitar campos de billing opcionais.
+    // Mantemos os campos monetários centrais para não invalidar a sincronização de performance.
+    try {
+      account = await client.get<Record<string, unknown>>(`act_${accountId}`, {
+        fields: "id,account_id,name,currency,amount_spent,spend_cap,balance",
+      });
+    } catch {
+      throw primaryError;
+    }
+  }
+  return buildMetaAdsFinancialStatus({ account, averageDailySpend, accountId, accountName });
 }
 
 function enrichRowsWithCampaignStatuses(rows: any[], campaigns: MetaCampaignAsset[]) {
@@ -293,6 +319,21 @@ export const MetaMarketingService = {
         mergeMetaDailyRows(previousMetaPayload?.dailyPerformance || [], importedRows, replaceFrom),
         campaignGroups.flat(),
       );
+      const averageDailySpend = calculateAverageDailySpend(rows);
+      const financialResults = await Promise.all(accounts.map(async (account: any) => {
+        const accountId = String(account.ad_account_id);
+        const accountName = String(account.ad_account_name || accountId);
+        try {
+          return await fetchAccountFinancialStatus(client, accountId, accountName, averageDailySpend);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "resposta financeira indisponível";
+          campaignStatusWarnings.push(`Informação financeira da conta ${accountName} indisponível: ${message}`);
+          return buildFinancialErrorStatus({
+            provider: "meta_ads", accountId, accountName, currency: account.currency || null,
+            message: "Informação financeira temporariamente indisponível.",
+          });
+        }
+      }));
       const payload = buildMetaAdsApiPayload({
         rows,
         accountNames: accounts.map((account: any) => String(account.ad_account_name)),
@@ -303,6 +344,7 @@ export const MetaMarketingService = {
         primaryObjective: dashboard.meta_primary_objective || null,
         apiVersion,
         warnings: campaignStatusWarnings,
+        financialStatuses: financialResults,
       });
       const snapshotPayload = dashboard.dashboard_type === "google_meta_ads_s4x"
         ? buildIntegratedAdsPayload({

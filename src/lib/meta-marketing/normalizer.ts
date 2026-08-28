@@ -2,6 +2,7 @@
 import { MetricsHelper } from "@/lib/google-sheets/metrics-helper";
 import type { MetaAdsS4XDailyPerformance, MetaAdsS4XPayload } from "@/types/meta-ads-s4x";
 import type { MetaInsightAction, MetaInsightRow } from "@/types/meta-marketing";
+import type { AdsFinancialStatus } from "@/lib/ads-financial";
 
 const ACTION_TYPES = {
   messaging: ["onsite_conversion.messaging_conversation_started_7d", "messaging_conversation_started_7d", "onsite_conversion.messaging_first_reply"],
@@ -109,6 +110,7 @@ export function buildMetaAdsApiPayload(params: {
   primaryObjective: string | null;
   apiVersion: string;
   warnings?: string[];
+  financialStatuses?: AdsFinancialStatus[];
 }): MetaAdsS4XPayload {
   const summary = MetricsHelper.calculateMetaSummary(params.rows);
   const now = new Date().toISOString();
@@ -134,6 +136,8 @@ export function buildMetaAdsApiPayload(params: {
     },
     summary: summary as any,
     dailyPerformance: params.rows,
+    financialStatuses: params.financialStatuses || [],
+    financialStatus: params.financialStatuses?.length === 1 ? params.financialStatuses[0] : null,
     diagnostics: {
       templateValidation: { isValid: true, source: "meta_marketing_api" },
       schemaValidation: { isValid: true, apiVersion: params.apiVersion },

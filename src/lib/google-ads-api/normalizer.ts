@@ -1,4 +1,5 @@
 import { MetricsHelper } from "../google-sheets/metrics-helper.ts";
+import { buildGoogleAdsFinancialStatus, calculateAverageDailySpend, microsToCurrency } from "../ads-financial.ts";
 import type {
   GoogleAdsS4XAdAsset,
   GoogleAdsS4XAdGroup,
@@ -42,10 +43,7 @@ function stableKey(...parts: Array<string | number | null | undefined>) {
   return parts.map((part) => String(part ?? "").trim()).join(":");
 }
 
-export function microsToCurrency(valueInMicros: unknown) {
-  const parsed = Number(valueInMicros ?? 0);
-  return Number.isFinite(parsed) ? parsed / 1_000_000 : 0;
-}
+export { microsToCurrency } from "../ads-financial.ts";
 
 export function ratioToPercent(valueAsRatio: unknown) {
   if (valueAsRatio === null || valueAsRatio === undefined || valueAsRatio === "") return null;
@@ -282,6 +280,9 @@ export function buildGoogleAdsApiPayload(params: {
   adRows: GoogleAdsApiRow[];
   adAssetRows: GoogleAdsApiRow[];
   pmaxAssetRows: GoogleAdsApiRow[];
+  accountBudgetRows?: GoogleAdsApiRow[];
+  financialError?: string | null;
+  currency?: string | null;
   warnings?: string[];
 }): GoogleAdsS4XPayload {
   const dailyPerformance = params.dailyRows.map(normalizeDailyPerformance);
@@ -299,6 +300,15 @@ export function buildGoogleAdsApiPayload(params: {
     ...params.pmaxAssetRows.map(normalizePmaxAsset),
   ];
   const now = new Date().toISOString();
+  const financialStatus = buildGoogleAdsFinancialStatus({
+    rows: params.accountBudgetRows?.map((row) => row.accountBudget || row) || [],
+    currency: params.currency,
+    updatedAt: now,
+    averageDailySpend: calculateAverageDailySpend(dailyPerformance),
+    error: params.financialError,
+    accountId: params.customerId,
+    accountName: params.customerName,
+  });
   return {
     meta: {
       accountName: params.customerName, accountId: params.customerId, dateStart: params.dateStart, dateEnd: params.dateEnd,
@@ -312,6 +322,7 @@ export function buildGoogleAdsApiPayload(params: {
     },
     summary: MetricsHelper.calculateSummary(dailyPerformance),
     dailyPerformance, campaigns, adGroups, keywords, searchTerms, negativeKeywords, adsAndAssets,
+    financialStatus,
     diagnostics: {
       templateValidation: { isValid: true, source: "google_ads_api" },
       schemaValidation: { isValid: true, apiVersion: params.apiVersion }, warnings: params.warnings || [], errors: [],

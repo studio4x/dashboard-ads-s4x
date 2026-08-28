@@ -19,6 +19,7 @@ type ReportData = {
     generated?: boolean;
     text?: string | null;
   };
+  financialStatuses?: Array<Record<string, unknown>>;
 };
 
 async function ensurePdfBucket() {
@@ -277,6 +278,50 @@ function renderAiBlock(text: string | null | undefined) {
   `;
 }
 
+function pdfMoney(value: unknown, currency: unknown) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return null;
+  try {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: String(currency || "BRL") }).format(amount);
+  } catch {
+    return amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+  }
+}
+
+function renderFinancialStatuses(statuses: Array<Record<string, unknown>> | undefined) {
+  if (!statuses?.length) return "";
+  const cards = statuses.map((status) => {
+    const provider = status.provider === "google_ads" ? "Google Ads" : "Meta Ads";
+    const isGoogle = status.provider === "google_ads";
+    const kind = String(status.status || "not_available");
+    const mainValue = status.availableAmount ?? status.remainingUntilLimit ?? status.accountBudgetRemaining ?? status.outstandingBalance ?? null;
+    const label = status.availableAmount !== null && status.availableAmount !== undefined
+      ? String(status.availableAmountLabel || "Saldo pré-pago disponível")
+      : status.remainingUntilLimit !== null && status.remainingUntilLimit !== undefined
+        ? (isGoogle ? "Orçamento de conta restante" : "Disponível até o limite")
+        : status.outstandingBalance !== null && status.outstandingBalance !== undefined
+          ? String(status.outstandingBalanceLabel || "Valor de faturamento")
+          : kind === "unlimited"
+            ? "Sem limite de orçamento de conta definido"
+            : kind === "error"
+              ? "Informação financeira temporariamente indisponível"
+              : isGoogle
+                ? "Saldo financeiro não disponibilizado pela Google Ads API para este modelo de faturamento"
+                : "Informação financeira não disponibilizada de forma conclusiva pela Meta API";
+    const details = [
+      status.accountBudgetLimit !== null && status.accountBudgetLimit !== undefined ? `Limite: ${pdfMoney(status.accountBudgetLimit, status.currency)}` : null,
+      status.accountBudgetConsumed !== null && status.accountBudgetConsumed !== undefined ? `Consumido: ${pdfMoney(status.accountBudgetConsumed, status.currency)}` : null,
+      !isGoogle && status.spendingLimit !== null && status.spendingLimit !== undefined ? `Limite: ${pdfMoney(status.spendingLimit, status.currency)}` : null,
+      !isGoogle && status.amountSpent !== null && status.amountSpent !== undefined ? `Gasto acumulado: ${pdfMoney(status.amountSpent, status.currency)}` : null,
+      !isGoogle && status.outstandingBalance !== null && status.outstandingBalance !== undefined ? `${status.outstandingBalanceLabel || "Valor de faturamento"}: ${pdfMoney(status.outstandingBalance, status.currency)}` : null,
+      status.estimatedDaysRemaining !== null && status.estimatedDaysRemaining !== undefined ? `Cobertura estimada: ${status.estimatedDaysRemaining} dias` : null,
+    ].filter(Boolean).join(" · ");
+    const updated = status.updatedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(String(status.updatedAt))) : "Data de atualização não informada";
+    return `<div class="financial-card"><div class="financial-provider">${escapeHtml(provider)}${status.accountName ? ` · ${escapeHtml(status.accountName)}` : ""}</div><div class="financial-label">${escapeHtml(label)}</div>${mainValue !== null ? `<div class="financial-value">${escapeHtml(pdfMoney(mainValue, status.currency) || "")}</div>` : ""}${details ? `<div class="financial-details">${escapeHtml(details)}</div>` : ""}<div class="financial-updated">${escapeHtml(updated)}</div></div>`;
+  }).join("");
+  return `<section class="financial-shell"><div class="financial-heading"><h3>Orçamento e informações financeiras</h3><p>Conceitos separados por plataforma; valores não são somados.</p></div><div class="financial-grid">${cards}</div></section>`;
+}
+
 function buildTextLogoDataUri(label: string, fontSize = 20) {
   const safeLabel = escapeHtml(label || "Studio 4x");
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="64" viewBox="0 0 320 64"><text x="160" y="40" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="700">${safeLabel}</text></svg>`;
@@ -442,6 +487,22 @@ function buildPdfHtml(params: {
             padding: 12px;
             box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
           }
+          .financial-shell {
+            background: white;
+            border: 1px solid #d8e3f2;
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 10px;
+          }
+          .financial-heading { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 8px; }
+          .financial-heading h3 { margin: 0; font-size: 14px; }
+          .financial-heading p { margin: 0; color: #64748b; font-size: 10px; }
+          .financial-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+          .financial-card { border: 1px solid #dbe4f0; border-radius: 10px; padding: 9px; break-inside: avoid; }
+          .financial-provider { color: #2563eb; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+          .financial-label { color: #334155; font-size: 10px; font-weight: 700; margin-top: 5px; }
+          .financial-value { color: #0f172a; font-size: 16px; font-weight: 800; margin-top: 2px; }
+          .financial-details, .financial-updated { color: #64748b; font-size: 9px; margin-top: 4px; }
           .analysis-header {
             display: flex;
             justify-content: space-between;
@@ -547,6 +608,7 @@ function buildPdfHtml(params: {
             <div class="brand-logo studio-logo"><img src="${escapeHtml(studioLogoToUse)}" alt="Logo Studio 4x" /></div>
           </section>
 
+          ${renderFinancialStatuses(params.report.financialStatuses)}
           ${renderAiBlock(aiText)}
           <footer class="pdf-footer">PDF gerado em ${escapeHtml(generatedAtLabel)}</footer>
         </div>

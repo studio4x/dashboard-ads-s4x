@@ -331,6 +331,7 @@ function buildDashboardTextForPrompt(report: any) {
   const anterior = report?.comparativo?.anterior || {};
   const variacao = report?.comparativo?.variacaoPercentual || {};
   const camp = report?.totaisNumericos?.campaigns || {};
+  const financialStatuses = Array.isArray(report?.financialStatuses) ? report.financialStatuses : [];
 
   const lines = [
     `Impressões | Semana atual: ${formatNumber(atual.impressoes)} | Semana anterior: ${formatNumber(anterior.impressoes)} | Variação: ${formatPercent(variacao.impressoes)}`,
@@ -343,6 +344,14 @@ function buildDashboardTextForPrompt(report: any) {
     `Impressões na Parte Superior | Semana atual: ${formatPercent(Number(camp.searchImpressionShare) * 100)} | Semana anterior: Não disponível | Variação: Não disponível`,
     `Impressões na 1ª Posição | Semana atual: ${formatPercent(Number(camp.searchRankLostImpressionShare) * 100)} | Semana anterior: Não disponível | Variação: Não disponível`,
     `Valor Total Investido | Semana atual: ${formatCurrency(atual.investimento)} | Semana anterior: ${formatCurrency(anterior.investimento)} | Variação: ${formatPercent(variacao.investimento)}`,
+    ...financialStatuses.map((status: any) => {
+      const provider = status.provider === "google_ads" ? "Google Ads" : "Meta Ads";
+      const label = status.availableAmountLabel || (status.remainingUntilLimit !== null && status.remainingUntilLimit !== undefined
+        ? (provider === "Google Ads" ? "Orçamento de conta restante" : "Disponível até o limite")
+        : status.outstandingBalanceLabel || "Informação financeira");
+      const value = status.availableAmount ?? status.remainingUntilLimit ?? status.accountBudgetRemaining ?? status.outstandingBalance;
+      return `${provider} | ${label}: ${value === null || value === undefined ? "Não disponível" : formatCurrency(value)} | status: ${status.status} | Não interpretar como saldo universal; usar somente a semântica e a fonte informadas.`;
+    }),
   ];
 
   return lines.join("\n");
@@ -369,6 +378,7 @@ async function generateAiInterpretation(params: {
     funil: params.report?.funil || {},
     topItems: params.report?.topItems || {},
     insights: Array.isArray(params.report?.insights) ? params.report.insights.slice(0, 5) : [],
+    financialStatuses: params.report?.financialStatuses || [],
   };
   const dashboardText = buildDashboardTextForPrompt({
     ...params.report,
@@ -680,6 +690,10 @@ function getReportMetrics(data: any) {
   const keywordRows = Array.isArray(data?.keywords) ? data.keywords : [];
   const searchTermRows = Array.isArray(data?.searchTerms) ? data.searchTerms : [];
   const adAssetRows = Array.isArray(data?.adsAndAssets) ? data.adsAndAssets : [];
+  const financialStatuses = [
+    data?.googleFinancialStatus || data?.googlePayload?.financialStatus || (data?.financialStatus?.provider === "google_ads" ? data.financialStatus : null),
+    ...(data?.metaFinancialStatuses || data?.metaPayload?.financialStatuses || (data?.metaPayload?.financialStatus ? [data.metaPayload.financialStatus] : []) || (data?.financialStatuses || [])),
+  ].filter(Boolean);
 
   const dailyAgg = aggregateNumericFields(dailyRows);
   const campaignAgg = aggregateNumericFields(campaignRows);
@@ -790,6 +804,7 @@ function getReportMetrics(data: any) {
       metaValidationStatus: data?.metaValidationStatus || "not_configured",
       metaValidationNotes: data?.metaValidationNotes || {},
     },
+    financialStatuses,
     funil: {
       impressões: kpisCurrent.impressoes,
       alcance: kpisCurrent.alcance,
