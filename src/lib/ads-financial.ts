@@ -35,6 +35,12 @@ export interface AdsFinancialStatus {
   alertStatus: AdsFinancialAlertStatus;
 }
 
+export interface ResolvedAdsFinancialStatuses {
+  googleStatus: AdsFinancialStatus | null;
+  metaStatuses: AdsFinancialStatus[];
+  allStatuses: AdsFinancialStatus[];
+}
+
 type FinancialBase = Pick<AdsFinancialStatus, "provider" | "currency" | "updatedAt"> & Partial<AdsFinancialStatus>;
 
 function finiteNumber(value: unknown): number | null {
@@ -54,6 +60,60 @@ function round(value: number | null, digits = 2) {
   if (value === null || !Number.isFinite(value)) return null;
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
+}
+
+function isAdsFinancialStatus(value: unknown): value is AdsFinancialStatus {
+  if (!value || typeof value !== "object") return false;
+  const provider = (value as Record<string, unknown>).provider;
+  return provider === "google_ads" || provider === "meta_ads";
+}
+
+/**
+ * Resolves the financial contract exposed by direct, integrated and legacy
+ * snapshots. Empty platform arrays must not suppress the generic top-level
+ * fallback, which is why candidates are accumulated instead of chained with ||.
+ */
+export function resolveAdsFinancialStatuses(payload: unknown): ResolvedAdsFinancialStatuses {
+  const source = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+  const googlePayload = source.googlePayload && typeof source.googlePayload === "object"
+    ? source.googlePayload as Record<string, unknown>
+    : {};
+  const metaPayload = source.metaPayload && typeof source.metaPayload === "object"
+    ? source.metaPayload as Record<string, unknown>
+    : {};
+  const statuses: AdsFinancialStatus[] = [];
+  const seen = new Set<string>();
+
+  const append = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(append);
+      return;
+    }
+    if (!isAdsFinancialStatus(value)) return;
+    const key = [
+      value.provider,
+      value.accountId || "",
+      value.accountName || "",
+    ].join("|");
+    if (seen.has(key)) return;
+    seen.add(key);
+    statuses.push(value);
+  };
+
+  append(source.googleFinancialStatus);
+  append(source.metaFinancialStatuses);
+  append(source.financialStatuses);
+  append(source.financialStatus);
+  append(googlePayload.financialStatus);
+  append(googlePayload.financialStatuses);
+  append(metaPayload.financialStatuses);
+  append(metaPayload.financialStatus);
+
+  return {
+    googleStatus: statuses.find((status) => status.provider === "google_ads") || null,
+    metaStatuses: statuses.filter((status) => status.provider === "meta_ads"),
+    allStatuses: statuses,
+  };
 }
 
 export function microsToCurrency(valueInMicros: unknown) {

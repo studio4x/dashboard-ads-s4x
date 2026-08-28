@@ -7,6 +7,7 @@ import {
   calculateEstimatedDaysRemaining,
   metaMoneyToCurrency,
   microsToCurrency,
+  resolveAdsFinancialStatuses,
 } from "../src/lib/ads-financial.ts";
 
 test("converte micros Google para unidade monetária", () => {
@@ -86,4 +87,42 @@ test("Meta pré-paga permite saldo disponível com confirmação explícita", ()
 test("Meta sem dados e erro parcial não quebram performance", () => {
   assert.equal(buildMetaAdsFinancialStatus({ account: { currency: "BRL" } }).status, "not_available");
   assert.equal(buildMetaAdsFinancialStatus({ error: "campo indisponível" }).status, "error");
+});
+
+test("resolve Meta direto pelo contrato genérico mesmo com fallback intermediário vazio", () => {
+  const metaStatus = buildMetaAdsFinancialStatus({
+    account: { account_id: "456", name: "Conta Meta", currency: "BRL", balance: "5951" },
+  });
+  const resolved = resolveAdsFinancialStatuses({
+    metaFinancialStatuses: [],
+    metaPayload: { financialStatuses: [] },
+    financialStatuses: [metaStatus],
+    financialStatus: metaStatus,
+  });
+
+  assert.equal(resolved.googleStatus, null);
+  assert.deepEqual(resolved.metaStatuses, [metaStatus]);
+  assert.deepEqual(resolved.allStatuses, [metaStatus]);
+});
+
+test("resolve e deduplica contratos Google, Meta e integrado", () => {
+  const googleStatus = buildGoogleAdsFinancialStatus({
+    accountId: "123",
+    accountName: "Conta Google",
+    rows: [{ adjustedSpendingLimitMicros: "10000000", amountServedMicros: "4000000" }],
+  });
+  const metaStatus = buildMetaAdsFinancialStatus({
+    account: { account_id: "456", name: "Conta Meta", currency: "BRL", balance: "120", is_prepay_account: true },
+  });
+  const resolved = resolveAdsFinancialStatuses({
+    googleFinancialStatus: googleStatus,
+    metaFinancialStatuses: [metaStatus],
+    financialStatuses: [googleStatus, metaStatus],
+    googlePayload: { financialStatus: googleStatus },
+    metaPayload: { financialStatuses: [metaStatus], financialStatus: metaStatus },
+  });
+
+  assert.equal(resolved.googleStatus, googleStatus);
+  assert.deepEqual(resolved.metaStatuses, [metaStatus]);
+  assert.deepEqual(resolved.allStatuses, [googleStatus, metaStatus]);
 });

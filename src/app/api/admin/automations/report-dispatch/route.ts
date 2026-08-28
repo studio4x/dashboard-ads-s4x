@@ -9,6 +9,7 @@ import { BrandingService } from "@/services/branding-service";
 import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
 import { PROMPT_ANALISE_IA_TEMPLATE } from "@/lib/ai/prompt-analise-ia";
 import { createShareLinkToken } from "@/lib/share-link-token";
+import { resolveAdsFinancialStatuses } from "@/lib/ads-financial";
 import {
   buildPdfPeriodPart,
   buildSharePdfFilename,
@@ -690,10 +691,7 @@ function getReportMetrics(data: any) {
   const keywordRows = Array.isArray(data?.keywords) ? data.keywords : [];
   const searchTermRows = Array.isArray(data?.searchTerms) ? data.searchTerms : [];
   const adAssetRows = Array.isArray(data?.adsAndAssets) ? data.adsAndAssets : [];
-  const financialStatuses = [
-    data?.googleFinancialStatus || data?.googlePayload?.financialStatus || (data?.financialStatus?.provider === "google_ads" ? data.financialStatus : null),
-    ...(data?.metaFinancialStatuses || data?.metaPayload?.financialStatuses || (data?.metaPayload?.financialStatus ? [data.metaPayload.financialStatus] : []) || (data?.financialStatuses || [])),
-  ].filter(Boolean);
+  const { allStatuses: financialStatuses } = resolveAdsFinancialStatuses(data);
 
   const dailyAgg = aggregateNumericFields(dailyRows);
   const campaignAgg = aggregateNumericFields(campaignRows);
