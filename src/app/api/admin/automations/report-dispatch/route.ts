@@ -8,6 +8,7 @@ import { DashboardService } from "@/services/dashboard-service";
 import { BrandingService } from "@/services/branding-service";
 import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
 import { PROMPT_ANALISE_IA_TEMPLATE } from "@/lib/ai/prompt-analise-ia";
+import { createShareLinkToken } from "@/lib/share-link-token";
 import {
   buildPdfPeriodPart,
   buildSharePdfFilename,
@@ -917,6 +918,9 @@ async function ensureShareUrl(params: {
   }
 
   const { data, error } = await query.order("created_at", { ascending: false }).limit(1);
+  if (error) {
+    throw new Error(`Falha ao buscar link de compartilhamento: ${error.message}`);
+  }
   if (!error && data && data.length > 0) {
     const link = data[0];
     const isExpired = link.expires_at && new Date(link.expires_at) < new Date();
@@ -933,6 +937,10 @@ async function ensureShareUrl(params: {
     .order("created_at", { ascending: false })
     .limit(1);
 
+  if (fallback.error) {
+    throw new Error(`Falha ao buscar link de compartilhamento: ${fallback.error.message}`);
+  }
+
   if (!fallback.error && fallback.data && fallback.data.length > 0) {
     const link = fallback.data[0];
     const isExpired = link.expires_at && new Date(link.expires_at) < new Date();
@@ -944,6 +952,7 @@ async function ensureShareUrl(params: {
   const clientName = sanitizeShareNamePart(params.clientName);
   const dashboardName = sanitizeShareNamePart(params.dashboardName);
   const autoName = `Auto | ${clientName} | ${dashboardName}`;
+  const { tokenHash } = createShareLinkToken();
 
   const { data: createdLink, error: createError } = await supabase
     .from("dashboard_share_links")
@@ -951,6 +960,7 @@ async function ensureShareUrl(params: {
       {
         dashboard_id: params.dashboardId,
         client_id: params.clientId,
+        token_hash: tokenHash,
         name: autoName,
         status: "active",
         expires_at: null,
@@ -960,7 +970,7 @@ async function ensureShareUrl(params: {
     .single();
 
   if (createError || !createdLink?.id) {
-    return null;
+    throw new Error(`Falha ao criar link automático para o PDF: ${createError?.message || "link não retornado"}`);
   }
 
   return `${params.origin}/share/${createdLink.id}`;
@@ -1011,6 +1021,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const reportMode = normalizeReportMode(body.reportMode || dashboard.automation_report_mode);
+    const includePdf = reportMode === "pdf_only" || reportMode === "analysis_pdf" || reportMode === "both_pdf";
+    const analysisRequested = reportMode !== "metrics_only";
+    if (!body.dryRun && analysisRequested) {
+      analysisGenerationInProgress = true;
+      await updateAnalysisGenerationStatus(dashboardId, "generating", "Gerando nova analise de IA...");
+    }
+
     const origin = new URL(request.url).origin;
     const shareUrl = await ensureShareUrl({
       dashboardId,
@@ -1025,16 +1043,9 @@ export async function POST(request: Request) {
 
     const channels = normalizeChannels(body.channels);
 
-    const reportMode = normalizeReportMode(body.reportMode || dashboard.automation_report_mode);
-    const includePdf = reportMode === "pdf_only" || reportMode === "analysis_pdf" || reportMode === "both_pdf";
     const report = getReportMetrics(data);
-    const analysisRequested = reportMode !== "metrics_only";
     const isScheduledDispatch = body.source === "scheduled";
     let analysisFallbackUsed = false;
-    if (!body.dryRun && analysisRequested) {
-      analysisGenerationInProgress = true;
-      await updateAnalysisGenerationStatus(dashboardId, "generating", "Gerando nova analise de IA...");
-    }
     const aiInterpretation = reportMode !== "metrics_only" || includePdf
       ? await generateAiInterpretation({
           report,

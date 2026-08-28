@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import crypto from 'crypto'
+import { createHash } from 'node:crypto'
+import { createShareLinkToken } from '@/lib/share-link-token'
 
 export const ShareService = {
   /**
@@ -18,9 +19,7 @@ export const ShareService = {
     if (dbError || !dashboard) throw new Error("Dashboard não encontrado")
 
     // Gerar token forte (64 chars)
-    const rawToken = crypto.randomBytes(32).toString('hex')
-    // Gerar hash para o banco (SHA-256)
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+    const { rawToken, tokenHash } = createShareLinkToken()
 
     // Pega o ID do criador
     const { data: { session } } = await supabase.auth.getSession()
@@ -66,7 +65,7 @@ export const ShareService = {
       link = byId.data
       error = byId.error
     } else {
-      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+      const tokenHash = createHash('sha256').update(rawToken).digest('hex')
       const byHash = await supabase
         .from('dashboard_share_links')
         .select('*, dashboards(id, name, slug, clients(id, name, logo_url, logo_settings))')

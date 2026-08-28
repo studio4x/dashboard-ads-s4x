@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit } from "@/lib/security/request-guards";
 import { apiErrorResponse } from "@/lib/security/api-safety";
 import { getLatestSharePdf } from "@/lib/share-pdf";
+import { findAvailableAnalysisPdf, getUsableAnalysisPdfLinks } from "@/lib/analysis-pdf-lookup";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -52,17 +53,15 @@ export async function GET(request: Request, context: RouteParams) {
 
     if (linksError) throw linksError;
 
-    const activeLink = (links || []).find(
-      (link: { expires_at?: string | null }) => !link.expires_at || new Date(link.expires_at) >= new Date()
-    );
-    if (!activeLink) {
+    const activeLinks = getUsableAnalysisPdfLinks(links || []);
+    if (activeLinks.length === 0) {
       return NextResponse.json(
         { success: false, error: "Nenhum link ativo foi encontrado para o PDF da análise." },
         { status: 404 }
       );
     }
 
-    const result = await getLatestSharePdf(String(activeLink.id));
+    const result = await findAvailableAnalysisPdf(activeLinks, getLatestSharePdf);
     if (!result) {
       return NextResponse.json(
         { success: false, error: "O PDF da análise ainda não foi encontrado no armazenamento." },
