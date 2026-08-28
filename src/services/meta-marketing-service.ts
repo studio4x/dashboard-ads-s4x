@@ -216,7 +216,7 @@ export const MetaMarketingService = {
     const supabase = await createAdminClient({ actor: "system", action: "sync_meta_source" });
     const { data: source, error: sourceError } = await supabase
       .from("data_sources")
-      .select("id,client_id,dashboard_id,name,status,sync_interval,dashboards(id,dashboard_type,meta_objectives,meta_primary_objective),meta_ad_sources(*,meta_ad_source_accounts(*),meta_business_connections(id,status))")
+      .select("id,client_id,dashboard_id,name,status,sync_interval,dashboards(id,dashboard_type,meta_objectives,meta_primary_objective,metrics_source_id),meta_ad_sources(*,meta_ad_source_accounts(*),meta_business_connections(id,status))")
       .eq("id", sourceId)
       .eq("type", "meta_ads")
       .maybeSingle();
@@ -300,6 +300,13 @@ export const MetaMarketingService = {
         meta_validation_notes: payload.metaValidationNotes || {},
         meta_validation_updated_at: finishedAt,
       });
+      if (!dashboard.metrics_source_id) {
+        await supabase
+          .from("dashboards")
+          .update({ metrics_source_id: source.id })
+          .eq("id", source.dashboard_id)
+          .is("metrics_source_id", null);
+      }
       await DataSourceService.saveImportLog({
         id: logId,
         client_id: source.client_id,

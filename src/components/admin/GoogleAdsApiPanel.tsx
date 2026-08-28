@@ -92,7 +92,17 @@ export function GoogleAdsApiPanel() {
   }, [loadAll]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const status = new URLSearchParams(window.location.search).get("connection");
+      const searchParams = new URLSearchParams(window.location.search);
+      const status = searchParams.get("connection");
+      const clientId = searchParams.get("clientId") || "";
+      const dashboardId = searchParams.get("dashboardId") || "";
+      if (clientId || dashboardId) {
+        setSourceForm((current) => ({
+          ...current,
+          clientId: clientId || current.clientId,
+          dashboardId: dashboardId || current.dashboardId,
+        }));
+      }
       if (status === "success") setNotice({ type: "ok", text: "Conta Google conectada. Agora liste as contas Google Ads acessíveis." });
       else if (status) setNotice({ type: "error", text: status === "denied" ? "A autorização foi cancelada no Google." : "Não foi possível concluir a autorização Google. Revise a configuração e tente novamente." });
     }, 0);

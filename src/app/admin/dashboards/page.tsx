@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, Link2, RefreshCw, Database, Trash2, Pencil, Copy, Send, Download, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, RefreshCw, Database, Trash2, Pencil, Copy, Send, Download, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff } from "lucide-react";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 import { useToast } from "@/components/ui/Toast";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
+import { DashboardSourceModal } from "@/components/admin/DashboardSourceModal";
 import { DateRangeSelector } from "@/components/dashboard/DateRangeSelector";
 import { DateRangePreset, formatDateISO, getDateRangePreset } from "@/lib/dashboard/date-utils";
 import { resolveAutomationPeriodDays, resolveAutomationPeriodPresetFromDays, normalizeAutomationPeriodPreset, formatAutomationPeriodSummary } from "@/lib/dashboard/automation-period";
@@ -103,6 +104,7 @@ export default function AdminDashboardsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shareModalDashboard, setShareModalDashboard] = useState<any | null>(null);
+  const [sourceModalDashboard, setSourceModalDashboard] = useState<any | null>(null);
   const [editModalDashboard, setEditModalDashboard] = useState<any | null>(null);
   const [editName, setEditName] = useState("");
   const [isUpdatingName, setIsUpdatingName] = useState(false);
@@ -266,12 +268,25 @@ export default function AdminDashboardsPage() {
         throw new Error(result?.error || "Não foi possível trocar a fonte de métricas.");
       }
       setDashboards((prev) => prev.map((item) => item.id === dashboard.id ? { ...item, metrics_source_id: sourceId } : item));
+      setSourceModalDashboard(null);
       toast("Fonte de métricas atualizada.");
     } catch (error: any) {
       toast(error instanceof Error ? error.message : "Não foi possível trocar a fonte de métricas.");
     } finally {
       setSavingMetricsSourceByDashboardId((prev) => ({ ...prev, [dashboard.id]: false }));
     }
+  };
+
+  const handleOpenSourceModal = (dashboard: any) => {
+    const connectedSources = getDashboardConnectedSources(dashboard.id);
+    const currentSourceId = connectedSources.some((source: any) => source.id === dashboard.metrics_source_id)
+      ? String(dashboard.metrics_source_id)
+      : "";
+    setSelectedMetricsSourceByDashboardId((prev) => ({
+      ...prev,
+      [dashboard.id]: currentSourceId || connectedSources[0]?.id || "",
+    }));
+    setSourceModalDashboard(dashboard);
   };
 
   const inferSourceRole = (source: any): "google_ads" | "meta_ads" | null => {
@@ -450,6 +465,8 @@ export default function AdminDashboardsPage() {
         return params.existingSource || result.source;
       };
 
+      const sheetSources = dashSources.filter((source: any) => source.type === "google_sheets");
+
       if (integrationModalDashboard.dashboard_type === "google_meta_ads_s4x") {
         if (
           !integrationForm.googleAdsSpreadsheetId.trim()
@@ -461,8 +478,8 @@ export default function AdminDashboardsPage() {
           return;
         }
 
-        const existingGoogleSource = dashSources.find((s: any) => getSourceRole(s) === "google_ads");
-        const existingMetaSource = dashSources.find((s: any) => getSourceRole(s) === "meta_ads");
+        const existingGoogleSource = sheetSources.find((s: any) => getSourceRole(s) === "google_ads");
+        const existingMetaSource = sheetSources.find((s: any) => getSourceRole(s) === "meta_ads");
 
         const savedGoogleSource = await saveOrUpdateSource({
           existingSource: existingGoogleSource,
@@ -484,13 +501,24 @@ export default function AdminDashboardsPage() {
           toast("Preencha nome e ID da planilha.");
           return;
         }
-        const existingSource = dashSources[0];
+        const existingSource = sheetSources[0];
         const savedSource = await saveOrUpdateSource({
           existingSource,
           name: integrationForm.name.trim(),
           spreadsheetId: integrationForm.spreadsheetId.trim(),
         });
         await syncSavedSource(savedSource, integrationForm.spreadsheetId.trim());
+        if (!integrationModalDashboard.metrics_source_id) {
+          const selectResponse = await fetch(`/api/admin/dashboards/${integrationModalDashboard.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ metrics_source_id: savedSource.id }),
+          });
+          const selectResult = await selectResponse.json();
+          if (!selectResponse.ok || !selectResult.success) {
+            throw new Error(selectResult?.error || "A fonte foi sincronizada, mas não pôde ser selecionada para o dashboard.");
+          }
+        }
       }
 
       toast("Integração salva e sincronizada com sucesso!");
@@ -1050,10 +1078,8 @@ export default function AdminDashboardsPage() {
               <div style={{ width: "100%" }}>
                 {(() => {
                   const connectedSources = getDashboardConnectedSources(d.id);
-                  const defaultSourceId = String(d.metrics_source_id || connectedSources[0]?.id || "");
-                  const selectedSourceId = selectedMetricsSourceByDashboardId[d.id] || defaultSourceId;
-                  const currentSource = connectedSources.find((source: any) => source.id === d.metrics_source_id) || connectedSources[0];
-                  if (connectedSources.length > 0) {
+                  const currentSource = connectedSources.find((source: any) => source.id === d.metrics_source_id);
+                  if (currentSource) {
                     return (
                       <div 
                         style={{ 
@@ -1077,11 +1103,12 @@ export default function AdminDashboardsPage() {
                           </span>
                         </div>
                         <span style={{ fontSize: 11, color: "#166534", fontWeight: 600, flexShrink: 0 }}>
-                          Atual: {currentSource?.name || "Nenhuma"}
+                          Atual: {currentSource.name} · {getSourceTypeLabel(currentSource)}
                         </span>
                       </div>
                     );
                   }
+                  const hasAvailableSources = connectedSources.length > 0;
                   return (
                     <div 
                       style={{ 
@@ -1098,64 +1125,15 @@ export default function AdminDashboardsPage() {
                       }}
                     >
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }}></span>
-                      <span>Sem fonte conectada. Configure uma fonte para alimentar este dashboard.</span>
+                      <span>
+                        {hasAvailableSources
+                          ? `${connectedSources.length} ${connectedSources.length > 1 ? "fontes disponíveis" : "fonte disponível"}. Clique em Conectar fonte para escolher.`
+                          : "Sem fonte conectada. Clique em Conectar fonte para escolher e configurar uma fonte."}
+                      </span>
                     </div>
                   );
                 })()}
               </div>
-
-              {(() => {
-                const connectedSources = getDashboardConnectedSources(d.id);
-                if (connectedSources.length === 0) return null;
-                const defaultSourceId = String(d.metrics_source_id || connectedSources[0]?.id || "");
-                const selectedSourceId = selectedMetricsSourceByDashboardId[d.id] || defaultSourceId;
-                const selectedSource = connectedSources.find((source: any) => source.id === selectedSourceId) || connectedSources[0];
-                const selectedSheetId = selectedSource?.type === "google_sheets"
-                  ? selectedSource?.google_sheet_sources?.spreadsheet_id
-                  : null;
-
-                return (
-                  <div style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #BFDBFE", background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                      <Database size={15} color="#2563EB" />
-                      <span style={{ fontSize: 12, color: "#1E3A8A", fontWeight: 700 }}>Fonte das métricas</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <select
-                        value={selectedSourceId}
-                        onChange={(event) => setSelectedMetricsSourceByDashboardId((prev) => ({ ...prev, [d.id]: event.target.value }))}
-                        aria-label={`Fonte das métricas do dashboard ${d.name}`}
-                        style={{ minWidth: 240, maxWidth: 360, padding: "7px 10px", borderRadius: 6, border: "1px solid #BFDBFE", background: "#FFFFFF", color: "#1E3A8A", fontSize: 12 }}
-                      >
-                        {connectedSources.map((source: any) => (
-                          <option key={source.id} value={source.id}>
-                            {source.name} · {getSourceTypeLabel(source)}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => handleSaveMetricsSource(d)}
-                        disabled={Boolean(savingMetricsSourceByDashboardId[d.id]) || selectedSourceId === String(d.metrics_source_id || defaultSourceId)}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #93C5FD", background: "#DBEAFE", color: "#1D4ED8", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: savingMetricsSourceByDashboardId[d.id] ? 0.7 : 1 }}
-                      >
-                        {savingMetricsSourceByDashboardId[d.id] ? <Loader2 className="animate-spin" size={13} /> : <Save size={13} />}
-                        Usar fonte
-                      </button>
-                      {selectedSheetId ? (
-                        <a
-                          href={`https://docs.google.com/spreadsheets/d/${selectedSheetId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ fontSize: 11, color: "#1D4ED8", fontWeight: 600, textDecoration: "underline" }}
-                        >
-                          Ver Sheets ↗
-                        </a>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })()}
 
               {(d.dashboard_type === META_TEMPLATE_ID || d.dashboard_type === INTEGRATED_TEMPLATE_ID) && (() => {
                 const source = sources.find((s: any) => s.dashboard_id === d.id);
@@ -1531,17 +1509,23 @@ export default function AdminDashboardsPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 4, width: "100%", flexWrap: "wrap" }}>
                 {/* Secondary/Admin Actions */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button 
-                    onClick={() => handleOpenIntegration(d)}
-                    style={{ 
-                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", 
-                      borderRadius: 8, background: "#FFF7ED", fontSize: 13, color: "#EA580C", 
-                      border: "1px solid #FFEDD5", cursor: "pointer", fontWeight: 600,
-                      transition: "all 0.2s"
-                    }}
-                  >
-                    <Link2 size={14} /> Configurar Planilha
-                  </button>
+                  {(() => {
+                    const hasCurrentSource = getDashboardConnectedSources(d.id).some((source: any) => source.id === d.metrics_source_id);
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenSourceModal(d)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+                          borderRadius: 8, background: "#FFF7ED", fontSize: 13, color: "#EA580C",
+                          border: "1px solid #FFEDD5", cursor: "pointer", fontWeight: 600,
+                          transition: "all 0.2s"
+                        }}
+                      >
+                        <Database size={14} /> {hasCurrentSource ? "Editar fonte" : "Conectar fonte"}
+                      </button>
+                    );
+                  })()}
 
                   <button 
                     onClick={() => setShareModalDashboard(d)}
@@ -2098,6 +2082,23 @@ export default function AdminDashboardsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {sourceModalDashboard && (
+        <DashboardSourceModal
+          dashboard={sourceModalDashboard}
+          sources={getDashboardConnectedSources(sourceModalDashboard.id)}
+          selectedSourceId={selectedMetricsSourceByDashboardId[sourceModalDashboard.id] || ""}
+          saving={Boolean(savingMetricsSourceByDashboardId[sourceModalDashboard.id])}
+          onSelect={(sourceId) => setSelectedMetricsSourceByDashboardId((prev) => ({ ...prev, [sourceModalDashboard.id]: sourceId }))}
+          onConfirm={() => handleSaveMetricsSource(sourceModalDashboard)}
+          onConfigureGoogleSheets={() => {
+            const dashboard = sourceModalDashboard;
+            setSourceModalDashboard(null);
+            handleOpenIntegration(dashboard);
+          }}
+          onClose={() => setSourceModalDashboard(null)}
+        />
       )}
 
       {/* Modal Integração Google Sheets */}
