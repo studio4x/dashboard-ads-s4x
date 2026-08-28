@@ -45,6 +45,8 @@ export interface MetaAdsS4XDailyPerformance {
   accountName?: string | null;
   campaignId?: string | null;
   campaignName: string;
+  campaignStatus?: string | null;
+  campaignEffectiveStatus?: string | null;
   adSetId?: string | null;
   adSetName: string;
   adId?: string | null;

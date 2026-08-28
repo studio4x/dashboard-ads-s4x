@@ -77,3 +77,10 @@ export interface MetaInsightRow {
   action_values?: MetaInsightAction[];
   purchase_roas?: MetaInsightAction[];
 }
+
+export interface MetaCampaignAsset {
+  id: string;
+  name?: string;
+  status?: string;
+  effective_status?: string;
+}

@@ -8,7 +8,7 @@ import { getMetaMarketingSettings, requireMetaAppSecret, resolveMetaApiVersion }
 import { readMetaAccessToken } from "@/lib/meta-marketing/token-vault";
 import { buildMetaAdsApiPayload, mergeMetaDailyRows, normalizeMetaInsightRow } from "@/lib/meta-marketing/normalizer";
 import { buildIntegratedAdsPayload } from "@/lib/dashboard/integrated-payload";
-import type { MetaAdAccountAsset, MetaInsightRow } from "@/types/meta-marketing";
+import type { MetaAdAccountAsset, MetaCampaignAsset, MetaInsightRow } from "@/types/meta-marketing";
 
 const INSIGHT_FIELDS = [
   "date_start", "date_stop", "account_id", "account_name", "campaign_id", "campaign_name",
@@ -78,6 +78,26 @@ async function fetchInsights(
   }
 
   return allRows;
+}
+
+async function fetchCampaigns(client: MetaGraphClient, accountId: string) {
+  return client.getAll<MetaCampaignAsset>(`act_${accountId}/campaigns`, {
+    fields: "id,name,status,effective_status",
+    limit: 500,
+  }, 100);
+}
+
+function enrichRowsWithCampaignStatuses(rows: any[], campaigns: MetaCampaignAsset[]) {
+  const byId = new Map(campaigns.map((campaign) => [String(campaign.id), campaign]));
+  return rows.map((row) => {
+    const campaign = byId.get(String(row?.campaignId || ""));
+    if (!campaign) return row;
+    return {
+      ...row,
+      campaignStatus: campaign.status || row.campaignStatus || null,
+      campaignEffectiveStatus: campaign.effective_status || campaign.status || row.campaignEffectiveStatus || null,
+    };
+  });
 }
 
 export const MetaMarketingService = {
@@ -249,16 +269,30 @@ export const MetaMarketingService = {
       const lookbackDays = Number(config.lookback_days || settings.default_lookback_days);
       const replaceFrom = daysAgo(previousMetaPayload?.dailyPerformance?.length ? lookbackDays - 1 : historyDays - 1);
       const dateEnd = isoDate(new Date());
+      const campaignStatusWarnings: string[] = [];
 
-      const insightGroups = await Promise.all(accounts.map((account: any) => fetchInsights(
-        client,
-        String(account.ad_account_id),
-        replaceFrom,
-        dateEnd,
-        Array.isArray(config.attribution_windows) ? config.attribution_windows : ["7d_click", "1d_view"],
-      )));
+      const [insightGroups, campaignGroups] = await Promise.all([
+        Promise.all(accounts.map((account: any) => fetchInsights(
+          client,
+          String(account.ad_account_id),
+          replaceFrom,
+          dateEnd,
+          Array.isArray(config.attribution_windows) ? config.attribution_windows : ["7d_click", "1d_view"],
+        ))),
+        Promise.all(accounts.map(async (account: any) => {
+          try {
+            return await fetchCampaigns(client, String(account.ad_account_id));
+          } catch (error) {
+            campaignStatusWarnings.push(`Status das campanhas da conta ${account.ad_account_name || account.ad_account_id} indisponível: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+            return [];
+          }
+        })),
+      ]);
       const importedRows = insightGroups.flat().map(normalizeMetaInsightRow);
-      const rows = mergeMetaDailyRows(previousMetaPayload?.dailyPerformance || [], importedRows, replaceFrom);
+      const rows = enrichRowsWithCampaignStatuses(
+        mergeMetaDailyRows(previousMetaPayload?.dailyPerformance || [], importedRows, replaceFrom),
+        campaignGroups.flat(),
+      );
       const payload = buildMetaAdsApiPayload({
         rows,
         accountNames: accounts.map((account: any) => String(account.ad_account_name)),
@@ -268,6 +302,7 @@ export const MetaMarketingService = {
         objectives: Array.isArray(dashboard.meta_objectives) ? dashboard.meta_objectives : [],
         primaryObjective: dashboard.meta_primary_objective || null,
         apiVersion,
+        warnings: campaignStatusWarnings,
       });
       const snapshotPayload = dashboard.dashboard_type === "google_meta_ads_s4x"
         ? buildIntegratedAdsPayload({

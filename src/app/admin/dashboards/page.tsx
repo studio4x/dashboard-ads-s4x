@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, RefreshCw, Database, Trash2, Pencil, Copy, Send, Download, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, RefreshCw, Database, Trash2, Pencil, Copy, Send, Download, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff, Filter } from "lucide-react";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 import { useToast } from "@/components/ui/Toast";
 
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
 import { DashboardSourceModal } from "@/components/admin/DashboardSourceModal";
+import { DashboardMetricFiltersModal } from "@/components/admin/DashboardMetricFiltersModal";
 import { DateRangeSelector } from "@/components/dashboard/DateRangeSelector";
 import { DateRangePreset, formatDateISO, getDateRangePreset } from "@/lib/dashboard/date-utils";
 import { resolveAutomationPeriodDays, resolveAutomationPeriodPresetFromDays, normalizeAutomationPeriodPreset, formatAutomationPeriodSummary } from "@/lib/dashboard/automation-period";
@@ -105,6 +106,7 @@ export default function AdminDashboardsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shareModalDashboard, setShareModalDashboard] = useState<any | null>(null);
   const [sourceModalDashboard, setSourceModalDashboard] = useState<any | null>(null);
+  const [metricFiltersModalDashboard, setMetricFiltersModalDashboard] = useState<any | null>(null);
   const [editModalDashboard, setEditModalDashboard] = useState<any | null>(null);
   const [editName, setEditName] = useState("");
   const [isUpdatingName, setIsUpdatingName] = useState(false);
@@ -1538,6 +1540,25 @@ export default function AdminDashboardsPage() {
                     );
                   })()}
 
+                  <button
+                    type="button"
+                    onClick={() => setMetricFiltersModalDashboard(d)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+                      borderRadius: 8, background: "#EEF2FF", fontSize: 13, color: "#4F46E5",
+                      border: "1px solid #C7D2FE", cursor: "pointer", fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                    title="Definir quais campanhas entram nas métricas e relatórios"
+                  >
+                    <Filter size={14} /> Filtros de métricas
+                    {(() => {
+                      const value = d.metrics_filters || {};
+                      const count = (value.campaignNames?.length || 0) + (value.campaignStatuses?.length || 0) + (value.platforms?.length || 0);
+                      return count > 0 ? <span style={{ minWidth: 19, height: 19, padding: "0 5px", borderRadius: 999, background: "#4F46E5", color: "#FFFFFF", display: "inline-grid", placeItems: "center", fontSize: 10 }}>{count}</span> : null;
+                    })()}
+                  </button>
+
                   <button 
                     onClick={() => setShareModalDashboard(d)}
                     style={{ 
@@ -2109,6 +2130,18 @@ export default function AdminDashboardsPage() {
             handleOpenIntegration(dashboard);
           }}
           onClose={() => setSourceModalDashboard(null)}
+        />
+      )}
+
+      {metricFiltersModalDashboard && (
+        <DashboardMetricFiltersModal
+          dashboard={metricFiltersModalDashboard}
+          onClose={() => setMetricFiltersModalDashboard(null)}
+          onSaved={(filters) => {
+            setDashboards((current) => current.map((dashboard) => dashboard.id === metricFiltersModalDashboard.id ? { ...dashboard, metrics_filters: filters } : dashboard));
+            setMetricFiltersModalDashboard(null);
+            toast("Filtros de métricas atualizados.");
+          }}
         />
       )}
 

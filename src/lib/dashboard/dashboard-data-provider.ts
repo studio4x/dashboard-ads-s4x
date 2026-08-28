@@ -17,6 +17,8 @@ import { isDateInRange } from "./date-utils";
 import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
 import { getVisiblePages } from "@/lib/dashboard/templates";
 import { DataSourceService } from "@/services/data-source-service";
+import { applyDashboardMetricFilters, hasDashboardMetricFilters, normalizeDashboardMetricFilters } from "@/lib/dashboard/metric-filters";
+import { MetricsHelper } from "@/lib/google-sheets/metrics-helper";
 
 function resolveTemplateBaseId(dashboard: any, templateDefinition: any) {
   return (
@@ -79,6 +81,8 @@ export async function getDashboardData(
     if (snapshot && snapshot.payload_json) {
       let data = snapshot.payload_json;
       const availableDateRange = extractAvailableDateRange(data);
+      const metricFilters = normalizeDashboardMetricFilters(dashboard?.metrics_filters);
+      data = applyDashboardMetricFilters(data, metricFilters);
       
       // Se houver range, calculamos os resumos comparativos e filtramos os dados
       let summary = null;
@@ -89,6 +93,22 @@ export async function getDashboardData(
       const isS4X = data.diagnostics?.snapshotVersion?.startsWith("google_ads_s4x");
       const isMetaS4X = data.diagnostics?.snapshotVersion?.startsWith("meta_ads_s4x");
       const isIntegratedS4X = data.diagnostics?.snapshotVersion?.startsWith("google_meta_ads_s4x");
+
+      if (hasDashboardMetricFilters(metricFilters)) {
+        const dailyRows = Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [];
+        if (isMetaS4X) {
+          data.summary = MetricsHelper.calculateMetaSummary(dailyRows);
+        } else {
+          const baseSummary = MetricsHelper.calculateSummary(dailyRows);
+          data.summary = isIntegratedS4X
+            ? { ...baseSummary, ...MetricsHelper.calculateMetaSummary(dailyRows), conversionValue: baseSummary.conversionValue, roas: baseSummary.roas }
+            : baseSummary;
+        }
+        if (isIntegratedS4X) {
+          data.google_ads_summary = MetricsHelper.calculateSummary(Array.isArray(data.google_ads) ? data.google_ads : []);
+          data.meta_ads_summary = MetricsHelper.calculateMetaSummary(Array.isArray(data.meta_ads) ? data.meta_ads : []);
+        }
+      }
       
       if (range) {
         if (isS4X) {
@@ -243,6 +263,7 @@ export async function getDashboardData(
         metaValidationStatus: dashboard?.meta_validation_status || data?.metaValidationStatus || "not_configured",
         metaValidationNotes: dashboard?.meta_validation_notes || data?.metaValidationNotes || {},
         availableDateRange,
+        metricFilters,
       };
     }
   } catch (dbError) {
