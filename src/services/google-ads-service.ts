@@ -143,7 +143,7 @@ export const GoogleAdsService = {
     const supabase = await createAdminClient({ actor: "api_admin", action: "list_google_ads_sources" });
     const { data, error } = await supabase
       .from("data_sources")
-      .select("*,clients(name),dashboards(name,dashboard_type),google_ads_sources(*,google_ads_connections(id,name,status,google_user_email))")
+      .select("*,clients(name),dashboards:dashboards!data_sources_dashboard_id_fkey(name,dashboard_type),google_ads_sources(*,google_ads_connections(id,name,status,google_user_email))")
       .eq("type", "google_ads")
       .order("created_at", { ascending: false });
     if (error) throw error;
@@ -239,7 +239,7 @@ export const GoogleAdsService = {
     const supabase = await createAdminClient({ actor: "system", action: "sync_google_ads_source" });
     const { data: source, error: sourceError } = await supabase
       .from("data_sources")
-      .select("id,client_id,dashboard_id,name,status,sync_interval,dashboards(id,dashboard_type,metrics_source_id),google_ads_sources(*,google_ads_connections(id,status))")
+      .select("id,client_id,dashboard_id,name,status,sync_interval,dashboards:dashboards!data_sources_dashboard_id_fkey(id,dashboard_type,metrics_source_id),google_ads_sources(*,google_ads_connections(id,status))")
       .eq("id", sourceId).eq("type", "google_ads").maybeSingle();
     if (sourceError) throw sourceError;
     if (!source || source.status !== "active") throw new Error("Fonte Google Ads ativa não encontrada.");

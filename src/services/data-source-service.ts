@@ -41,7 +41,7 @@ export const DataSourceService = {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('data_sources')
-      .select('*, google_sheet_sources(*), google_ads_sources(*), meta_ad_sources(*), clients(name), dashboards(name, dashboard_type)')
+      .select('*, google_sheet_sources(*), google_ads_sources(*), meta_ad_sources(*), clients(name), dashboards:dashboards!data_sources_dashboard_id_fkey(name, dashboard_type)')
       .order('created_at', { ascending: false })
     
     if (error) throw error
@@ -251,7 +251,7 @@ export const DataSourceService = {
 
     const { data: sourceData, error: sourceFetchError } = await supabase
       .from('data_sources')
-      .select('dashboard_id, dashboards(dashboard_type)')
+      .select('dashboard_id, dashboards:dashboards!data_sources_dashboard_id_fkey(dashboard_type)')
       .eq('id', id)
       .single()
 

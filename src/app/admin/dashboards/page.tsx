@@ -167,6 +167,16 @@ export default function AdminDashboardsPage() {
       const clientsData = await clientsRes.json();
       const sourcesData = await sourcesRes.json();
       const templatesData = await templatesRes.json();
+
+      const failedRequest = [
+        { response: dashRes, data: dashboardsData, label: "os dashboards" },
+        { response: clientsRes, data: clientsData, label: "os clientes" },
+        { response: sourcesRes, data: sourcesData, label: "as fontes conectadas" },
+        { response: templatesRes, data: templatesData, label: "os templates" },
+      ].find(({ response }) => !response.ok);
+      if (failedRequest) {
+        throw new Error(failedRequest.data?.error || `Não foi possível carregar ${failedRequest.label}.`);
+      }
       
       setDashboards(Array.isArray(dashboardsData) ? dashboardsData : []);
       setClients(Array.isArray(clientsData) ? clientsData : []);
@@ -196,6 +206,7 @@ export default function AdminDashboardsPage() {
       }
     } catch (error) {
       console.error("Erro ao buscar dados:", error);
+      toast(error instanceof Error ? error.message : "Não foi possível carregar os dashboards.");
     } finally {
       setIsLoading(false);
     }

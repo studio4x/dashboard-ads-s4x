@@ -95,7 +95,7 @@ export const MetaMarketingService = {
     const supabase = await createAdminClient({ actor: "api_admin", action: "list_meta_sources" });
     const { data, error } = await supabase
       .from("data_sources")
-      .select("*,clients(name),dashboards(name,dashboard_type),meta_ad_sources(*,meta_business_connections(id,name,status,meta_user_name),meta_ad_source_accounts(*))")
+      .select("*,clients(name),dashboards:dashboards!data_sources_dashboard_id_fkey(name,dashboard_type),meta_ad_sources(*,meta_business_connections(id,name,status,meta_user_name),meta_ad_source_accounts(*))")
       .eq("type", "meta_ads")
       .order("created_at", { ascending: false });
     if (error) throw error;
@@ -216,7 +216,7 @@ export const MetaMarketingService = {
     const supabase = await createAdminClient({ actor: "system", action: "sync_meta_source" });
     const { data: source, error: sourceError } = await supabase
       .from("data_sources")
-      .select("id,client_id,dashboard_id,name,status,sync_interval,dashboards(id,dashboard_type,meta_objectives,meta_primary_objective,metrics_source_id),meta_ad_sources(*,meta_ad_source_accounts(*),meta_business_connections(id,status))")
+      .select("id,client_id,dashboard_id,name,status,sync_interval,dashboards:dashboards!data_sources_dashboard_id_fkey(id,dashboard_type,meta_objectives,meta_primary_objective,metrics_source_id),meta_ad_sources(*,meta_ad_source_accounts(*),meta_business_connections(id,status))")
       .eq("id", sourceId)
       .eq("type", "meta_ads")
       .maybeSingle();

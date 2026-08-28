@@ -63,7 +63,7 @@ export async function GET() {
         status,
         created_at,
         google_sheet_sources(spreadsheet_id, source_role),
-        dashboards(name, dashboard_type)
+        dashboards:dashboards!data_sources_dashboard_id_fkey(name, dashboard_type)
       `)
       .eq("type", "google_sheets")
       .eq("status", "active")
