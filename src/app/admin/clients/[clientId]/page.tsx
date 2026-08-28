@@ -290,6 +290,8 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
             clientId={client.id}
             clientName={client.name}
             logoUrl={client.logo_url}
+            logoSettings={client.logo_settings}
+            dashboardName={String(dashboards[0]?.title || dashboards[0]?.name || "Dados da Campanha")}
           />
 
           <ClientContactForm

@@ -3,6 +3,7 @@ import { ClientService } from "@/services/client-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 import { apiErrorResponse } from "@/lib/security/api-safety";
+import { normalizeClientLogoSettings } from "@/lib/client-logo-settings";
 
 // POST /api/admin/clients/[clientId]/logo
 export async function POST(
@@ -21,6 +22,7 @@ export async function POST(
 
     const formData = await request.formData();
     const file = formData.get("logo") as File | null;
+    const rawLogoSettings = formData.get("logo_settings");
 
     if (!file) {
       return NextResponse.json({ error: "Arquivo não encontrado" }, { status: 400 });
@@ -37,17 +39,26 @@ export async function POST(
       return NextResponse.json({ error: "Arquivo muito grande. Máximo 2 MB." }, { status: 400 });
     }
 
+    let parsedLogoSettings: unknown = undefined;
+    if (typeof rawLogoSettings === "string") {
+      try {
+        parsedLogoSettings = JSON.parse(rawLogoSettings);
+      } catch {
+        return NextResponse.json({ error: "Configuração de enquadramento inválida." }, { status: 400 });
+      }
+    }
+    const logoSettings = normalizeClientLogoSettings(parsedLogoSettings);
+
     const ext = file.type.split("/")[1].replace("svg+xml", "svg");
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     const logoUrl = await ClientService.uploadLogo(clientId, buffer, file.type, ext);
 
-    // Atualiza o campo logo_url no registro do cliente
-    await ClientService.updateClient(clientId, { logo_url: logoUrl });
+    await ClientService.updateClient(clientId, { logo_url: logoUrl, logo_settings: logoSettings });
 
-    return NextResponse.json({ success: true, logo_url: logoUrl });
-  } catch (error: any) {
+    return NextResponse.json({ success: true, logo_url: logoUrl, logo_settings: logoSettings });
+  } catch (error: unknown) {
     return apiErrorResponse(error);
   }
 }

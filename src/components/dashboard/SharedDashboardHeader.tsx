@@ -9,11 +9,13 @@ import { cn } from "@/lib/utils";
 import { DASHBOARD_PAGES } from "@/lib/constants";
 import { getVisiblePages } from "@/lib/dashboard/templates";
 import { BrandingLogo } from "@/components/branding/BrandingLogo";
+import { getClientLogoImageStyle, type ClientLogoSettings } from "@/lib/client-logo-settings";
 
 interface SharedDashboardHeaderProps {
   clientName?: string;
   dashboardName?: string;
   clientLogoUrl?: string | null;
+  clientLogoSettings?: ClientLogoSettings | null;
   shareToken?: string;
   pageTitle: string;
   pageSubtitle?: string;
@@ -23,6 +25,7 @@ export function SharedDashboardHeader({
   clientName,
   dashboardName,
   clientLogoUrl,
+  clientLogoSettings,
   shareToken,
   pageTitle,
   pageSubtitle
@@ -275,8 +278,8 @@ export function SharedDashboardHeader({
           {/* Logo / Brand */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
              {clientLogoUrl ? (
-               <div className="h-10 sm:h-12 flex items-center justify-center overflow-hidden">
-                 <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} className="h-full w-auto object-contain" />
+               <div className="h-10 sm:h-12 w-[164px] sm:w-[180px] flex items-center justify-center overflow-hidden rounded-lg bg-white">
+                 <img src={clientLogoUrl} alt={`Logo ${clientName || "cliente"}`} style={{ display: "block", width: "100%", height: "100%", ...getClientLogoImageStyle(clientLogoSettings) }} />
                </div>
              ) : (
                <BrandingLogo

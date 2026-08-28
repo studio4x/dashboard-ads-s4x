@@ -3,6 +3,7 @@ import { ClientService } from "@/services/client-service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 import { apiErrorResponse, parseJsonObject } from "@/lib/security/api-safety";
+import { normalizeClientLogoSettings } from "@/lib/client-logo-settings";
 
 // DELETE /api/admin/clients/[clientId]
 export async function DELETE(
@@ -53,6 +54,7 @@ export async function PATCH(
       phone: body?.phone,
       phones: body?.phones,
       whatsapp: body?.whatsapp,
+      logo_settings: body?.logo_settings === undefined ? undefined : normalizeClientLogoSettings(body.logo_settings),
     };
 
     const cleaned = Object.fromEntries(

@@ -32,6 +32,7 @@ export interface Client {
   name: string;
   slug: string;
   logo_url?: string;
+  logo_settings?: import("@/lib/client-logo-settings").ClientLogoSettings;
   industry?: string;
   website?: string;
   primary_color?: string;

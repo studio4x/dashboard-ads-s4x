@@ -60,7 +60,7 @@ export const ShareService = {
     if (isUuidToken) {
       const byId = await supabase
         .from('dashboard_share_links')
-        .select('*, dashboards(id, name, slug, clients(id, name, logo_url))')
+        .select('*, dashboards(id, name, slug, clients(id, name, logo_url, logo_settings))')
         .eq('id', rawToken)
         .single()
       link = byId.data
@@ -69,7 +69,7 @@ export const ShareService = {
       const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
       const byHash = await supabase
         .from('dashboard_share_links')
-        .select('*, dashboards(id, name, slug, clients(id, name, logo_url))')
+        .select('*, dashboards(id, name, slug, clients(id, name, logo_url, logo_settings))')
         .eq('token_hash', tokenHash)
         .single()
       link = byHash.data

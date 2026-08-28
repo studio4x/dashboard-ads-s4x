@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { getClientLogoImageCss, normalizeClientLogoSettings, type ClientLogoSettings } from "@/lib/client-logo-settings";
 
 const PDF_BUCKET = process.env.PDF_STORAGE_BUCKET || "reports";
 const PDF_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
@@ -331,6 +332,7 @@ function buildPdfHtml(params: {
   dashboardName: string;
   clientName: string | null;
   clientLogoUrl?: string | null;
+  clientLogoSettings?: ClientLogoSettings | null;
   studioLogoUrl?: string | null;
   periodLabel: string;
   report: ReportData;
@@ -352,6 +354,7 @@ function buildPdfHtml(params: {
   const studioFallbackLogoDataUri = buildTextLogoDataUri("Studio 4x", 24);
   const studioLogoToUse = params.studioLogoUrl || studioFallbackLogoDataUri;
   const clientLogoToUse = params.clientLogoUrl || buildTextLogoDataUri(params.clientName || "Cliente", 18);
+  const clientLogoCss = getClientLogoImageCss(params.clientLogoSettings);
 
   return `
     <!DOCTYPE html>
@@ -425,8 +428,7 @@ function buildPdfHtml(params: {
             display: block;
             width: 100%;
             height: 44px;
-            object-fit: cover;
-            object-position: center;
+            ${clientLogoCss};
           }
           .studio-logo img {
             display: block;
@@ -689,6 +691,7 @@ export async function renderAndStoreSharePdf(params: {
   dashboardName: string;
   clientName: string | null;
   clientLogoUrl?: string | null;
+  clientLogoSettings?: ClientLogoSettings | null;
   studioLogoUrl?: string | null;
   origin?: string;
   periodLabel: string;
@@ -729,6 +732,7 @@ export async function renderAndStoreSharePdf(params: {
         dashboardName: params.dashboardName,
         clientName: params.clientName,
         clientLogoUrl: clientLogoDataUri,
+        clientLogoSettings: normalizeClientLogoSettings(params.clientLogoSettings),
         studioLogoUrl: studioLogoDataUri,
         periodLabel: params.periodLabel,
         report: params.report,
