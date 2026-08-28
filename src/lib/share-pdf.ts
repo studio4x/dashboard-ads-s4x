@@ -3,7 +3,6 @@ import { getClientLogoImageCss, normalizeClientLogoSettings, type ClientLogoSett
 
 const PDF_BUCKET = process.env.PDF_STORAGE_BUCKET || "reports";
 const PDF_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
-const DEFAULT_STUDIO_LOGO_URL = "/logotipo-s4x.svg";
 
 type ReportData = {
   summary?: Record<string, unknown>;
@@ -290,7 +289,7 @@ async function resolvePdfImageDataUri(
   origin?: string
 ) {
   const rawSource = String(source || "").trim();
-  if (!rawSource || rawSource === DEFAULT_STUDIO_LOGO_URL) return fallback;
+  if (!rawSource) return fallback;
   if (rawSource.startsWith("data:image/")) return rawSource;
 
   let resolvedUrl: URL;
