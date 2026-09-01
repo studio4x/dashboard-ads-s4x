@@ -73,7 +73,15 @@ export async function getDashboardData(
       dashboardId,
       dashboard?.dashboard_type || "google_ads_s4x",
       dashboard?.metrics_source_id || null,
-    ).catch(() => dashboard?.metrics_source_id ? [dashboard.metrics_source_id] : []);
+      {
+        googleAdsSourceId: dashboard?.google_metrics_source_id || null,
+        metaAdsSourceId: dashboard?.meta_metrics_source_id || null,
+      },
+    ).catch(() => {
+      const configured = [dashboard?.google_metrics_source_id, dashboard?.meta_metrics_source_id, dashboard?.metrics_source_id]
+        .filter((sourceId): sourceId is string => Boolean(sourceId));
+      return Array.from(new Set(configured));
+    });
     const snapshot = await DashboardService.getLatestSnapshot(dashboardId, {
       bypassRls: options?.bypassRls,
       dataSourceIds: preferredSourceIds.length > 0 ? preferredSourceIds : undefined,

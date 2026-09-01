@@ -19,7 +19,15 @@ async function loadFilterContext(dashboardId: string) {
     dashboardId,
     dashboard.dashboard_type || "google_ads_s4x",
     dashboard.metrics_source_id || null,
-  ).catch(() => dashboard.metrics_source_id ? [dashboard.metrics_source_id] : []);
+    {
+      googleAdsSourceId: dashboard.google_metrics_source_id || null,
+      metaAdsSourceId: dashboard.meta_metrics_source_id || null,
+    },
+  ).catch(() => {
+    const configured = [dashboard.google_metrics_source_id, dashboard.meta_metrics_source_id, dashboard.metrics_source_id]
+      .filter((sourceId: unknown): sourceId is string => typeof sourceId === "string" && Boolean(sourceId));
+    return Array.from(new Set(configured));
+  });
   const snapshot = await DashboardService.getLatestSnapshot(dashboardId, {
     bypassRls: true,
     dataSourceIds: preferredSourceIds.length > 0 ? preferredSourceIds : undefined,

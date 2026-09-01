@@ -244,7 +244,7 @@ export const GoogleAdsService = {
     const supabase = await createAdminClient({ actor: "system", action: "sync_google_ads_source" });
     const { data: source, error: sourceError } = await supabase
       .from("data_sources")
-      .select("id,client_id,dashboard_id,name,status,sync_interval,dashboards:dashboards!data_sources_dashboard_id_fkey(id,dashboard_type,metrics_source_id),google_ads_sources(*,google_ads_connections(id,status))")
+      .select("id,client_id,dashboard_id,name,status,sync_interval,dashboards:dashboards!data_sources_dashboard_id_fkey(id,dashboard_type,metrics_source_id,google_metrics_source_id,meta_metrics_source_id),google_ads_sources(*,google_ads_connections(id,status))")
       .eq("id", sourceId).eq("type", "google_ads").maybeSingle();
     if (sourceError) throw sourceError;
     if (!source || source.status !== "active") throw new Error("Fonte Google Ads ativa não encontrada.");
@@ -268,7 +268,15 @@ export const GoogleAdsService = {
         ...queried.data, warnings: queried.warnings,
         financialError: queried.financialError,
       });
-      const preferredIds = await DataSourceService.getPreferredSnapshotSourceIds(source.dashboard_id, dashboard.dashboard_type, dashboard.metrics_source_id);
+      const preferredIds = await DataSourceService.getPreferredSnapshotSourceIds(
+        source.dashboard_id,
+        dashboard.dashboard_type,
+        dashboard.metrics_source_id,
+        {
+          googleAdsSourceId: dashboard.google_metrics_source_id,
+          metaAdsSourceId: dashboard.meta_metrics_source_id,
+        },
+      );
       const previousSnapshot = await DashboardService.getLatestSnapshot(source.dashboard_id, {
         bypassRls: true, dataSourceIds: preferredIds.length ? preferredIds : undefined,
       });
@@ -286,6 +294,11 @@ export const GoogleAdsService = {
       await supabase.from("google_ads_sources").update({ last_import_at: finishedAt, last_import_status: "success", last_error: null }).eq("data_source_id", source.id);
       if (dashboard.dashboard_type !== "google_meta_ads_s4x") {
         await supabase.from("dashboards").update({ metrics_source_id: source.id }).eq("id", source.dashboard_id);
+      } else if (!dashboard.google_metrics_source_id) {
+        await supabase.from("dashboards")
+          .update({ google_metrics_source_id: source.id })
+          .eq("id", source.dashboard_id)
+          .is("google_metrics_source_id", null);
       }
       const rowCounts = payload.diagnostics.rowCounts;
       const rowsRead = Object.values(rowCounts).reduce((sum, count) => sum + Number(count || 0), 0);

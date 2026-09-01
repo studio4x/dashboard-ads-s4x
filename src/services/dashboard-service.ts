@@ -90,6 +90,8 @@ export const DashboardService = {
       meta_validation_updated_at?: string | null;
       template_config?: Record<string, unknown>;
       metrics_source_id?: string | null;
+      google_metrics_source_id?: string | null;
+      meta_metrics_source_id?: string | null;
       metrics_filters?: Record<string, unknown>;
       automation_enabled?: boolean;
       automation_frequency?: "daily" | "weekly";

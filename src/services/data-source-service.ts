@@ -1,5 +1,5 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { selectPreferredSnapshotSourceIds, type DashboardSourceCandidate } from '@/lib/dashboard/source-priority'
+import { selectPreferredSnapshotSourceIds, type DashboardPlatformSourceIds, type DashboardSourceCandidate } from '@/lib/dashboard/source-priority'
 
 function relation<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] || null : value || null
@@ -69,16 +69,21 @@ export const DataSourceService = {
     })
   },
 
-  async getPreferredSnapshotSourceIds(dashboardId: string, templateId: string, configuredSourceId?: string | null) {
+  async getPreferredSnapshotSourceIds(
+    dashboardId: string,
+    templateId: string,
+    configuredSourceId?: string | null,
+    configuredPlatformSources?: DashboardPlatformSourceIds,
+  ) {
     const candidates = await this.getDashboardSourceCandidates(dashboardId)
-    return selectPreferredSnapshotSourceIds(templateId, candidates, configuredSourceId)
+    return selectPreferredSnapshotSourceIds(templateId, candidates, configuredSourceId, configuredPlatformSources)
   },
 
   async getActiveSourceForDashboard(sourceId: string, dashboardId: string) {
     const supabase = await createAdminClient()
     const { data, error } = await supabase
       .from('data_sources')
-      .select('id, dashboard_id, client_id, name, type, status')
+      .select('id, dashboard_id, client_id, name, type, status, google_sheet_sources(source_role)')
       .eq('id', sourceId)
       .eq('dashboard_id', dashboardId)
       .eq('status', 'active')

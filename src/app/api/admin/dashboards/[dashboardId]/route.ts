@@ -9,6 +9,7 @@ import { DashboardTemplateService } from "@/services/dashboard-template-service"
 import { DataSourceService } from "@/services/data-source-service";
 import { GoogleSheetsImportService } from "@/lib/google-sheets/google-sheets-import-service";
 import { AUTOMATION_PERIOD_OPTIONS, normalizeAutomationPeriodPreset } from "@/lib/dashboard/automation-period";
+import { getDashboardSourceRole } from "@/lib/dashboard/source-priority";
 
 interface RouteParams {
   params: Promise<{ dashboardId: string }>;
@@ -71,6 +72,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       automation_report_mode,
       automation_channels,
       metrics_source_id,
+      google_metrics_source_id,
+      meta_metrics_source_id,
       reprocess_template,
     } = body || {};
 
@@ -81,7 +84,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     let templateUpdatedDashboard: any | null = null;
     const templateType = typeof dashboard_type === "string" && dashboard_type.trim() ? dashboard_type.trim() : "";
     const templateWasRequested = Boolean(templateType);
-    const currentDashboard = templateWasRequested
+    const platformSourcesWereRequested = google_metrics_source_id !== undefined || meta_metrics_source_id !== undefined;
+    const currentDashboard = templateWasRequested || platformSourcesWereRequested
       ? await DashboardService.getDashboardById(dashboardId, { bypassRls: true }).catch(() => null)
       : null;
 
@@ -123,7 +127,53 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       automation_report_mode?: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
       automation_channels?: string[];
       metrics_source_id?: string | null;
+      google_metrics_source_id?: string | null;
+      meta_metrics_source_id?: string | null;
     } = {};
+
+    if (platformSourcesWereRequested) {
+      const effectiveTemplate = templateType || String(currentDashboard?.dashboard_type || "");
+      if (effectiveTemplate !== "google_meta_ads_s4x") {
+        return NextResponse.json({ error: "A seleção separada de fontes só é permitida no dashboard consolidado Google + Meta." }, { status: 400 });
+      }
+
+      const validatePlatformSource = async (
+        rawSourceId: unknown,
+        expectedRole: "google_ads" | "meta_ads",
+      ) => {
+        const sourceId = rawSourceId === null || String(rawSourceId || "").trim() === ""
+          ? null
+          : String(rawSourceId).trim();
+        if (!sourceId) return { sourceId: null, error: null };
+        const selectedSource: any = await DataSourceService.getActiveSourceForDashboard(sourceId, dashboardId);
+        if (!selectedSource) {
+          return { sourceId, error: "A fonte selecionada não está ativa ou não pertence a este dashboard." };
+        }
+        const sheet = Array.isArray(selectedSource.google_sheet_sources)
+          ? selectedSource.google_sheet_sources[0]
+          : selectedSource.google_sheet_sources;
+        const selectedRole = getDashboardSourceRole({
+          type: selectedSource.type,
+          sourceRole: sheet?.source_role || null,
+        });
+        if (selectedRole !== expectedRole) {
+          const label = expectedRole === "google_ads" ? "Google Ads" : "Meta Ads";
+          return { sourceId, error: `A fonte selecionada não é compatível com o papel ${label}.` };
+        }
+        return { sourceId, error: null };
+      };
+
+      if (google_metrics_source_id !== undefined) {
+        const validation = await validatePlatformSource(google_metrics_source_id, "google_ads");
+        if (validation.error) return NextResponse.json({ error: validation.error }, { status: 400 });
+        updates.google_metrics_source_id = validation.sourceId;
+      }
+      if (meta_metrics_source_id !== undefined) {
+        const validation = await validatePlatformSource(meta_metrics_source_id, "meta_ads");
+        if (validation.error) return NextResponse.json({ error: validation.error }, { status: 400 });
+        updates.meta_metrics_source_id = validation.sourceId;
+      }
+    }
 
     if (metrics_source_id !== undefined) {
       const sourceId = metrics_source_id === null || String(metrics_source_id).trim() === ""

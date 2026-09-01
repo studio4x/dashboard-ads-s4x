@@ -7,6 +7,7 @@ type DashboardSourceOption = {
   id: string;
   name: string;
   type: string;
+  sourceRole?: "google_ads" | "meta_ads" | null;
 };
 
 type DashboardSourceModalProps = {
@@ -16,11 +17,18 @@ type DashboardSourceModalProps = {
     client_id: string;
     dashboard_type?: string | null;
     metrics_source_id?: string | null;
+    google_metrics_source_id?: string | null;
+    meta_metrics_source_id?: string | null;
   };
   sources: DashboardSourceOption[];
   selectedSourceId: string;
+  selectedPlatformSourceIds: {
+    googleAdsSourceId: string;
+    metaAdsSourceId: string;
+  };
   saving: boolean;
   onSelect: (sourceId: string) => void;
+  onSelectPlatformSource: (platform: "google_ads" | "meta_ads", sourceId: string) => void;
   onConfirm: () => void;
   onConfigureGoogleSheets: () => void;
   onClose: () => void;
@@ -39,17 +47,72 @@ export function DashboardSourceModal({
   dashboard,
   sources,
   selectedSourceId,
+  selectedPlatformSourceIds,
   saving,
   onSelect,
+  onSelectPlatformSource,
   onConfirm,
   onConfigureGoogleSheets,
   onClose,
 }: DashboardSourceModalProps) {
-  const hasCurrentSource = sources.some((source) => source.id === dashboard.metrics_source_id);
-  const title = hasCurrentSource ? "Editar fonte" : "Conectar fonte";
   const dashboardType = String(dashboard.dashboard_type || "");
+  const isIntegrated = dashboardType === "google_meta_ads_s4x";
+  const hasCurrentSource = isIntegrated
+    ? Boolean(selectedPlatformSourceIds.googleAdsSourceId || selectedPlatformSourceIds.metaAdsSourceId)
+    : sources.some((source) => source.id === dashboard.metrics_source_id);
+  const title = hasCurrentSource ? "Editar fonte" : "Conectar fonte";
   const supportsMetaAds = dashboardType.includes("meta");
   const supportsGoogleAds = dashboardType.includes("google");
+  const getSourceRole = (source: DashboardSourceOption) => {
+    if (source.type === "google_ads") return "google_ads";
+    if (source.type === "meta_ads") return "meta_ads";
+    return source.sourceRole || null;
+  };
+  const platformSourcesChanged = selectedPlatformSourceIds.googleAdsSourceId !== String(dashboard.google_metrics_source_id || "")
+    || selectedPlatformSourceIds.metaAdsSourceId !== String(dashboard.meta_metrics_source_id || "");
+  const confirmDisabled = saving || (isIntegrated
+    ? !selectedPlatformSourceIds.googleAdsSourceId || !selectedPlatformSourceIds.metaAdsSourceId || !platformSourcesChanged
+    : !selectedSourceId || selectedSourceId === dashboard.metrics_source_id);
+
+  const renderSourceOptions = (role?: "google_ads" | "meta_ads") => {
+    const availableSources = role ? sources.filter((source) => getSourceRole(source) === role) : sources;
+    const selectedId = role === "google_ads"
+      ? selectedPlatformSourceIds.googleAdsSourceId
+      : role === "meta_ads"
+        ? selectedPlatformSourceIds.metaAdsSourceId
+        : selectedSourceId;
+
+    if (availableSources.length === 0) {
+      return (
+        <div style={{ marginTop: 10, padding: 12, borderRadius: 9, border: "1px solid #FDE68A", background: "#FFFBEB", color: "#92400E", fontSize: 12 }}>
+          Nenhuma fonte ativa compatível está configurada.
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ marginTop: 10, display: "grid", gap: 9 }}>
+        {availableSources.map((source) => {
+          const selected = selectedId === source.id;
+          return (
+            <button
+              key={`${role || "default"}-${source.id}`}
+              type="button"
+              onClick={() => role ? onSelectPlatformSource(role, source.id) : onSelect(source.id)}
+              disabled={saving}
+              style={{ width: "100%", padding: "12px 14px", borderRadius: 9, border: selected ? "1px solid #60A5FA" : "1px solid #E2E8F0", background: selected ? "#EFF6FF" : "#FFFFFF", color: "#0F172A", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, textAlign: "left", cursor: "pointer" }}
+            >
+              <span style={{ minWidth: 0 }}>
+                <strong style={{ display: "block", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{source.name}</strong>
+                <span style={{ display: "block", marginTop: 3, fontSize: 12, color: "#64748B" }}>{getSourceTypeLabel(source.type)}</span>
+              </span>
+              {selected ? <CheckCircle2 size={19} color="#2563EB" /> : <span style={{ width: 18, height: 18, borderRadius: 999, border: "1px solid #CBD5E1", flexShrink: 0 }} />}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -75,37 +138,26 @@ export function DashboardSourceModal({
         </div>
 
         <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
-          <section>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>Fontes disponíveis para este dashboard</h3>
-            <p style={{ marginTop: 4, fontSize: 12, color: "#64748B" }}>Escolha qual fonte ativa fornecerá as métricas e os próximos relatórios.</p>
-
-            {sources.length === 0 ? (
-              <div style={{ marginTop: 12, padding: 14, borderRadius: 9, border: "1px solid #FDE68A", background: "#FFFBEB", color: "#92400E", fontSize: 13 }}>
-                Ainda não há uma fonte configurada para este dashboard. Escolha abaixo o tipo de fonte que deseja configurar.
-              </div>
-            ) : (
-              <div style={{ marginTop: 12, display: "grid", gap: 9 }}>
-                {sources.map((source) => {
-                  const selected = selectedSourceId === source.id;
-                  return (
-                    <button
-                      key={source.id}
-                      type="button"
-                      onClick={() => onSelect(source.id)}
-                      disabled={saving}
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: 9, border: selected ? "1px solid #60A5FA" : "1px solid #E2E8F0", background: selected ? "#EFF6FF" : "#FFFFFF", color: "#0F172A", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, textAlign: "left", cursor: "pointer" }}
-                    >
-                      <span style={{ minWidth: 0 }}>
-                        <strong style={{ display: "block", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{source.name}</strong>
-                        <span style={{ display: "block", marginTop: 3, fontSize: 12, color: "#64748B" }}>{getSourceTypeLabel(source.type)}</span>
-                      </span>
-                      {selected ? <CheckCircle2 size={19} color="#2563EB" /> : <span style={{ width: 18, height: 18, borderRadius: 999, border: "1px solid #CBD5E1", flexShrink: 0 }} />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+          {isIntegrated ? (
+            <>
+              <section>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>Fonte dos dados do Google Ads</h3>
+                <p style={{ marginTop: 4, fontSize: 12, color: "#64748B" }}>Escolha a integração ou planilha que fornecerá as métricas do Google Ads.</p>
+                {renderSourceOptions("google_ads")}
+              </section>
+              <section style={{ borderTop: "1px solid #E2E8F0", paddingTop: 18 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>Fonte dos dados do Meta Ads</h3>
+                <p style={{ marginTop: 4, fontSize: 12, color: "#64748B" }}>Escolha a integração ou planilha que fornecerá as métricas do Meta Ads.</p>
+                {renderSourceOptions("meta_ads")}
+              </section>
+            </>
+          ) : (
+            <section>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>Fontes disponíveis para este dashboard</h3>
+              <p style={{ marginTop: 4, fontSize: 12, color: "#64748B" }}>Escolha qual fonte ativa fornecerá as métricas e os próximos relatórios.</p>
+              {renderSourceOptions()}
+            </section>
+          )}
 
           <section style={{ borderTop: "1px solid #E2E8F0", paddingTop: 18 }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>Configurar uma nova fonte</h3>
@@ -132,7 +184,7 @@ export function DashboardSourceModal({
           <button type="button" onClick={onClose} disabled={saving} style={{ padding: "9px 14px", borderRadius: 8, border: "1px solid #E2E8F0", background: "#FFFFFF", color: "#475569", fontSize: 13, fontWeight: 650, cursor: "pointer" }}>
             Cancelar
           </button>
-          <button type="button" onClick={onConfirm} disabled={saving || !selectedSourceId || selectedSourceId === dashboard.metrics_source_id} style={{ padding: "9px 14px", borderRadius: 8, border: "1px solid #2563EB", background: "#2563EB", color: "#FFFFFF", fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", opacity: saving || !selectedSourceId || selectedSourceId === dashboard.metrics_source_id ? 0.55 : 1 }}>
+          <button type="button" onClick={onConfirm} disabled={confirmDisabled} style={{ padding: "9px 14px", borderRadius: 8, border: "1px solid #2563EB", background: "#2563EB", color: "#FFFFFF", fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", opacity: confirmDisabled ? 0.55 : 1 }}>
             {saving ? <Loader2 className="animate-spin" size={14} /> : <Database size={14} />}
             {hasCurrentSource ? "Salvar alteração" : "Conectar fonte"}
           </button>

@@ -25,7 +25,7 @@ import {
   getMetaObjectiveLabel,
 } from "@/lib/meta-ads/objectives";
 import { buildIntegratedAdsPayload } from "@/lib/dashboard/integrated-payload";
-import { selectPreferredSnapshotSourceIds, shouldPreferNativeOverSheet } from "@/lib/dashboard/source-priority";
+import { getDashboardSourceRole, selectPreferredSnapshotSourceIds } from "@/lib/dashboard/source-priority";
 
 export const GoogleSheetsImportService = {
   isIntegratedDashboardTemplate(templateId?: string) {
@@ -684,17 +684,30 @@ export const GoogleSheetsImportService = {
       if (this.isIntegratedDashboardTemplate(sheetTemplateId) && sourceRole && errors.length === 0) {
         const sheetPayloadForComparison = finalPayload;
         const candidates = await DataSourceService.getDashboardSourceCandidates(dashboardId);
-        const preferredSourceIds = selectPreferredSnapshotSourceIds(sheetTemplateId, candidates);
+        const preferredSourceIds = selectPreferredSnapshotSourceIds(
+          sheetTemplateId,
+          candidates,
+          dashboard?.metrics_source_id || null,
+          {
+            googleAdsSourceId: dashboard?.google_metrics_source_id || null,
+            metaAdsSourceId: dashboard?.meta_metrics_source_id || null,
+          },
+        );
         const previousSnapshot = await DashboardService.getLatestSnapshot(dashboardId, {
           bypassRls: true,
           dataSourceIds: preferredSourceIds.length ? preferredSourceIds : undefined,
         });
-        const nativePreferred = shouldPreferNativeOverSheet(sourceRole, candidates);
-        if (nativePreferred) {
+        const preferredRoleSource = candidates.find((candidate) => (
+          preferredSourceIds.includes(candidate.id)
+          && getDashboardSourceRole(candidate) === sourceRole
+        ));
+        const preserveSelectedSource = Boolean(preferredRoleSource && preferredRoleSource.id !== dataSourceId);
+        const nativePreferred = preferredRoleSource?.type === sourceRole;
+        if (preserveSelectedSource) {
           warnings.push({
             severity: "warning",
             stage: "snapshot_creation",
-            message: `A fonte Google Sheets foi sincronizada para comparação, mas o papel ${sourceRole} continua usando a integração nativa válida.`,
+            message: `A fonte Google Sheets foi sincronizada para comparação, mas o papel ${sourceRole} continua usando a fonte selecionada no dashboard.`,
           });
         }
 
@@ -704,9 +717,9 @@ export const GoogleSheetsImportService = {
           previousPayload: previousSnapshot?.payload_json || null,
           sourceLabel: nativePreferred ? "Fontes nativas com fallback Google Sheets" : "Google Sheets",
           sourceReference: spreadsheetId,
-          preferPreviousRolePayload: nativePreferred,
+          preferPreviousRolePayload: preserveSelectedSource,
         });
-        if (nativePreferred) {
+        if (preserveSelectedSource) {
           finalPayload.comparisonPayloads = {
             ...(previousSnapshot?.payload_json?.comparisonPayloads || {}),
             [sourceRole]: sheetPayloadForComparison,

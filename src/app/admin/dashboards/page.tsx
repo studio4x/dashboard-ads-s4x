@@ -138,6 +138,7 @@ export default function AdminDashboardsPage() {
   const [expandedAutomationByDashboardId, setExpandedAutomationByDashboardId] = useState<Record<string, boolean>>({});
   const [expandedCardsByDashboardId, setExpandedCardsByDashboardId] = useState<Record<string, boolean>>({});
   const [selectedMetricsSourceByDashboardId, setSelectedMetricsSourceByDashboardId] = useState<Record<string, string>>({});
+  const [selectedPlatformSourcesByDashboardId, setSelectedPlatformSourcesByDashboardId] = useState<Record<string, { googleAdsSourceId: string; metaAdsSourceId: string }>>({});
   const [savingMetricsSourceByDashboardId, setSavingMetricsSourceByDashboardId] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState({
@@ -186,9 +187,14 @@ export default function AdminDashboardsPage() {
       setTemplates(Array.isArray(templatesData) ? templatesData.filter((template: any) => template.status !== "deprecated") : []);
       if (Array.isArray(dashboardsData)) {
         const nextSelectedMetricsSources: Record<string, string> = {};
+        const nextSelectedPlatformSources: Record<string, { googleAdsSourceId: string; metaAdsSourceId: string }> = {};
         const nextForms: Record<string, AutomationForm> = {};
         dashboardsData.forEach((d: any) => {
           nextSelectedMetricsSources[d.id] = d.metrics_source_id || "";
+          nextSelectedPlatformSources[d.id] = {
+            googleAdsSourceId: d.google_metrics_source_id || "",
+            metaAdsSourceId: d.meta_metrics_source_id || "",
+          };
           const periodPreset = normalizeAutomationPeriodPreset(d.automation_period_preset || resolveAutomationPeriodPresetFromDays(d.automation_period_days));
           nextForms[d.id] = {
             enabled: Boolean(d.automation_enabled),
@@ -204,6 +210,7 @@ export default function AdminDashboardsPage() {
           };
         });
         setSelectedMetricsSourceByDashboardId(nextSelectedMetricsSources);
+        setSelectedPlatformSourcesByDashboardId(nextSelectedPlatformSources);
         setAutomationForms(nextForms);
       }
     } catch (error) {
@@ -249,6 +256,22 @@ export default function AdminDashboardsPage() {
     return sources.filter((s: any) => s.dashboard_id === dashboardId && s.type === "google_sheets");
   };
 
+  const getSourcePlatformRole = (source: any): "google_ads" | "meta_ads" | null => {
+    if (source?.type === "google_ads") return "google_ads";
+    if (source?.type === "meta_ads") return "meta_ads";
+    return getSourceRole(source);
+  };
+
+  const hasSuccessfulImport = (source: any) => {
+    const relation = source?.type === "google_ads"
+      ? source?.google_ads_sources
+      : source?.type === "meta_ads"
+        ? source?.meta_ad_sources
+        : source?.google_sheet_sources;
+    const config = Array.isArray(relation) ? relation[0] : relation;
+    return String(config?.last_import_status || "").startsWith("success");
+  };
+
   const getDashboardConnectedSources = (dashboardId: string) => {
     return sources.filter((s: any) => s.dashboard_id === dashboardId && s.status === "active");
   };
@@ -262,9 +285,28 @@ export default function AdminDashboardsPage() {
     return "Fonte de dados";
   };
 
+  const getEffectivePlatformSource = (dashboard: any, role: "google_ads" | "meta_ads", connectedSources?: any[]) => {
+    const compatibleSources = (connectedSources || getDashboardConnectedSources(dashboard.id))
+      .filter((source: any) => getSourcePlatformRole(source) === role);
+    const configuredId = role === "google_ads"
+      ? dashboard.google_metrics_source_id
+      : dashboard.meta_metrics_source_id;
+    return compatibleSources.find((source: any) => source.id === configuredId)
+      || compatibleSources.find((source: any) => source.type === role && hasSuccessfulImport(source))
+      || compatibleSources.find((source: any) => source.type === "google_sheets" && hasSuccessfulImport(source))
+      || compatibleSources[0]
+      || null;
+  };
+
   const handleSaveMetricsSource = async (dashboard: any) => {
+    const isIntegrated = dashboard.dashboard_type === INTEGRATED_TEMPLATE_ID;
+    const platformSelection = selectedPlatformSourcesByDashboardId[dashboard.id] || { googleAdsSourceId: "", metaAdsSourceId: "" };
     const sourceId = selectedMetricsSourceByDashboardId[dashboard.id] || "";
-    if (!sourceId) {
+    if (isIntegrated && (!platformSelection.googleAdsSourceId || !platformSelection.metaAdsSourceId)) {
+      toast("Selecione uma fonte para o Google Ads e uma fonte para o Meta Ads.");
+      return;
+    }
+    if (!isIntegrated && !sourceId) {
       toast("Selecione uma fonte de métricas.");
       return;
     }
@@ -274,15 +316,28 @@ export default function AdminDashboardsPage() {
       const response = await fetch(`/api/admin/dashboards/${dashboard.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ metrics_source_id: sourceId }),
+        body: JSON.stringify(isIntegrated
+          ? {
+              google_metrics_source_id: platformSelection.googleAdsSourceId,
+              meta_metrics_source_id: platformSelection.metaAdsSourceId,
+            }
+          : { metrics_source_id: sourceId }),
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
         throw new Error(result?.error || "Não foi possível trocar a fonte de métricas.");
       }
-      setDashboards((prev) => prev.map((item) => item.id === dashboard.id ? { ...item, metrics_source_id: sourceId } : item));
+      setDashboards((prev) => prev.map((item) => item.id === dashboard.id
+        ? isIntegrated
+          ? {
+              ...item,
+              google_metrics_source_id: platformSelection.googleAdsSourceId,
+              meta_metrics_source_id: platformSelection.metaAdsSourceId,
+            }
+          : { ...item, metrics_source_id: sourceId }
+        : item));
       setSourceModalDashboard(null);
-      toast("Fonte de métricas atualizada.");
+      toast(isIntegrated ? "Fontes Google Ads e Meta Ads atualizadas." : "Fonte de métricas atualizada.");
     } catch (error: any) {
       toast(error instanceof Error ? error.message : "Não foi possível trocar a fonte de métricas.");
     } finally {
@@ -292,6 +347,19 @@ export default function AdminDashboardsPage() {
 
   const handleOpenSourceModal = (dashboard: any) => {
     const connectedSources = getDashboardConnectedSources(dashboard.id);
+    if (dashboard.dashboard_type === INTEGRATED_TEMPLATE_ID) {
+      const googleSource = getEffectivePlatformSource(dashboard, "google_ads", connectedSources);
+      const metaSource = getEffectivePlatformSource(dashboard, "meta_ads", connectedSources);
+      setSelectedPlatformSourcesByDashboardId((prev) => ({
+        ...prev,
+        [dashboard.id]: {
+          googleAdsSourceId: googleSource?.id || "",
+          metaAdsSourceId: metaSource?.id || "",
+        },
+      }));
+      setSourceModalDashboard(dashboard);
+      return;
+    }
     const currentSourceId = connectedSources.some((source: any) => source.id === dashboard.metrics_source_id)
       ? String(dashboard.metrics_source_id)
       : "";
@@ -1092,7 +1160,13 @@ export default function AdminDashboardsPage() {
                 {(() => {
                   const connectedSources = getDashboardConnectedSources(d.id);
                   const currentSource = connectedSources.find((source: any) => source.id === d.metrics_source_id);
-                  if (currentSource) {
+                  const googleSource = d.dashboard_type === INTEGRATED_TEMPLATE_ID
+                    ? getEffectivePlatformSource(d, "google_ads", connectedSources)
+                    : null;
+                  const metaSource = d.dashboard_type === INTEGRATED_TEMPLATE_ID
+                    ? getEffectivePlatformSource(d, "meta_ads", connectedSources)
+                    : null;
+                  if (currentSource || (googleSource && metaSource)) {
                     return (
                       <div 
                         style={{ 
@@ -1115,8 +1189,10 @@ export default function AdminDashboardsPage() {
                             Fontes conectadas: <strong>{connectedSources.length}</strong>
                           </span>
                         </div>
-                        <span style={{ fontSize: 11, color: "#166534", fontWeight: 600, flexShrink: 0 }}>
-                          Atual: {currentSource.name} · {getSourceTypeLabel(currentSource)}
+                        <span style={{ fontSize: 11, color: "#166534", fontWeight: 600, flexShrink: 0, textAlign: "right" }}>
+                          {googleSource && metaSource
+                            ? `Google: ${googleSource.name} · Meta: ${metaSource.name}`
+                            : `Atual: ${currentSource?.name || "Fonte ativa"} · ${getSourceTypeLabel(currentSource)}`}
                         </span>
                       </div>
                     );
@@ -1523,7 +1599,13 @@ export default function AdminDashboardsPage() {
                 {/* Secondary/Admin Actions */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {(() => {
-                    const hasCurrentSource = getDashboardConnectedSources(d.id).some((source: any) => source.id === d.metrics_source_id);
+                    const connectedSources = getDashboardConnectedSources(d.id);
+                    const hasCurrentSource = d.dashboard_type === INTEGRATED_TEMPLATE_ID
+                      ? Boolean(
+                          getEffectivePlatformSource(d, "google_ads", connectedSources)
+                          && getEffectivePlatformSource(d, "meta_ads", connectedSources),
+                        )
+                      : connectedSources.some((source: any) => source.id === d.metrics_source_id);
                     return (
                       <button
                         type="button"
@@ -2119,10 +2201,23 @@ export default function AdminDashboardsPage() {
       {sourceModalDashboard && (
         <DashboardSourceModal
           dashboard={sourceModalDashboard}
-          sources={getDashboardConnectedSources(sourceModalDashboard.id)}
+          sources={getDashboardConnectedSources(sourceModalDashboard.id).map((source: any) => ({
+            ...source,
+            sourceRole: getSourcePlatformRole(source),
+          }))}
           selectedSourceId={selectedMetricsSourceByDashboardId[sourceModalDashboard.id] || ""}
+          selectedPlatformSourceIds={selectedPlatformSourcesByDashboardId[sourceModalDashboard.id] || { googleAdsSourceId: "", metaAdsSourceId: "" }}
           saving={Boolean(savingMetricsSourceByDashboardId[sourceModalDashboard.id])}
           onSelect={(sourceId) => setSelectedMetricsSourceByDashboardId((prev) => ({ ...prev, [sourceModalDashboard.id]: sourceId }))}
+          onSelectPlatformSource={(platform, sourceId) => setSelectedPlatformSourcesByDashboardId((prev) => {
+            const current = prev[sourceModalDashboard.id] || { googleAdsSourceId: "", metaAdsSourceId: "" };
+            return {
+              ...prev,
+              [sourceModalDashboard.id]: platform === "google_ads"
+                ? { ...current, googleAdsSourceId: sourceId }
+                : { ...current, metaAdsSourceId: sourceId },
+            };
+          })}
           onConfirm={() => handleSaveMetricsSource(sourceModalDashboard)}
           onConfigureGoogleSheets={() => {
             const dashboard = sourceModalDashboard;

@@ -262,7 +262,7 @@ export const MetaMarketingService = {
     const supabase = await createAdminClient({ actor: "system", action: "sync_meta_source" });
     const { data: source, error: sourceError } = await supabase
       .from("data_sources")
-      .select("id,client_id,dashboard_id,name,status,sync_interval,dashboards:dashboards!data_sources_dashboard_id_fkey(id,dashboard_type,meta_objectives,meta_primary_objective,metrics_source_id),meta_ad_sources(*,meta_ad_source_accounts(*),meta_business_connections(id,status))")
+      .select("id,client_id,dashboard_id,name,status,sync_interval,dashboards:dashboards!data_sources_dashboard_id_fkey(id,dashboard_type,meta_objectives,meta_primary_objective,metrics_source_id,google_metrics_source_id,meta_metrics_source_id),meta_ad_sources(*,meta_ad_source_accounts(*),meta_business_connections(id,status))")
       .eq("id", sourceId)
       .eq("type", "meta_ads")
       .maybeSingle();
@@ -284,7 +284,11 @@ export const MetaMarketingService = {
       const preferredIds = await DataSourceService.getPreferredSnapshotSourceIds(
         source.dashboard_id,
         dashboard.dashboard_type,
-        null,
+        dashboard.metrics_source_id,
+        {
+          googleAdsSourceId: dashboard.google_metrics_source_id,
+          metaAdsSourceId: dashboard.meta_metrics_source_id,
+        },
       );
       const previousSnapshot = await DashboardService.getLatestSnapshot(source.dashboard_id, {
         bypassRls: true,
@@ -377,7 +381,13 @@ export const MetaMarketingService = {
         meta_validation_notes: payload.metaValidationNotes || {},
         meta_validation_updated_at: finishedAt,
       });
-      if (!dashboard.metrics_source_id) {
+      if (dashboard.dashboard_type === "google_meta_ads_s4x" && !dashboard.meta_metrics_source_id) {
+        await supabase
+          .from("dashboards")
+          .update({ meta_metrics_source_id: source.id })
+          .eq("id", source.dashboard_id)
+          .is("meta_metrics_source_id", null);
+      } else if (dashboard.dashboard_type !== "google_meta_ads_s4x" && !dashboard.metrics_source_id) {
         await supabase
           .from("dashboards")
           .update({ metrics_source_id: source.id })

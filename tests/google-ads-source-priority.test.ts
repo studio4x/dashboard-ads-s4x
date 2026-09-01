@@ -25,6 +25,30 @@ test("dashboard integrado escolhe exatamente uma fonte por plataforma", () => {
   );
 });
 
+test("dashboard integrado respeita a seleção explícita de cada plataforma", () => {
+  assert.deepEqual(
+    selectPreferredSnapshotSourceIds(
+      "google_meta_ads_s4x",
+      [sheetGoogle, sheetMeta, nativeGoogle, nativeMeta],
+      null,
+      { googleAdsSourceId: sheetGoogle.id, metaAdsSourceId: nativeMeta.id },
+    ),
+    [sheetGoogle.id, nativeMeta.id],
+  );
+});
+
+test("dashboard integrado ignora seleção incompatível com o papel da fonte", () => {
+  assert.deepEqual(
+    selectPreferredSnapshotSourceIds(
+      "google_meta_ads_s4x",
+      [sheetGoogle, sheetMeta, nativeGoogle, nativeMeta],
+      null,
+      { googleAdsSourceId: nativeMeta.id, metaAdsSourceId: nativeGoogle.id },
+    ),
+    [nativeGoogle.id, nativeMeta.id],
+  );
+});
+
 test("payload integrado não substitui Google nativo por uma planilha de comparação", () => {
   const nativeGoogle = { diagnostics: { snapshotVersion: "google_ads_s4x_v1" }, dailyPerformance: [{ date: "2026-08-27", cost: 100 }], campaigns: [] };
   const previous = { googlePayload: nativeGoogle, metaPayload: null };
