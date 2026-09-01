@@ -3,7 +3,11 @@ import type { AdsFinancialStatus } from "@/lib/ads-financial";
 
 type FinancialStatusWithConfiguredAlert = AdsFinancialStatus & {
   alertThresholdAmount?: number | null;
+  alertAmountEnabled?: boolean | null;
+  alertDaysEnabled?: boolean | null;
+  alertThresholdDays?: number | null;
   configuredFinancialAlertState?: string | null;
+  configuredFinancialAlertTrigger?: string | null;
 };
 
 function formatMoney(value: number | null, currency: string | null) {
@@ -41,11 +45,20 @@ function FinancialCard({ status }: { status: FinancialStatusWithConfiguredAlert 
   const isCritical = status.alertStatus === "critical";
   const isAttention = status.alertStatus === "attention";
   const configuredThreshold = Number(status.alertThresholdAmount);
-  const hasConfiguredThreshold = status.alertThresholdAmount !== null
+  const configuredDays = Number(status.alertThresholdDays);
+  const amountEnabled = status.alertAmountEnabled !== false;
+  const daysEnabled = status.alertDaysEnabled === true;
+  const hasConfiguredThreshold = amountEnabled
+    && status.alertThresholdAmount !== null
     && status.alertThresholdAmount !== undefined
     && Number.isFinite(configuredThreshold);
-  const isBelowConfiguredThreshold = status.configuredFinancialAlertState === "below_threshold"
-    || (hasConfiguredThreshold && presentation.value !== null && presentation.value < configuredThreshold);
+  const hasConfiguredDays = daysEnabled
+    && status.alertThresholdDays !== null
+    && status.alertThresholdDays !== undefined
+    && Number.isFinite(configuredDays);
+  const isBelowAmount = hasConfiguredThreshold && presentation.value !== null && presentation.value < configuredThreshold;
+  const isBelowDays = hasConfiguredDays && status.estimatedDaysRemaining !== null && status.estimatedDaysRemaining < configuredDays;
+  const isBelowConfiguredThreshold = status.configuredFinancialAlertState === "below_threshold" || isBelowAmount || isBelowDays;
   const Icon = status.status === "error" ? AlertTriangle : status.status === "available" ? (isCritical || isAttention || isBelowConfiguredThreshold ? AlertTriangle : CheckCircle2) : CircleHelp;
   const toneColor = status.status === "error" || isCritical || isBelowConfiguredThreshold ? "#B91C1C" : isAttention ? "#B45309" : "#2563EB";
   const tooltip = status.provider === "google_ads"
@@ -74,12 +87,13 @@ function FinancialCard({ status }: { status: FinancialStatusWithConfiguredAlert 
           {status.amountSpent !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">Gasto acumulado: <strong>{formatMoney(status.amountSpent, status.currency)}</strong></div>}
           {status.outstandingBalance !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">{status.outstandingBalanceLabel || "Valor de faturamento"}: <strong>{formatMoney(status.outstandingBalance, status.currency)}</strong></div>}
           {status.estimatedDaysRemaining !== null && <div className="mt-2 text-xs font-semibold text-slate-600">Cobertura estimada: {status.estimatedDaysRemaining.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias</div>}
-          {hasConfiguredThreshold && (
-            <div className="mt-2 text-xs font-semibold text-slate-600">
-              Alerta configurado para valores abaixo de {formatMoney(configuredThreshold, status.currency)}
+          {(hasConfiguredThreshold || hasConfiguredDays) && (
+            <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-600">
+              {hasConfiguredThreshold && <div>Alerta por valor abaixo de {formatMoney(configuredThreshold, status.currency)}</div>}
+              {hasConfiguredDays && <div>Alerta por cobertura abaixo de {configuredDays.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias</div>}
             </div>
           )}
-          {isBelowConfiguredThreshold && <div className="mt-1 text-xs font-semibold text-red-700">⚠ Abaixo do limite de alerta configurado</div>}
+          {isBelowConfiguredThreshold && <div className="mt-1 text-xs font-semibold text-red-700">⚠ Abaixo de um dos limites de alerta configurados</div>}
           {isCritical && <div className="mt-1 text-xs font-semibold text-red-700">Verba estimada para menos de 3 dias</div>}
           {isAttention && <div className="mt-1 text-xs font-semibold text-amber-700">Verba estimada para menos de 7 dias</div>}
         </div>
