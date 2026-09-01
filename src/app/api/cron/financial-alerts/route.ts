@@ -15,6 +15,7 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const startedAt = new Date().toISOString();
   const missing = [
     !String(process.env.N8N_FINANCIAL_ALERT_WEBHOOK_URL || "").trim() && "N8N_FINANCIAL_ALERT_WEBHOOK_URL",
     !String(process.env.N8N_FINANCIAL_ALERT_WEBHOOK_TOKEN || "").trim() && "N8N_FINANCIAL_ALERT_WEBHOOK_TOKEN",
@@ -22,12 +23,23 @@ export async function POST(request: Request) {
     !hasList(process.env.FINANCIAL_ALERT_ADMIN_PHONES) && "FINANCIAL_ALERT_ADMIN_PHONES",
     !String(process.env.FINANCIAL_ALERT_FROM_EMAIL || "").trim() && "FINANCIAL_ALERT_FROM_EMAIL",
   ].filter(Boolean);
+
   if (missing.length > 0) {
     console.error("[FINANCIAL_ALERT_CONFIG_MISSING]", { missing });
+    const configError = new Error(`Configuração de alerta financeiro incompleta: ${missing.join(", ")}`);
+    try {
+      await FinancialAlertAuditService.recordFatalRun({
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        error: configError,
+      });
+    } catch (auditError) {
+      console.error("[FINANCIAL_ALERT_CONFIG_AUDIT_ERROR]", {
+        message: auditError instanceof Error ? auditError.message : "unknown",
+      });
+    }
     return NextResponse.json({ error: "Configuração de alerta financeiro incompleta.", missing }, { status: 503 });
   }
-
-  const startedAt = new Date().toISOString();
 
   try {
     const summary = await FinancialAlertService.runAlerts();
