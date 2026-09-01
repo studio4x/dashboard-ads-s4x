@@ -1,6 +1,11 @@
 import { AlertTriangle, CheckCircle2, CircleHelp, Info, WalletCards } from "lucide-react";
 import type { AdsFinancialStatus } from "@/lib/ads-financial";
 
+type FinancialStatusWithConfiguredAlert = AdsFinancialStatus & {
+  alertThresholdAmount?: number | null;
+  configuredFinancialAlertState?: string | null;
+};
+
 function formatMoney(value: number | null, currency: string | null) {
   if (value === null || !Number.isFinite(value)) return null;
   try {
@@ -31,12 +36,18 @@ function statusPresentation(status: AdsFinancialStatus) {
   return { label: status.outstandingBalanceLabel || "Valor de faturamento", value: status.outstandingBalance, tone: "neutral" };
 }
 
-function FinancialCard({ status }: { status: AdsFinancialStatus }) {
+function FinancialCard({ status }: { status: FinancialStatusWithConfiguredAlert }) {
   const presentation = statusPresentation(status);
   const isCritical = status.alertStatus === "critical";
   const isAttention = status.alertStatus === "attention";
-  const Icon = status.status === "error" ? AlertTriangle : status.status === "available" ? (isCritical || isAttention ? AlertTriangle : CheckCircle2) : CircleHelp;
-  const toneColor = status.status === "error" || isCritical ? "#B91C1C" : isAttention ? "#B45309" : "#2563EB";
+  const configuredThreshold = Number(status.alertThresholdAmount);
+  const hasConfiguredThreshold = status.alertThresholdAmount !== null
+    && status.alertThresholdAmount !== undefined
+    && Number.isFinite(configuredThreshold);
+  const isBelowConfiguredThreshold = status.configuredFinancialAlertState === "below_threshold"
+    || (hasConfiguredThreshold && presentation.value !== null && presentation.value < configuredThreshold);
+  const Icon = status.status === "error" ? AlertTriangle : status.status === "available" ? (isCritical || isAttention || isBelowConfiguredThreshold ? AlertTriangle : CheckCircle2) : CircleHelp;
+  const toneColor = status.status === "error" || isCritical || isBelowConfiguredThreshold ? "#B91C1C" : isAttention ? "#B45309" : "#2563EB";
   const tooltip = status.provider === "google_ads"
     ? "A Google Ads API não disponibiliza um saldo financeiro universal para todos os modelos de faturamento. Este valor representa o orçamento de conta disponível quando esse recurso é aplicável."
     : "A interpretação do valor financeiro depende do modelo de cobrança da conta. O Dashboard ADS diferencia saldo, faturamento e limite de gastos quando a API fornece informações suficientes.";
@@ -63,6 +74,12 @@ function FinancialCard({ status }: { status: AdsFinancialStatus }) {
           {status.amountSpent !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">Gasto acumulado: <strong>{formatMoney(status.amountSpent, status.currency)}</strong></div>}
           {status.outstandingBalance !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">{status.outstandingBalanceLabel || "Valor de faturamento"}: <strong>{formatMoney(status.outstandingBalance, status.currency)}</strong></div>}
           {status.estimatedDaysRemaining !== null && <div className="mt-2 text-xs font-semibold text-slate-600">Cobertura estimada: {status.estimatedDaysRemaining.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias</div>}
+          {hasConfiguredThreshold && (
+            <div className="mt-2 text-xs font-semibold text-slate-600">
+              Alerta configurado para valores abaixo de {formatMoney(configuredThreshold, status.currency)}
+            </div>
+          )}
+          {isBelowConfiguredThreshold && <div className="mt-1 text-xs font-semibold text-red-700">⚠ Abaixo do limite de alerta configurado</div>}
           {isCritical && <div className="mt-1 text-xs font-semibold text-red-700">Verba estimada para menos de 3 dias</div>}
           {isAttention && <div className="mt-1 text-xs font-semibold text-amber-700">Verba estimada para menos de 7 dias</div>}
         </div>
@@ -79,10 +96,10 @@ export function FinancialStatusSection({
   googleStatus,
   metaStatuses,
 }: {
-  googleStatus?: AdsFinancialStatus | null;
-  metaStatuses?: AdsFinancialStatus[];
+  googleStatus?: FinancialStatusWithConfiguredAlert | null;
+  metaStatuses?: FinancialStatusWithConfiguredAlert[];
 }) {
-  const statuses = [googleStatus, ...(metaStatuses || [])].filter((status): status is AdsFinancialStatus => Boolean(status));
+  const statuses = [googleStatus, ...(metaStatuses || [])].filter((status): status is FinancialStatusWithConfiguredAlert => Boolean(status));
   if (!statuses.length) return null;
   return (
     <section aria-label="Informações financeiras e orçamentárias" className="space-y-3">
