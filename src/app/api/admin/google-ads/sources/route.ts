@@ -53,6 +53,8 @@ export async function POST(request: Request) {
       timeZone: typeof rawAccount.timeZone === "string" ? rawAccount.timeZone : null,
       status: typeof rawAccount.status === "string" ? rawAccount.status : null,
       level: Number.isFinite(Number(rawAccount.level)) ? Number(rawAccount.level) : null,
+      parentManagerCustomerId: rawAccount.parentManagerCustomerId ? String(rawAccount.parentManagerCustomerId).replace(/\D/g, "") : null,
+      parentManagerName: typeof rawAccount.parentManagerName === "string" ? rawAccount.parentManagerName : null,
       loginCustomerId: rawAccount.loginCustomerId ? String(rawAccount.loginCustomerId).replace(/\D/g, "") : null,
       loginCustomerName: typeof rawAccount.loginCustomerName === "string" ? rawAccount.loginCustomerName : null,
       directlyAccessible: rawAccount.directlyAccessible === true,

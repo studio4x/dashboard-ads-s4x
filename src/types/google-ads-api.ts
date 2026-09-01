@@ -49,6 +49,8 @@ export interface GoogleAdsAccessibleAccount {
   timeZone: string | null;
   status: string | null;
   level: number | null;
+  parentManagerCustomerId: string | null;
+  parentManagerName: string | null;
   loginCustomerId: string | null;
   loginCustomerName: string | null;
   directlyAccessible: boolean;

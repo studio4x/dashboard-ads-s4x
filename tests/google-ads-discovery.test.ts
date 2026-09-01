@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { classifyGoogleAdsError } from "../src/lib/google-ads-api/error-classification.ts";
 import { buildDeveloperTokenSummary, buildDiscoveryWarnings, type DiscoveryWarning } from "../src/lib/google-ads-api/discovery-diagnostics.ts";
+import { discoverGoogleAdsAccounts } from "../src/lib/google-ads-api/discovery.ts";
+import { googleAdsQueries } from "../src/lib/google-ads-api/queries.ts";
 import type { GoogleAdsDiscoveryDiagnostic } from "../src/types/google-ads-api.ts";
 
 function diagnostic(overrides: Partial<GoogleAdsDiscoveryDiagnostic> = {}): GoogleAdsDiscoveryDiagnostic {
@@ -117,4 +119,46 @@ test("erros repetidos de uma mesma causa não geram dezenas de warnings", () => 
 test("após a validação voltar a funcionar, o resumo desaparece", () => {
   assert.deepEqual(buildDeveloperTokenSummary([]), []);
   assert.deepEqual(buildDiscoveryWarnings([]), []);
+});
+
+test("descobre cliente em sub-MCC e mantém o MCC raiz somente como login-customer-id", async () => {
+  const calls: Array<{ customerId: string; query: string; loginCustomerId?: string | null }> = [];
+  const client = {
+    async listAccessibleCustomers() {
+      return ["9876543210"];
+    },
+    async search(customerId: string, query: string, loginCustomerId?: string | null) {
+      calls.push({ customerId, query, loginCustomerId });
+      if (query === googleAdsQueries.customer) {
+        return { rows: [{ customer: { id: customerId, descriptiveName: "Agência Studio 4x", manager: true, status: "ENABLED" } }], requestIds: [] };
+      }
+      if (customerId === "9876543210") {
+        return {
+          rows: [
+            { customerClient: { clientCustomer: "customers/9876543210", descriptiveName: "Agência Studio 4x", manager: true, level: 0 } },
+            { customerClient: { clientCustomer: "customers/1418773114", descriptiveName: "GOOGLE&CO", manager: true, level: 1, status: "ENABLED" } },
+          ],
+          requestIds: [],
+        };
+      }
+      return {
+        rows: [
+          { customerClient: { clientCustomer: "customers/1418773114", descriptiveName: "GOOGLE&CO", manager: true, level: 0 } },
+          { customerClient: { clientCustomer: "customers/1218041638", descriptiveName: "RAI ARMAZÉNS", manager: false, level: 1, status: "ENABLED", currencyCode: "BRL" } },
+        ],
+        requestIds: [],
+      };
+    },
+  };
+
+  const result = await discoverGoogleAdsAccounts(client);
+  const rai = result.accounts.find((account) => account.customerId === "1218041638");
+  assert.ok(rai);
+  assert.equal(rai.parentManagerCustomerId, "1418773114");
+  assert.equal(rai.parentManagerName, "GOOGLE&CO");
+  assert.equal(rai.loginCustomerId, "9876543210");
+  assert.equal(rai.loginCustomerName, "Agência Studio 4x");
+  assert.equal(rai.level, 2);
+  assert.ok(calls.some((call) => call.customerId === "1418773114" && call.loginCustomerId === "9876543210"));
+  assert.match(googleAdsQueries.directCustomerClients, /customer_client\.level <= 1/);
 });

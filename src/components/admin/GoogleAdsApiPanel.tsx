@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, AlertTriangle, BadgeCheck, Check, ExternalLink, KeyRound, Link2, Loader2, RefreshCw, Save, Search, ShieldCheck, Trash2 } from "lucide-react";
 import type { GoogleAdsAccessibleAccount, GoogleAdsConnection, GoogleAdsSettings } from "@/types/google-ads-api";
+import { googleAdsAccountBelongsToManager } from "@/lib/google-ads-api/account-utils";
 
 type SettingsResponse = {
   settings: GoogleAdsSettings;
@@ -126,10 +127,9 @@ export function GoogleAdsApiPanel() {
 
   const filteredDashboards = useMemo(() => dashboards.filter((dashboard) => dashboard.client_id === sourceForm.clientId && String(dashboard.dashboard_type || "").includes("google")), [dashboards, sourceForm.clientId]);
   const managers = useMemo(() => (discovery?.accounts || []).filter((account) => account.manager), [discovery]);
-  const targetAccounts = useMemo(() => (discovery?.accounts || []).filter((account) => {
-    if (account.manager) return false;
-    return sourceForm.managerCustomerId ? account.loginCustomerId === sourceForm.managerCustomerId : !account.loginCustomerId || account.directlyAccessible;
-  }), [discovery, sourceForm.managerCustomerId]);
+  const targetAccounts = useMemo(() => (discovery?.accounts || []).filter((account) => (
+    googleAdsAccountBelongsToManager(account, sourceForm.managerCustomerId)
+  )), [discovery, sourceForm.managerCustomerId]);
   const selectedAccount = discovery?.accounts.find((account) => account.customerId === sourceForm.customerId && !account.manager) || null;
 
   async function saveSettings(event: React.FormEvent) {

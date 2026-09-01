@@ -8,7 +8,7 @@ Fluxo:
 
 1. o administrador autoriza uma conta Google com o escopo `https://www.googleapis.com/auth/adwords` e acesso offline;
 2. o refresh token é salvo no Supabase Vault;
-3. a aplicação chama `ListAccessibleCustomers` e consulta `customer_client` nos MCCs;
+3. a aplicação chama `ListAccessibleCustomers` e percorre recursivamente `customer_client` nos MCCs e sub-MCCs;
 4. uma conta cliente é vinculada ao dashboard, mantendo `customer_id` e `login_customer_id` separados;
 5. a sincronização executa consultas GAQL e normaliza o resultado para `GoogleAdsS4XPayload`;
 6. o snapshot usa o mesmo contrato dos snapshots do Google Sheets.
@@ -88,7 +88,7 @@ O segredo `CRON_SECRET` também precisa existir no Supabase Vault com esse nome,
 4. Confirme que Client Secret e Developer Token aparecem somente como **configurado na Vercel**.
 5. Clique em **Conectar com Google** e conclua o consentimento.
 6. Na conexão criada, clique em **Ver contas**.
-7. Selecione o MCC quando o cliente for acessado por uma gerenciadora.
+7. Selecione o MCC pai imediato da conta; hierarquias com sub-MCC são percorridas automaticamente, enquanto o MCC raiz autorizado continua sendo usado no `login-customer-id`.
 8. Selecione uma conta cliente; contas MCC não podem ser escolhidas como fonte de relatório.
 9. Selecione o Cliente do Dashboard ADS, o dashboard Google correspondente e crie a fonte.
 10. Clique em **Sincronizar agora**.

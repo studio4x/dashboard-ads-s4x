@@ -13,3 +13,9 @@ export function deduplicateGoogleAdsAccounts(accounts: GoogleAdsAccessibleAccoun
     return a.descriptiveName.localeCompare(b.descriptiveName, "pt-BR");
   });
 }
+
+export function googleAdsAccountBelongsToManager(account: GoogleAdsAccessibleAccount, managerCustomerId: string) {
+  if (account.manager) return false;
+  if (managerCustomerId) return account.parentManagerCustomerId === managerCustomerId;
+  return !account.parentManagerCustomerId;
+}

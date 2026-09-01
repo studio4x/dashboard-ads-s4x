@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { selectPreferredSnapshotSourceIds, shouldPreferNativeOverSheet } from "../src/lib/dashboard/source-priority.ts";
-import { deduplicateGoogleAdsAccounts } from "../src/lib/google-ads-api/account-utils.ts";
+import { deduplicateGoogleAdsAccounts, googleAdsAccountBelongsToManager } from "../src/lib/google-ads-api/account-utils.ts";
 import { buildIntegratedAdsPayload } from "../src/lib/dashboard/integrated-payload.ts";
 
 const sheetGoogle = { id: "sheet-google", type: "google_sheets", status: "active", sourceRole: "google_ads", lastImportStatus: "success" };
@@ -41,6 +41,7 @@ test("descoberta deduplica Customer IDs e preserva o acesso direto", () => {
   const common = {
     formattedCustomerId: "123-456-7890", descriptiveName: "Cliente", manager: false,
     testAccount: false, currencyCode: "BRL", timeZone: "America/Sao_Paulo", status: "ENABLED", level: 1,
+    parentManagerCustomerId: "9999999999", parentManagerName: "MCC",
   };
   const accounts = deduplicateGoogleAdsAccounts([
     { ...common, customerId: "1234567890", loginCustomerId: "9999999999", loginCustomerName: "MCC", directlyAccessible: false },
@@ -49,4 +50,16 @@ test("descoberta deduplica Customer IDs e preserva o acesso direto", () => {
   assert.equal(accounts.length, 1);
   assert.equal(accounts[0].directlyAccessible, true);
   assert.equal(accounts[0].loginCustomerId, null);
+});
+
+test("agrupa conta de sub-MCC pelo pai imediato sem trocar o login MCC raiz", () => {
+  const account = {
+    customerId: "1218041638", formattedCustomerId: "121-804-1638", descriptiveName: "RAI ARMAZÉNS", manager: false,
+    testAccount: false, currencyCode: "BRL", timeZone: "America/Sao_Paulo", status: "ENABLED", level: 2,
+    parentManagerCustomerId: "1418773114", parentManagerName: "GOOGLE&CO",
+    loginCustomerId: "9876543210", loginCustomerName: "Agência Studio 4x", directlyAccessible: false,
+  };
+  assert.equal(googleAdsAccountBelongsToManager(account, "1418773114"), true);
+  assert.equal(googleAdsAccountBelongsToManager(account, "9876543210"), false);
+  assert.equal(googleAdsAccountBelongsToManager(account, ""), false);
 });
