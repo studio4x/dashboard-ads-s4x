@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { FinancialAlertService } from "@/services/financial-alert-service";
+import { FinancialAlertAuditService } from "@/services/financial-alert-audit-service";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -26,11 +27,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Configuração de alerta financeiro incompleta.", missing }, { status: 503 });
   }
 
+  const startedAt = new Date().toISOString();
+
   try {
     const summary = await FinancialAlertService.runAlerts();
-    return NextResponse.json({ message: "Avaliação de alertas financeiros finalizada.", summary });
+    const finishedAt = new Date().toISOString();
+    let audit: { runId?: string; checks?: number; warning?: string } = {};
+
+    try {
+      audit = await FinancialAlertAuditService.recordRun({ startedAt, finishedAt, summary });
+    } catch (auditError) {
+      const warning = auditError instanceof Error ? auditError.message : "Falha ao gravar auditoria.";
+      audit = { warning };
+      console.error("[FINANCIAL_ALERT_AUDIT_ERROR]", { message: warning });
+    }
+
+    return NextResponse.json({
+      message: "Avaliação de alertas financeiros finalizada.",
+      summary,
+      audit,
+    });
   } catch (error) {
+    const finishedAt = new Date().toISOString();
     console.error("[FINANCIAL_ALERT_CRON_FATAL]", { message: error instanceof Error ? error.message : "unknown" });
+
+    try {
+      await FinancialAlertAuditService.recordFatalRun({ startedAt, finishedAt, error });
+    } catch (auditError) {
+      console.error("[FINANCIAL_ALERT_FATAL_AUDIT_ERROR]", {
+        message: auditError instanceof Error ? auditError.message : "unknown",
+      });
+    }
+
     return NextResponse.json({ error: "Erro interno durante a avaliação de alertas financeiros." }, { status: 500 });
   }
 }
