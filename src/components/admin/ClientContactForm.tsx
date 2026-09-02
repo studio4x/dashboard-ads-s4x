@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Loader2, Save, Mail, Phone, Building2, Globe } from "lucide-react";
 import { ClientFinancialAlertsPanel } from "@/components/admin/ClientFinancialAlertsPanel";
+import { ClientSourceMonitoringPanel } from "@/components/admin/ClientSourceMonitoringPanel";
+import { ClientPerformanceAnomaliesPanel } from "@/components/admin/ClientPerformanceAnomaliesPanel";
 
 interface ClientContactFormProps {
   clientId: string;
@@ -117,6 +119,8 @@ export function ClientContactForm({
       </div>
 
       <ClientFinancialAlertsPanel clientId={clientId} />
+      <ClientSourceMonitoringPanel clientId={clientId} />
+      <ClientPerformanceAnomaliesPanel clientId={clientId} />
     </>
   );
 }

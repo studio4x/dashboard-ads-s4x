@@ -5,21 +5,23 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Building2, PieChart, Database,
   FileSpreadsheet, LayoutTemplate, ScrollText, Settings,
-  ChevronRight, BarChart3, X, Send, Clock3, Share2, Search, BellRing,
+  ChevronRight, BarChart3, X, Send, Clock3, Share2, Search, BellRing, HeartPulse, FileClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { APP_NAME, APP_BUILD_HASH, APP_VERSION } from "@/lib/constants";
+import { APP_BUILD_HASH, APP_VERSION } from "@/lib/constants";
 import { logout } from "@/app/login/actions";
 import { BrandingLogo } from "@/components/branding/BrandingLogo";
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Building2, PieChart, Database,
   FileSpreadsheet, LayoutTemplate, ScrollText, Settings, Send,
-  Clock3, Share2, Search, BellRing,
+  Clock3, Share2, Search, BellRing, HeartPulse, FileClock,
 };
 
 const navItems = [
   { href: "/admin", label: "Visão Geral", icon: "LayoutDashboard", exact: true },
+  { href: "/admin/health", label: "Central de Saúde", icon: "HeartPulse" },
+  { href: "/admin/activity", label: "Atividade Operacional", icon: "FileClock" },
   { href: "/admin/clients", label: "Clientes", icon: "Building2" },
   { href: "/admin/dashboards", label: "Dashboards", icon: "PieChart" },
   { href: "/admin/automations", label: "Automações", icon: "Send" },
@@ -34,141 +36,28 @@ const navItems = [
   { href: "/admin/settings", label: "Configurações", icon: "Settings" },
 ];
 
-interface AdminSidebarProps {
-  onClose?: () => void;
-}
+interface AdminSidebarProps { onClose?: () => void }
 
 export function AdminSidebar({ onClose }: AdminSidebarProps) {
   const pathname = usePathname();
-
   return (
-    <aside
-      style={{
-        width: 260,
-        minHeight: "100vh",
-        background: "white",
-        borderRight: "1px solid #E2E8F0",
-        display: "flex",
-        flexDirection: "column",
-        flexShrink: 0,
-      }}
-    >
-      {/* Logo */}
-      <div
-        style={{
-          padding: "20px 20px 16px",
-          borderBottom: "1px solid #F1F5F9",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <BrandingLogo
-          alt="Dashboard ADS S4X"
-          style={{ width: 196, height: 42, justifyContent: "flex-start" }}
-          fallback={
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <BarChart3 size={18} color="white" />
-              </div>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", lineHeight: 1.2 }}>Dashboard ADS</p>
-                <p style={{ fontSize: 10, color: "#94A3B8", fontWeight: 500 }}>S4X Platform</p>
-              </div>
-            </div>
-          }
-        />
-        {onClose && (
-          <button onClick={onClose} style={{ color: "#94A3B8", cursor: "pointer", background: "none", border: "none" }}>
-            <X size={18} />
-          </button>
-        )}
+    <aside style={{ width: 260, minHeight: "100vh", background: "white", borderRight: "1px solid #E2E8F0", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <BrandingLogo alt="Dashboard ADS S4X" style={{ width: 196, height: 42, justifyContent: "flex-start" }} fallback={<div style={{ display: "flex", alignItems: "center", gap: 10 }}><div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center" }}><BarChart3 size={18} color="white" /></div><div><p style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", lineHeight: 1.2 }}>Dashboard ADS</p><p style={{ fontSize: 10, color: "#94A3B8", fontWeight: 500 }}>S4X Platform</p></div></div>} />
+        {onClose && <button onClick={onClose} style={{ color: "#94A3B8", cursor: "pointer", background: "none", border: "none" }}><X size={18} /></button>}
       </div>
-
-      {/* Admin label */}
-      <div style={{ padding: "12px 20px 4px" }}>
-        <p style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          Administração
-        </p>
-      </div>
-
-      {/* Nav */}
+      <div style={{ padding: "12px 20px 4px" }}><p style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em" }}>Administração</p></div>
       <nav style={{ flex: 1, padding: "4px 12px 12px" }}>
         {navItems.map((item) => {
           const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
           const Icon = iconMap[item.icon] || LayoutDashboard;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn("sidebar-link", isActive && "active")}
-              style={{ marginBottom: 2 }}
-            >
-              <Icon size={16} />
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {isActive && <ChevronRight size={14} style={{ opacity: 0.5 }} />}
-            </Link>
-          );
+          return <Link key={item.href} href={item.href} className={cn("sidebar-link", isActive && "active")} style={{ marginBottom: 2 }}><Icon size={16} /><span style={{ flex: 1 }}>{item.label}</span>{isActive && <ChevronRight size={14} style={{ opacity: 0.5 }} />}</Link>;
         })}
       </nav>
-
-      {/* Footer */}
       <div style={{ padding: "12px 20px", borderTop: "1px solid #F1F5F9" }}>
-        <Link
-          href="/app/dashboards"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 10px",
-            borderRadius: 8,
-            background: "#EFF6FF",
-            color: "#2563EB",
-            fontSize: 13,
-            fontWeight: 500,
-            textDecoration: "none",
-            transition: "background 0.15s",
-          }}
-        >
-          <BarChart3 size={15} />
-          Ver como Cliente
-        </Link>
-        <button
-          onClick={() => logout()}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 10px",
-            borderRadius: 8,
-            marginTop: 8,
-            width: "100%",
-            border: "none",
-            background: "#FEF2F2",
-            color: "#DC2626",
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: "pointer",
-            transition: "background 0.15s",
-          }}
-        >
-          <X size={15} />
-          Sair do Sistema
-        </button>
-
-        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 4 }}>
-          <p style={{ fontSize: 9, color: "#94A3B8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.02em" }}>
-            Versão do Sistema
-          </p>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 10, color: "#475569", fontWeight: 600, background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, border: "1px solid #E2E8F0" }}>
-              v{APP_VERSION}
-            </span>
-            <span style={{ fontSize: 10, color: "#94A3B8", fontFamily: "monospace" }}>
-              #{APP_BUILD_HASH}
-            </span>
-          </div>
-        </div>
+        <Link href="/app/dashboards" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: "#EFF6FF", color: "#2563EB", fontSize: 13, fontWeight: 500, textDecoration: "none" }}><BarChart3 size={15} /> Ver como Cliente</Link>
+        <button onClick={() => logout()} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, marginTop: 8, width: "100%", border: "none", background: "#FEF2F2", color: "#DC2626", fontSize: 13, fontWeight: 500, cursor: "pointer" }}><X size={15} /> Sair do Sistema</button>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 4 }}><p style={{ fontSize: 9, color: "#94A3B8", fontWeight: 600, textTransform: "uppercase" }}>Versão do Sistema</p><div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ fontSize: 10, color: "#475569", fontWeight: 600, background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, border: "1px solid #E2E8F0" }}>v{APP_VERSION}</span><span style={{ fontSize: 10, color: "#94A3B8", fontFamily: "monospace" }}>#{APP_BUILD_HASH}</span></div></div>
       </div>
     </aside>
   );

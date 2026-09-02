@@ -4,7 +4,7 @@ import { getSessionProfile, requireDashboardAccess } from "@/lib/auth/guards";
 import { enforceRateLimit } from "@/lib/security/request-guards";
 import { apiErrorResponse } from "@/lib/security/api-safety";
 import { normalizeFinancialAccountId } from "@/lib/financial-alerts";
-import { FinancialAlertService } from "@/services/financial-alert-service";
+import { EnhancedFinancialAlertService } from "@/services/enhanced-financial-alert-service";
 
 function attachFinancialAlert(status: any, settings: any[]) {
   if (!status || typeof status !== "object") return status;
@@ -18,7 +18,11 @@ function attachFinancialAlert(status: any, settings: any[]) {
   return {
     ...status,
     alertThresholdAmount: Number(match.thresholdAmount),
+    alertAmountEnabled: Boolean(match.amountAlertEnabled),
+    alertDaysEnabled: Boolean(match.daysAlertEnabled),
+    alertThresholdDays: Number(match.thresholdDays ?? 2),
     configuredFinancialAlertState: match.lastState || "unknown",
+    configuredFinancialAlertTrigger: match.lastTriggerType || null,
   };
 }
 
@@ -81,7 +85,7 @@ export async function GET(
         to: to || undefined,
         bypassRls: Boolean(shareToken),
       }),
-      FinancialAlertService.getDashboardPublicSettings(dashboardId).catch(() => []),
+      EnhancedFinancialAlertService.getDashboardPublicSettings(dashboardId).catch(() => []),
     ]);
 
     if (!data && process.env.GOOGLE_SHEETS_USE_MOCKS !== "true") {
