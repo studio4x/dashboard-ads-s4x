@@ -74,3 +74,35 @@ test("MetaGraphClient não repete erro permanente 400", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("MetaGraphClient divide insights longos em janelas de no máximo 7 dias", async () => {
+  const originalFetch = globalThis.fetch;
+  const ranges: Array<{ since: string; until: string }> = [];
+
+  globalThis.fetch = (async (input) => {
+    const url = new URL(String(input));
+    const range = JSON.parse(url.searchParams.get("time_range") || "{}") as { since: string; until: string };
+    ranges.push(range);
+    return Response.json({ data: [{ date_start: range.since, date_stop: range.until }] });
+  }) as typeof fetch;
+
+  try {
+    const client = new MetaGraphClient("access-token", "v26.0", "app-secret", { baseRetryDelayMs: 0 });
+    const rows = await client.getAll<{ date_start: string; date_stop: string }>("act_123/insights", {
+      fields: "date_start,date_stop",
+      level: "ad",
+      time_increment: 1,
+      time_range: JSON.stringify({ since: "2026-08-01", until: "2026-08-15" }),
+      limit: 500,
+    });
+
+    assert.deepEqual(ranges, [
+      { since: "2026-08-01", until: "2026-08-07" },
+      { since: "2026-08-08", until: "2026-08-14" },
+      { since: "2026-08-15", until: "2026-08-15" },
+    ]);
+    assert.equal(rows.length, 3);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
