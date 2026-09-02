@@ -10,6 +10,7 @@ import { buildMetaAdsApiPayload, mergeMetaDailyRows, normalizeMetaInsightRow } f
 import { buildFinancialErrorStatus, buildMetaAdsFinancialStatus, calculateAverageDailySpend } from "@/lib/ads-financial";
 import { buildIntegratedAdsPayload } from "@/lib/dashboard/integrated-payload";
 import type { MetaAdAccountAsset, MetaCampaignAsset, MetaInsightRow } from "@/types/meta-marketing";
+import { buildMetaInsightDateChunks } from "@/lib/meta-marketing/insight-chunks";
 
 const INSIGHT_FIELDS = [
   "date_start", "date_stop", "account_id", "account_name", "campaign_id", "campaign_name",
@@ -57,27 +58,18 @@ async function fetchInsights(
   attributionWindows: string[],
 ) {
   const allRows: MetaInsightRow[] = [];
-  const cursor = new Date(`${dateStart}T12:00:00Z`);
-  const end = new Date(`${dateEnd}T12:00:00Z`);
-
-  while (cursor <= end) {
-    const chunkStart = new Date(cursor);
-    const chunkEnd = new Date(cursor);
-    chunkEnd.setUTCDate(chunkEnd.getUTCDate() + 29);
-    if (chunkEnd > end) chunkEnd.setTime(end.getTime());
-
+  const chunks = buildMetaInsightDateChunks(dateStart, dateEnd, 30);
+  for (const chunk of chunks) {
     const rows = await client.getAll<MetaInsightRow>(`act_${accountId}/insights`, {
       fields: INSIGHT_FIELDS,
       level: "ad",
       time_increment: 1,
-      time_range: JSON.stringify({ since: isoDate(chunkStart), until: isoDate(chunkEnd) }),
+      time_range: JSON.stringify({ since: chunk.dateStart, until: chunk.dateEnd }),
       action_attribution_windows: JSON.stringify(attributionWindows),
       limit: 500,
     }, 250);
     allRows.push(...rows);
-    cursor.setUTCDate(chunkEnd.getUTCDate() + 1);
   }
-
   return allRows;
 }
 
@@ -301,6 +293,13 @@ export const MetaMarketingService = {
       const dateEnd = isoDate(new Date());
       const campaignStatusWarnings: string[] = [];
 
+      console.info("[META_SYNC] Iniciando coleta", {
+        sourceId: source.id,
+        accounts: accounts.length,
+        dateStart: replaceFrom,
+        dateEnd,
+      });
+
       const [insightGroups, campaignGroups] = await Promise.all([
         Promise.all(accounts.map((account: any) => fetchInsights(
           client,
@@ -319,6 +318,10 @@ export const MetaMarketingService = {
         })),
       ]);
       const importedRows = insightGroups.flat().map(normalizeMetaInsightRow);
+      console.info("[META_SYNC] Coleta de performance concluída", {
+        sourceId: source.id,
+        rows: importedRows.length,
+      });
       const rows = enrichRowsWithCampaignStatuses(
         mergeMetaDailyRows(previousMetaPayload?.dailyPerformance || [], importedRows, replaceFrom),
         campaignGroups.flat(),
@@ -338,6 +341,10 @@ export const MetaMarketingService = {
           });
         }
       }));
+      console.info("[META_SYNC] Coleta financeira concluída", {
+        sourceId: source.id,
+        accounts: financialResults.length,
+      });
       const payload = buildMetaAdsApiPayload({
         rows,
         accountNames: accounts.map((account: any) => String(account.ad_account_name)),
