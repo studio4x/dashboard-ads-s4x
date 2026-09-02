@@ -153,9 +153,11 @@ export const PlatformHealthService = {
         const lastAge = ageMinutes(last);
         const stale = !last || (lastAge !== null && lastAge > 8 * 24 * 60);
         const failed = ["error", "failed"].includes(String(dashboard.automation_last_completion_status || "").toLowerCase());
+        const client: any = clientsById.get(dashboard.client_id);
         return {
           dashboardId: dashboard.id,
           clientId: dashboard.client_id,
+          clientName: client?.name || "Cliente",
           dashboardName: dashboard.name,
           frequency: dashboard.automation_frequency,
           lastCompletedAt: last,
