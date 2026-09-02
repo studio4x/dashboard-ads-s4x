@@ -21,17 +21,50 @@ type GraphCollection<T> = {
   paging?: { next?: string };
 };
 
+type MetaGraphClientOptions = {
+  requestTimeoutMs?: number;
+  maxAttempts?: number;
+  baseRetryDelayMs?: number;
+};
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 25_000;
+const DEFAULT_MAX_ATTEMPTS = 3;
+const DEFAULT_BASE_RETRY_DELAY_MS = 1_000;
+const RETRYABLE_META_CODES = new Set([1, 2, 4, 17, 32, 341, 613]);
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryAfterMs(response: Response) {
+  const value = response.headers.get("retry-after");
+  if (!value) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.min(Math.max(0, seconds * 1000), 10_000);
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? Math.min(Math.max(0, timestamp - Date.now()), 10_000) : 0;
+}
+
+function isRetryableResponse(status: number, body: GraphErrorBody) {
+  return status === 429
+    || status >= 500
+    || Boolean(body?.error?.is_transient)
+    || RETRYABLE_META_CODES.has(Number(body?.error?.code));
+}
+
 export class MetaGraphError extends Error {
   code?: number;
   subcode?: number;
   transient: boolean;
+  httpStatus?: number;
 
-  constructor(message: string, body?: GraphErrorBody) {
+  constructor(message: string, body?: GraphErrorBody, httpStatus?: number) {
     super(message);
     this.name = "MetaGraphError";
     this.code = body?.error?.code;
     this.subcode = body?.error?.error_subcode;
     this.transient = Boolean(body?.error?.is_transient);
+    this.httpStatus = httpStatus;
   }
 }
 
@@ -39,15 +72,22 @@ export class MetaGraphClient {
   private readonly baseUrl: string;
   private readonly appSecretProof: string;
   private readonly accessToken: string;
+  private readonly requestTimeoutMs: number;
+  private readonly maxAttempts: number;
+  private readonly baseRetryDelayMs: number;
 
   constructor(
     accessToken: string,
     apiVersion: string,
     appSecret: string,
+    options: MetaGraphClientOptions = {},
   ) {
     this.accessToken = accessToken;
     this.baseUrl = `https://graph.facebook.com/${apiVersion}`;
     this.appSecretProof = createHmac("sha256", appSecret).update(accessToken).digest("hex");
+    this.requestTimeoutMs = Math.max(1_000, options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
+    this.maxAttempts = Math.max(1, Math.min(5, options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS));
+    this.baseRetryDelayMs = Math.max(0, options.baseRetryDelayMs ?? DEFAULT_BASE_RETRY_DELAY_MS);
   }
 
   private buildUrl(path: string, params: Record<string, string | number | undefined> = {}) {
@@ -62,18 +102,64 @@ export class MetaGraphClient {
     return url;
   }
 
+  private retryDelay(attempt: number, response?: Response) {
+    const serverDelay = response ? retryAfterMs(response) : 0;
+    const exponentialDelay = Math.min(this.baseRetryDelayMs * (3 ** Math.max(0, attempt - 1)), 8_000);
+    return Math.max(serverDelay, exponentialDelay);
+  }
+
   async get<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
-    const response = await fetch(this.buildUrl(path, params), {
-      method: "GET",
-      headers: { Authorization: `Bearer ${this.accessToken}` },
-      cache: "no-store",
-    });
-    const body = (await response.json().catch(() => ({}))) as T & GraphErrorBody;
-    if (!response.ok || body?.error) {
+    const url = this.buildUrl(path, params);
+
+    for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+      let response: Response;
+
+      try {
+        response = await fetch(url, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${this.accessToken}` },
+          cache: "no-store",
+          signal: controller.signal,
+        });
+      } catch (error) {
+        const timedOut = error instanceof Error && error.name === "AbortError";
+        if (attempt < this.maxAttempts) {
+          await sleep(this.retryDelay(attempt));
+          continue;
+        }
+        if (timedOut) {
+          throw new Error(`Meta Graph API excedeu ${Math.round(this.requestTimeoutMs / 1000)} segundos por tentativa após ${this.maxAttempts} tentativa(s).`);
+        }
+        throw new Error(`Falha de rede ao consultar a Meta Graph API após ${this.maxAttempts} tentativa(s): ${error instanceof Error ? error.message : "erro desconhecido"}`);
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      const body = (await response.json().catch(() => ({}))) as T & GraphErrorBody;
+      if (response.ok && !body?.error) return body as T;
+
       const safeMessage = body?.error?.message || `Meta Graph API respondeu HTTP ${response.status}.`;
-      throw new MetaGraphError(safeMessage, body);
+      const graphError = new MetaGraphError(safeMessage, body, response.status);
+      const retryable = isRetryableResponse(response.status, body);
+
+      if (retryable && attempt < this.maxAttempts) {
+        await sleep(this.retryDelay(attempt, response));
+        continue;
+      }
+
+      if (retryable && response.status >= 500) {
+        throw new MetaGraphError(
+          `Meta Graph API temporariamente indisponível (HTTP ${response.status}) após ${attempt} tentativa(s).`,
+          body,
+          response.status,
+        );
+      }
+      throw graphError;
     }
-    return body as T;
+
+    throw new Error("Meta Graph API não concluiu a requisição.");
   }
 
   async getAll<T>(path: string, params: Record<string, string | number | undefined> = {}, maxPages = 100) {

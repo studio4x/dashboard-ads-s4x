@@ -36,3 +36,41 @@ test("MetaGraphClient bloqueia host externo recebido na paginação", async () =
     globalThis.fetch = originalFetch;
   }
 });
+
+test("MetaGraphClient repete respostas 503 e conclui quando a Meta se recupera", async () => {
+  const originalFetch = globalThis.fetch;
+  let attempts = 0;
+  globalThis.fetch = (async () => {
+    attempts += 1;
+    if (attempts < 3) {
+      return Response.json({ error: { message: "Service unavailable", is_transient: true } }, { status: 503 });
+    }
+    return Response.json({ id: "ok" });
+  }) as typeof fetch;
+
+  try {
+    const client = new MetaGraphClient("access-token", "v26.0", "app-secret", { baseRetryDelayMs: 0, maxAttempts: 3 });
+    const result = await client.get<{ id: string }>("me");
+    assert.equal(result.id, "ok");
+    assert.equal(attempts, 3);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("MetaGraphClient não repete erro permanente 400", async () => {
+  const originalFetch = globalThis.fetch;
+  let attempts = 0;
+  globalThis.fetch = (async () => {
+    attempts += 1;
+    return Response.json({ error: { message: "Invalid parameter", code: 100 } }, { status: 400 });
+  }) as typeof fetch;
+
+  try {
+    const client = new MetaGraphClient("access-token", "v26.0", "app-secret", { baseRetryDelayMs: 0, maxAttempts: 3 });
+    await assert.rejects(() => client.get("me"), /Invalid parameter/);
+    assert.equal(attempts, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
