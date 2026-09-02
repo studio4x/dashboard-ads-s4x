@@ -75,7 +75,7 @@ test("MetaGraphClient não repete erro permanente 400", async () => {
   }
 });
 
-test("MetaGraphClient divide insights longos em janelas de no máximo 7 dias", async () => {
+test("MetaGraphClient divide insights longos em janelas diárias", async () => {
   const originalFetch = globalThis.fetch;
   const ranges: Array<{ since: string; until: string }> = [];
 
@@ -92,16 +92,50 @@ test("MetaGraphClient divide insights longos em janelas de no máximo 7 dias", a
       fields: "date_start,date_stop",
       level: "ad",
       time_increment: 1,
-      time_range: JSON.stringify({ since: "2026-08-01", until: "2026-08-15" }),
+      time_range: JSON.stringify({ since: "2026-08-01", until: "2026-08-05" }),
       limit: 500,
     });
 
-    assert.deepEqual(ranges, [
-      { since: "2026-08-01", until: "2026-08-07" },
-      { since: "2026-08-08", until: "2026-08-14" },
-      { since: "2026-08-15", until: "2026-08-15" },
-    ]);
-    assert.equal(rows.length, 3);
+    assert.equal(ranges.length, 5);
+    assert.deepEqual(
+      ranges.map((range) => [range.since, range.until]),
+      [
+        ["2026-08-01", "2026-08-01"],
+        ["2026-08-02", "2026-08-02"],
+        ["2026-08-03", "2026-08-03"],
+        ["2026-08-04", "2026-08-04"],
+        ["2026-08-05", "2026-08-05"],
+      ],
+    );
+    assert.equal(rows.length, 5);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("MetaGraphClient informa o dia exato quando insights falham", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input) => {
+    const url = new URL(String(input));
+    const range = JSON.parse(url.searchParams.get("time_range") || "{}") as { since: string; until: string };
+    if (range.since === "2026-08-03") {
+      return Response.json({ error: { message: "Service unavailable", is_transient: true } }, { status: 503 });
+    }
+    return Response.json({ data: [] });
+  }) as typeof fetch;
+
+  try {
+    const client = new MetaGraphClient("access-token", "v26.0", "app-secret", { baseRetryDelayMs: 0, maxAttempts: 1 });
+    await assert.rejects(
+      () => client.getAll("act_123/insights", {
+        fields: "date_start,date_stop",
+        level: "ad",
+        time_increment: 1,
+        time_range: JSON.stringify({ since: "2026-08-01", until: "2026-08-05" }),
+        limit: 500,
+      }),
+      /dia 2026-08-03/,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

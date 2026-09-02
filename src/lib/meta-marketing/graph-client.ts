@@ -36,7 +36,8 @@ type MetaTimeRange = {
 const DEFAULT_REQUEST_TIMEOUT_MS = 25_000;
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_BASE_RETRY_DELAY_MS = 1_000;
-const MAX_INSIGHTS_WINDOW_DAYS = 7;
+const MAX_INSIGHTS_WINDOW_DAYS = 1;
+const INSIGHTS_WINDOW_CONCURRENCY = 4;
 const RETRYABLE_META_CODES = new Set([1, 2, 4, 17, 32, 341, 613]);
 
 function sleep(ms: number) {
@@ -245,26 +246,34 @@ export class MetaGraphClient {
     return rows;
   }
 
+  private async getInsightWindow<T>(
+    path: string,
+    windowParams: Record<string, string | number | undefined>,
+    maxPages: number,
+  ) {
+    const range = parseTimeRange(windowParams.time_range);
+    try {
+      return await this.getAllPages<T>(path, windowParams, maxPages);
+    } catch (error) {
+      if (!range) throw error;
+      const context = `Falha ao consultar insights da Meta no dia ${range.since}`;
+      if (error instanceof MetaGraphError) {
+        error.message = `${context}: ${error.message}`;
+        throw error;
+      }
+      throw new Error(`${context}: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+    }
+  }
+
   async getAll<T>(path: string, params: Record<string, string | number | undefined> = {}, maxPages = 100) {
     const windows = buildInsightWindows(path, params);
     if (windows.length === 1) return this.getAllPages<T>(path, windows[0], maxPages);
 
     const rows: T[] = [];
-    for (const windowParams of windows) {
-      const range = parseTimeRange(windowParams.time_range);
-      try {
-        rows.push(...await this.getAllPages<T>(path, windowParams, maxPages));
-      } catch (error) {
-        if (range) {
-          const context = `Falha ao consultar insights da Meta no período ${range.since} a ${range.until}`;
-          if (error instanceof MetaGraphError) {
-            error.message = `${context}: ${error.message}`;
-            throw error;
-          }
-          throw new Error(`${context}: ${error instanceof Error ? error.message : "erro desconhecido"}`);
-        }
-        throw error;
-      }
+    for (let offset = 0; offset < windows.length; offset += INSIGHTS_WINDOW_CONCURRENCY) {
+      const batch = windows.slice(offset, offset + INSIGHTS_WINDOW_CONCURRENCY);
+      const batchRows = await Promise.all(batch.map((windowParams) => this.getInsightWindow<T>(path, windowParams, maxPages)));
+      batchRows.forEach((windowRows) => rows.push(...windowRows));
     }
     return rows;
   }
