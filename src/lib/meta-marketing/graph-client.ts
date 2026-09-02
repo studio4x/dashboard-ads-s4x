@@ -27,9 +27,16 @@ type MetaGraphClientOptions = {
   baseRetryDelayMs?: number;
 };
 
+type MetaTimeRange = {
+  since: string;
+  until: string;
+  [key: string]: unknown;
+};
+
 const DEFAULT_REQUEST_TIMEOUT_MS = 25_000;
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_BASE_RETRY_DELAY_MS = 1_000;
+const MAX_INSIGHTS_WINDOW_DAYS = 7;
 const RETRYABLE_META_CODES = new Set([1, 2, 4, 17, 32, 341, 613]);
 
 function sleep(ms: number) {
@@ -50,6 +57,60 @@ function isRetryableResponse(status: number, body: GraphErrorBody) {
     || status >= 500
     || Boolean(body?.error?.is_transient)
     || RETRYABLE_META_CODES.has(Number(body?.error?.code));
+}
+
+function isoDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function parseTimeRange(value: string | number | undefined): MetaTimeRange | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<MetaTimeRange>;
+    if (typeof parsed.since !== "string" || typeof parsed.until !== "string") return null;
+    const since = new Date(`${parsed.since}T12:00:00Z`);
+    const until = new Date(`${parsed.until}T12:00:00Z`);
+    if (Number.isNaN(since.getTime()) || Number.isNaN(until.getTime()) || since > until) return null;
+    return { ...parsed, since: parsed.since, until: parsed.until } as MetaTimeRange;
+  } catch {
+    return null;
+  }
+}
+
+function buildInsightWindows(
+  path: string,
+  params: Record<string, string | number | undefined>,
+) {
+  if (!path.includes("/insights")) return [params];
+  const range = parseTimeRange(params.time_range);
+  if (!range) return [params];
+
+  const start = new Date(`${range.since}T12:00:00Z`);
+  const end = new Date(`${range.until}T12:00:00Z`);
+  const totalDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  if (totalDays <= MAX_INSIGHTS_WINDOW_DAYS) return [params];
+
+  const windows: Record<string, string | number | undefined>[] = [];
+  const cursor = new Date(start);
+
+  while (cursor <= end) {
+    const chunkStart = new Date(cursor);
+    const chunkEnd = new Date(cursor);
+    chunkEnd.setUTCDate(chunkEnd.getUTCDate() + MAX_INSIGHTS_WINDOW_DAYS - 1);
+    if (chunkEnd > end) chunkEnd.setTime(end.getTime());
+
+    windows.push({
+      ...params,
+      time_range: JSON.stringify({
+        ...range,
+        since: isoDate(chunkStart),
+        until: isoDate(chunkEnd),
+      }),
+    });
+    cursor.setUTCDate(chunkEnd.getUTCDate() + 1);
+  }
+
+  return windows;
 }
 
 export class MetaGraphError extends Error {
@@ -162,7 +223,11 @@ export class MetaGraphClient {
     throw new Error("Meta Graph API não concluiu a requisição.");
   }
 
-  async getAll<T>(path: string, params: Record<string, string | number | undefined> = {}, maxPages = 100) {
+  private async getAllPages<T>(
+    path: string,
+    params: Record<string, string | number | undefined>,
+    maxPages: number,
+  ) {
     const rows: T[] = [];
     let next: string | null = path;
     let pageParams = params;
@@ -177,6 +242,30 @@ export class MetaGraphClient {
     }
 
     if (next) throw new Error(`Paginação Meta excedeu o limite seguro de ${maxPages} páginas.`);
+    return rows;
+  }
+
+  async getAll<T>(path: string, params: Record<string, string | number | undefined> = {}, maxPages = 100) {
+    const windows = buildInsightWindows(path, params);
+    if (windows.length === 1) return this.getAllPages<T>(path, windows[0], maxPages);
+
+    const rows: T[] = [];
+    for (const windowParams of windows) {
+      const range = parseTimeRange(windowParams.time_range);
+      try {
+        rows.push(...await this.getAllPages<T>(path, windowParams, maxPages));
+      } catch (error) {
+        if (range) {
+          const context = `Falha ao consultar insights da Meta no período ${range.since} a ${range.until}`;
+          if (error instanceof MetaGraphError) {
+            error.message = `${context}: ${error.message}`;
+            throw error;
+          }
+          throw new Error(`${context}: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+        }
+        throw error;
+      }
+    }
     return rows;
   }
 }
