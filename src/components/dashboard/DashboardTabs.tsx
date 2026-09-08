@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  LayoutDashboard, Search, MessageSquare, Target, Users, Globe, X
+  BarChart3, LayoutDashboard, Search, MessageSquare, Target, Users, Globe, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_PAGES } from "@/lib/constants";
@@ -16,9 +16,10 @@ const iconMap: Record<string, React.ElementType> = {
 
 interface DashboardTabsProps {
   dashboardId: string;
+  showPerformanceAnalysis?: boolean;
 }
 
-export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
+export function DashboardTabs({ dashboardId, showPerformanceAnalysis = false }: DashboardTabsProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data, loading } = useDashboard();
@@ -29,6 +30,7 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
 
   const visiblePageKeys = data?.templatePageKeys?.length ? data.templatePageKeys : getVisiblePages(data?.templateId);
   const filteredPages = DASHBOARD_PAGES.filter(p => visiblePageKeys.includes(p.key));
+  const paramsString = searchParams.toString();
 
   return (
     <div
@@ -44,7 +46,6 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
       {filteredPages.map((page) => {
         const basePath = `/app/dashboards/${dashboardId}/${page.key}`;
         const isActive = pathname === basePath;
-        const paramsString = searchParams.toString();
         const href = paramsString ? `${basePath}?${paramsString}` : basePath;
         const Icon = iconMap[page.icon] || LayoutDashboard;
 
@@ -59,6 +60,21 @@ export function DashboardTabs({ dashboardId }: DashboardTabsProps) {
           </Link>
         );
       })}
+
+      {showPerformanceAnalysis && (() => {
+        const basePath = `/app/dashboards/${dashboardId}/performance-analysis`;
+        const href = paramsString ? `${basePath}?${paramsString}` : basePath;
+        return (
+          <Link
+            href={href}
+            className={cn("dashboard-tab", pathname === basePath && "active")}
+            title="Diagnóstico e plano de ação com dados granulares do Google Ads"
+          >
+            <BarChart3 size={14} />
+            Análise de Performance
+          </Link>
+        );
+      })()}
     </div>
   );
 }
