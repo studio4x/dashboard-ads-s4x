@@ -65,6 +65,18 @@ function daysAgo(days: number) {
   return isoDate(date);
 }
 
+function describeGoogleAdsError(error: unknown) {
+  if (!(error instanceof GoogleAdsApiError)) return error instanceof Error ? error.message : "consulta indisponível";
+  const details = [
+    error.message,
+    `HTTP ${error.statusCode}`,
+    error.apiStatus ? `status=${error.apiStatus}` : null,
+    error.errorCodes.length ? `codes=${error.errorCodes.join(",")}` : null,
+    error.requestId ? `request_id=${error.requestId}` : null,
+  ].filter(Boolean);
+  return details.join(" | ");
+}
+
 function normalizeCustomerId(value: unknown) {
   return String(value || "").replace(/\D/g, "");
 }
@@ -122,7 +134,7 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
       statuses[name] = result.value[1].rows.length ? "success" : "no_data";
     } else {
       statuses[name] = statusForQueryError(result.reason);
-      warnings.push(`${name}: ${result.reason instanceof Error ? result.reason.message : "consulta indisponível"}`);
+      warnings.push(`${name}: ${describeGoogleAdsError(result.reason)}`);
     }
   });
 
@@ -134,14 +146,21 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
       requestIds.push(...result.value[1].requestIds);
       statuses[name] = result.value[1].rows.length ? "success" : "no_data";
     } else {
-      const message = result.reason instanceof Error ? result.reason.message : "consulta indisponível";
+      const message = describeGoogleAdsError(result.reason);
       warnings.push(`${name}: ${message}`);
       statuses[name] = statusForQueryError(result.reason);
       if (name === "accountBudgetRows") financialError = message;
     }
   });
 
-  if (statuses.dailyRows === "error") throw new Error(warnings.find((warning) => warning.startsWith("dailyRows:")) || "Dataset diário de campanha indisponível.");
+  if (statuses.dailyRows === "error" || statuses.dailyRows === "unsupported") {
+    const dailyFailure = requiredResults[required.findIndex(([name]) => name === "dailyRows")];
+    if (dailyFailure?.status === "rejected" && dailyFailure.reason instanceof Error) {
+      dailyFailure.reason.message = `dailyRows: ${describeGoogleAdsError(dailyFailure.reason)}`;
+      throw dailyFailure.reason;
+    }
+    throw new Error(warnings.find((warning) => warning.startsWith("dailyRows:")) || "Dataset diário de campanha indisponível.");
+  }
 
   const analyticsRows = {} as Record<GoogleAdsAnalyticDataset, GoogleAdsApiRow[]>;
   const configurationRows: Record<string, GoogleAdsApiRow[]> = {};
@@ -165,7 +184,7 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
     { key: "bidding", query: googleAdsAnalyticsQueries.bidding },
     // Google only accepts a maximum 30-day window for change_event, regardless
     // of the performance history configured for the source.
-    { key: "changeEvents", query: googleAdsAnalyticsQueries.changeEvents(daysAgo(29), end) },
+    { key: "changeEvents", query: googleAdsAnalyticsQueries.changeEvents(daysAgo(30), end) },
   ];
   const channelTypes = new Set((data.dailyRows || []).map((row) => String(row.campaign?.advertisingChannelType || "").toUpperCase()));
   const isPmax = channelTypes.has("PERFORMANCE_MAX");
@@ -184,16 +203,16 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
   analyticsResults.forEach(({ spec, result, error }) => {
     if (!spec.dataset && spec.key === "changeEvents") {
       if (result) { changeEventRows.push(...result.rows); requestIds.push(...result.requestIds); statuses.changeEvents = result.rows.length ? "success" : "no_data"; }
-      else { statuses.changeEvents = statusForQueryError(error); warnings.push(`changeEvents: ${error instanceof Error ? error.message : "consulta indisponível"}`); }
+      else { statuses.changeEvents = statusForQueryError(error); warnings.push(`changeEvents: ${describeGoogleAdsError(error)}`); }
       return;
     }
     if (!spec.dataset) {
       if (result) { configurationRows[spec.key] = result.rows; requestIds.push(...result.requestIds); statuses[spec.key] = result.rows.length ? "success" : "no_data"; }
-      else { statuses[spec.key] = statusForQueryError(error); warnings.push(`${spec.key}: ${error instanceof Error ? error.message : "consulta indisponível"}`); }
+      else { statuses[spec.key] = statusForQueryError(error); warnings.push(`${spec.key}: ${describeGoogleAdsError(error)}`); }
       return;
     }
     if (result) { analyticsRows[spec.dataset] = result.rows; requestIds.push(...result.requestIds); statuses[spec.dataset] = result.rows.length ? "success" : "no_data"; }
-    else { analyticsRows[spec.dataset] = []; statuses[spec.dataset] = statusForQueryError(error); warnings.push(`${spec.key}: ${error instanceof Error ? error.message : "consulta indisponível"}`); }
+    else { analyticsRows[spec.dataset] = []; statuses[spec.dataset] = statusForQueryError(error); warnings.push(`${spec.key}: ${describeGoogleAdsError(error)}`); }
   });
   analyticsRows.campaign_daily = data.dailyRows || [];
   analyticsRows.ad_group_daily = data.adGroupRows || [];
