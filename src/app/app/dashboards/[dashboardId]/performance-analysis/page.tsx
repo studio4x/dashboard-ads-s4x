@@ -8,6 +8,9 @@ import {
   GoogleAdsClientSummarySkeleton,
 } from "@/components/admin/GoogleAdsClientSummary";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type SearchParams = Record<string, string | string[] | undefined>;
 
 function single(value: string | string[] | undefined): string | undefined {
