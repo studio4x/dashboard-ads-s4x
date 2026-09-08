@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 function findAnalysisRoot(page: HTMLElement) {
   return Array.from(page.children).find((child): child is HTMLElement => {
@@ -111,7 +111,7 @@ function addInvestigationShortcuts(details: HTMLDetailsElement, content: HTMLEle
 }
 
 export function GoogleAdsAnalysisComposer() {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const page = document.querySelector<HTMLElement>("[data-google-ads-performance-page='true']");
     if (!page) return;
 
