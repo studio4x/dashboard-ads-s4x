@@ -1,7 +1,12 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 import { GoogleAdsPerformanceAnalysis } from "@/components/admin/GoogleAdsPerformanceAnalysis";
+import {
+  GoogleAdsClientSummary,
+  GoogleAdsClientSummarySkeleton,
+} from "@/components/admin/GoogleAdsClientSummary";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -38,12 +43,22 @@ export default async function DashboardPerformanceAnalysisPage({
     notFound();
   }
 
+  const from = single(query.from);
+  const to = single(query.to);
+
   return (
-    <GoogleAdsPerformanceAnalysis
-      sourceId={source.id}
-      from={single(query.from)}
-      to={single(query.to)}
-      embedded
-    />
+    <>
+      <GoogleAdsPerformanceAnalysis
+        sourceId={source.id}
+        from={from}
+        to={to}
+        embedded
+      />
+      <div style={{ maxWidth: 1280, padding: "0 clamp(14px, 3vw, 32px)", marginTop: -8 }}>
+        <Suspense fallback={<GoogleAdsClientSummarySkeleton />}>
+          <GoogleAdsClientSummary sourceId={source.id} from={from} to={to} />
+        </Suspense>
+      </div>
+    </>
   );
 }
