@@ -148,11 +148,11 @@ function buildNextActions(params: {
     auction.rankLostImpressionShare > 0.25 &&
     auction.rankLostImpressionShare > (auction.budgetLostImpressionShare || 0)
   ) {
-    actions.push("melhorar a relevância e a competitividade dos anúncios nas buscas");
+    actions.push("melhorar a relevância e a presença dos anúncios nas buscas");
   }
 
   if (wasteSearchTerms > 0) {
-    actions.push("reduzir buscas pouco alinhadas e concentrar a verba nas intenções com maior potencial");
+    actions.push("reduzir buscas pouco alinhadas e direcionar melhor o investimento para as intenções com maior potencial");
   }
 
   if (previous.ctr > 0 && current.ctr < previous.ctr * 0.85) {
@@ -244,7 +244,7 @@ export async function GoogleAdsClientSummary({ sourceId, from, to }: Props) {
   const previousEnd = addDays(currentStart, -1);
   const previousStart = addDays(previousEnd, -(periodDays - 1));
 
-  const [campaignRows, eventsResult, searchTermsResult] = await Promise.all([
+  const [campaignRows, eventsResult, searchTermsResult, progressResult] = await Promise.all([
     fetchCampaignRows(supabase, sourceId, previousStart, currentEnd),
     supabase
       .from("google_ads_change_events")
@@ -262,14 +262,28 @@ export async function GoogleAdsClientSummary({ sourceId, from, to }: Props) {
       .gte("observed_date", currentStart)
       .lte("observed_date", currentEnd)
       .limit(3000),
+    supabase
+      .from("google_ads_action_progress")
+      .select("action_title,status,note,completed_at,validated_at,updated_at")
+      .eq("data_source_id", sourceId)
+      .in("status", ["completed", "validated"])
+      .order("updated_at", { ascending: false })
+      .limit(20),
   ]);
 
   const current = aggregate(campaignRows, currentStart, currentEnd);
   const previous = aggregate(campaignRows, previousStart, previousEnd);
   const auction = weightedAuction(campaignRows, currentStart, currentEnd);
-  const executedOptimizations = summarizeExecutedOptimizations(
+
+  const checklistOptimizations = (progressResult.data || [])
+    .map((item) => String(item.action_title || "").trim())
+    .filter(Boolean);
+  const eventOptimizations = summarizeExecutedOptimizations(
     ((eventsResult.data || []) as Array<{ change_resource_type: string | null }>),
   );
+  const executedOptimizations = checklistOptimizations.length
+    ? Array.from(new Set(checklistOptimizations)).slice(0, 5)
+    : eventOptimizations;
 
   const wasteSearchTerms = (searchTermsResult.data || []).filter((row: any) => {
     const metrics = row?.metrics || {};
