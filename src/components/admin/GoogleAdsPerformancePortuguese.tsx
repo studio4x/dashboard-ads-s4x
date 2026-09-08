@@ -8,7 +8,7 @@ const ENUM_TRANSLATIONS: Array<[string, string]> = [
   ["RESPONSIVE_SEARCH_AD", "Anúncio responsivo de pesquisa"],
   ["EXPANDED_DYNAMIC_SEARCH_AD", "Anúncio dinâmico expandido de pesquisa"],
   ["EXPANDED_TEXT_AD", "Anúncio de texto expandido"],
-  ["PERFORMANCE_MAX", "Performance Max"],
+  ["PERFORMANCE_MAX", "Máximo desempenho"],
   ["MAXIMIZE_CONVERSIONS", "Maximizar conversões"],
   ["TARGET_SPEND", "Investimento desejado"],
   ["TARGET_CPA", "CPA desejado"],
@@ -37,13 +37,13 @@ const ENUM_TRANSLATIONS: Array<[string, string]> = [
   ["ABOVE_AVERAGE", "Acima da média"],
   ["BELOW_AVERAGE", "Abaixo da média"],
   ["AVERAGE", "Na média"],
-  ["RESPONSIVE_DISPLAY_AD", "Anúncio responsivo de display"],
+  ["RESPONSIVE_DISPLAY_AD", "Anúncio responsivo gráfico"],
   ["VIDEO_AD", "Anúncio em vídeo"],
   ["IMAGE_AD", "Anúncio gráfico"],
   ["TEXT_AD", "Anúncio de texto"],
   ["APP_AD", "Anúncio de aplicativo"],
-  ["SHOPPING_PRODUCT_AD", "Anúncio de produto do Shopping"],
-  ["SHOPPING_SMART_AD", "Anúncio inteligente do Shopping"],
+  ["SHOPPING_PRODUCT_AD", "Anúncio de produto"],
+  ["SHOPPING_SMART_AD", "Anúncio inteligente de produtos"],
   ["MOBILE", "Celular"],
   ["DESKTOP", "Computador"],
   ["TABLET", "Tablet"],
@@ -64,7 +64,7 @@ const ENUM_TRANSLATIONS: Array<[string, string]> = [
   ["UPDATE", "Atualização"],
   ["REMOVE", "Remoção"],
   ["ASSET", "Recurso"],
-  ["CONTENT", "Rede de Display"],
+  ["CONTENT", "Rede de anúncios gráficos"],
 ];
 
 const TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
@@ -152,7 +152,13 @@ export function GoogleAdsPerformancePortuguese() {
       scheduled = true;
       window.requestAnimationFrame(apply);
     });
-    observer.observe(root, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["title", "aria-label", "placeholder", "alt"] });
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["title", "aria-label", "placeholder", "alt"],
+    });
 
     return () => observer.disconnect();
   }, []);
