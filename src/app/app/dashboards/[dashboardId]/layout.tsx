@@ -6,6 +6,7 @@ import { mockClients, mockDashboards } from "@/data/mock-sheet-overview";
 import { DashboardService } from "@/services/dashboard-service";
 import { getSessionProfile } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
+import packageJson from "../../../../../package.json";
 import type { Metadata } from "next";
 
 export async function generateMetadata(
@@ -94,6 +95,8 @@ export default async function DashboardLayout({ children, params }: DashboardLay
     console.error("Erro ao verificar disponibilidade da análise de performance:", err);
   }
 
+  const buildCommit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || null;
+
   return (
     <DashboardDataProvider>
       <div style={{ minHeight: "100vh", background: "#F8FAFC", display: "flex", flexDirection: "column" }}>
@@ -125,7 +128,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
         </div>
 
         {/* Footer */}
-        <DashboardFooter />
+        <DashboardFooter buildVersion={packageJson.version} buildCommit={buildCommit} />
       </div>
     </DashboardDataProvider>
   );
