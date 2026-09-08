@@ -71,7 +71,7 @@ export function DashboardTabs({ dashboardId, showPerformanceAnalysis = false }: 
             title="Diagnóstico e plano de ação com dados granulares do Google Ads"
           >
             <BarChart3 size={14} />
-            Análise de Performance
+            Análise de desempenho
           </Link>
         );
       })()}
