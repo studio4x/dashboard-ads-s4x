@@ -69,6 +69,17 @@ const ENUM_TRANSLATIONS: Array<[string, string]> = [
 
 const SORTED_ENUM_TRANSLATIONS = [...ENUM_TRANSLATIONS].sort((a, b) => b[0].length - a[0].length);
 
+const EXACT_TEXT_TRANSLATIONS = new Map<string, string>([
+  ["CTR", "Taxa de cliques (CTR)"],
+  ["CPC", "Custo por clique (CPC)"],
+  ["CVR", "Taxa de conversão (CVR)"],
+  ["CPA", "Custo por conversão (CPA)"],
+  ["CPM", "Custo por mil impressões (CPM)"],
+  ["CPV", "Custo por visualização (CPV)"],
+  ["ROAS", "Retorno sobre investimento em anúncios (ROAS)"],
+  ["QS", "Índice de qualidade"],
+]);
+
 const TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/Change Events têm retenção limitada pela Google Ads API\./gi, "O histórico de alterações tem retenção limitada pela integração do Google Ads."],
   [/Atacar Ad Rank e relevância/gi, "Melhorar classificação e relevância dos anúncios"],
@@ -104,6 +115,12 @@ const TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
 ];
 
 function translateText(value: string) {
+  const leading = value.match(/^\s*/)?.[0] || "";
+  const trailing = value.match(/\s*$/)?.[0] || "";
+  const trimmed = value.trim();
+  const exact = EXACT_TEXT_TRANSLATIONS.get(trimmed);
+  if (exact) return `${leading}${exact}${trailing}`;
+
   let result = value;
 
   for (const [source, target] of SORTED_ENUM_TRANSLATIONS) {
