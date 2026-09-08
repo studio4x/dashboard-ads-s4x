@@ -98,3 +98,31 @@ test("a query campaign_daily inclui Search Impression Share e preserva proporç�
   assert.equal(row.metrics.searchBudgetLostImpressionShare, null);
   assert.equal((row.raw_row.metrics as Record<string, unknown>).searchImpressionShare, 0.283);
 });
+
+test("search_terms_daily preserva keyword associada e não confunde os dois match types", () => {
+  const query = googleAdsAnalyticsQueries.searchTermsDaily("2026-08-03", "2026-08-28");
+  assert.match(query, /segments\.keyword\.ad_group_criterion/);
+  assert.match(query, /segments\.keyword\.info\.text/);
+  assert.match(query, /segments\.keyword\.info\.match_type/);
+
+  const [row] = normalizeAnalyticsRows("search_terms_daily", [{
+    campaign: { id: "10", name: "Search" }, adGroup: { id: "20", name: "Psicoterapia" },
+    searchTermView: { searchTerm: "psicologa juazeiro do norte", status: "ADDED" },
+    segments: {
+      date: "2026-08-11", searchTermMatchType: "NEAR_PHRASE",
+      keyword: { adGroupCriterion: "customers/5578515674/adGroupCriteria/195865330317~296334051048", info: { text: "consultório psicologia", matchType: "PHRASE" } },
+    }, metrics: { impressions: 1, clicks: 2, costMicros: 29100000, conversions: 0 },
+  }], source);
+  assert.equal(row.dimensions.searchTermMatchType, "NEAR_PHRASE");
+  assert.equal(row.dimensions.matchedKeywordCriterion, "customers/5578515674/adGroupCriteria/195865330317~296334051048");
+  assert.equal(row.dimensions.matchedKeywordText, "consultório psicologia");
+  assert.equal(row.dimensions.matchedKeywordMatchType, "PHRASE");
+  assert.equal((row.raw_row.segments as Record<string, unknown>).keyword !== null, true);
+
+  const [withoutKeyword] = normalizeAnalyticsRows("search_terms_daily", [{
+    searchTermView: { searchTerm: "termo sem keyword", status: "NONE" }, segments: { date: "2026-08-11", searchTermMatchType: "BROAD" }, metrics: {},
+  }], source);
+  assert.equal(withoutKeyword.dimensions.matchedKeywordCriterion, null);
+  assert.equal(withoutKeyword.dimensions.matchedKeywordText, null);
+  assert.equal(withoutKeyword.dimensions.matchedKeywordMatchType, null);
+});

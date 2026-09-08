@@ -67,6 +67,8 @@ function dimensions(row: GoogleAdsApiRow): JsonRecord {
   const geographic = object(row.geographicView);
   const ageRange = object(criterion.ageRange);
   const gender = object(criterion.gender);
+  const matchedKeyword = object(segments.keyword);
+  const matchedKeywordInfo = object(matchedKeyword.info);
   const placement = object(row.detailPlacementView);
   const budget = object(row.campaignBudget || row.accountBudget);
   const change = object(row.changeEvent);
@@ -89,8 +91,9 @@ function dimensions(row: GoogleAdsApiRow): JsonRecord {
     searchTerm: stringValue(searchTerm, "searchTerm") || stringValue(campaignSearchTerm, "searchTerm"),
     searchTermStatus: stringValue(searchTerm, "status"), searchTermSource: stringValue(segments, "searchTermMatchSource"),
     searchTermMatchType: stringValue(segments, "searchTermMatchType"), searchTermTargetingStatus: stringValue(segments, "searchTermTargetingStatus"),
-    matchedKeywordCriterion: stringValue(segments, "keywordAdGroupCriterion"), matchedKeywordText: stringValue(segments, "keywordInfoText"),
-    matchedKeywordMatchType: stringValue(segments, "keywordInfoMatchType"),
+    matchedKeywordCriterion: stringValue(matchedKeyword, "adGroupCriterion") || stringValue(segments, "keywordAdGroupCriterion"),
+    matchedKeywordText: stringValue(matchedKeywordInfo, "text") || stringValue(segments, "keywordInfoText"),
+    matchedKeywordMatchType: stringValue(matchedKeywordInfo, "matchType") || stringValue(segments, "keywordInfoMatchType"),
     adId: stringValue(ad, "id"), adName: stringValue(ad, "name"), adStatus: stringValue(adGroupAd, "status"), adType: stringValue(ad, "type"),
     adPrimaryStatus: stringValue(adGroupAd, "primaryStatus"), adPrimaryStatusReasons: get(adGroupAd, "primaryStatusReasons") ?? null,
     assetId: stringValue(asset, "id"), assetName: stringValue(asset, "name"), assetType: stringValue(asset, "type"),

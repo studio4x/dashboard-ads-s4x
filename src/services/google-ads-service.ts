@@ -139,7 +139,9 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
   };
 
   const requiredResults = await Promise.allSettled(required.map(async ([name, query]) => {
-    if (name !== "dailyRows") return [name, await client.search(customerId, query, loginCustomerId), null] as const;
+    const fallbackQuery = name === "dailyRows" ? googleAdsAnalyticsQueries.campaignDailyBase(start, end)
+      : name === "searchTermRows" ? googleAdsAnalyticsQueries.searchTermsDailyBase(start, end) : null;
+    if (!fallbackQuery) return [name, await client.search(customerId, query, loginCustomerId), null] as const;
     try {
       return [name, await client.search(customerId, query, loginCustomerId), null] as const;
     } catch (error) {
@@ -148,8 +150,9 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
       // capability limitation as a warning instead of failing the sync.
       const message = error instanceof Error ? error.message : String(error || "");
       if (!/unrecognized field|invalid field|not compatible|cannot be selected|query.*invalid|invalid.*query/i.test(message)) throw error;
-      const fallback = await client.search(customerId, googleAdsAnalyticsQueries.campaignDailyBase(start, end), loginCustomerId);
-      return [name, fallback, `dailyRows: Search Impression Share metrics unavailable for this account; base campaign metrics retained (${describeGoogleAdsError(error)})`] as const;
+      const fallback = await client.search(customerId, fallbackQuery, loginCustomerId);
+      const label = name === "searchTermRows" ? "search_terms_daily keyword segments" : "Search Impression Share metrics";
+      return [name, fallback, `${name}: ${label} unavailable for this account; base metrics retained (${describeGoogleAdsError(error)})`] as const;
     }
   }));
   requiredResults.forEach((result, index) => {
