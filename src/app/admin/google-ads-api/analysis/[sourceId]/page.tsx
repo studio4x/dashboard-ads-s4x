@@ -8,6 +8,8 @@ import {
 } from "@/components/admin/GoogleAdsClientSummary";
 
 export const metadata: Metadata = { title: "Análise Google Ads" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
