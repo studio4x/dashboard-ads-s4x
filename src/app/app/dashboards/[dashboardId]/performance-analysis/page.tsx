@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 import { GoogleAdsPerformanceAnalysis } from "@/components/admin/GoogleAdsPerformanceAnalysis";
+import { GoogleAdsPerformancePortuguese } from "@/components/admin/GoogleAdsPerformancePortuguese";
 import { GoogleAdsActionProgressEnhancer } from "@/components/admin/GoogleAdsActionProgressEnhancer";
 import {
   GoogleAdsClientSummary,
@@ -51,7 +52,8 @@ export default async function DashboardPerformanceAnalysisPage({
   const to = single(query.to);
 
   return (
-    <>
+    <div data-google-ads-performance-page="true">
+      <GoogleAdsPerformancePortuguese />
       <GoogleAdsPerformanceAnalysis
         sourceId={source.id}
         from={from}
@@ -71,6 +73,6 @@ export default async function DashboardPerformanceAnalysisPage({
           <GoogleAdsClientSummary sourceId={source.id} from={from} to={to} />
         </Suspense>
       </div>
-    </>
+    </div>
   );
 }
