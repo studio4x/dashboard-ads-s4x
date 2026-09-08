@@ -14,15 +14,25 @@ type Props = {
 
 function sanitizeClientText(value: string) {
   return String(value || "")
+    // Corrige primeiro construções completas para não gerar duplicidades como
+    // "presença nas buscas dos anúncios nas buscas".
+    .replace(/melhorar a relevância e a presença nas buscas dos anúncios nas buscas/gi, "melhorar a presença e a relevância dos anúncios nas buscas")
     .replace(/melhorar a relevância e a competitividade dos anúncios nas buscas/gi, "melhorar a presença e a relevância dos anúncios nas buscas")
+    .replace(/relevância e presença nas buscas dos anúncios nas buscas/gi, "presença e relevância dos anúncios nas buscas")
     .replace(/competitividade dos anúncios(?: nas buscas)?/gi, "presença dos anúncios nas buscas")
-    .replace(/\bcompetitividade\b/gi, "presença nas buscas")
+    // Se a palavra aparecer isolada, use apenas "presença" para não duplicar "nas buscas".
+    .replace(/\bcompetitividade\b/gi, "presença")
     .replace(/concentrar a verba/gi, "direcionar melhor o investimento")
     .replace(/concentrar o investimento/gi, "direcionar melhor o investimento")
     .replace(/reduzir buscas pouco alinhadas e direcionar melhor o investimento nas intenções com maior potencial/gi, "reduzir buscas pouco alinhadas e direcionar melhor o investimento para as buscas com maior potencial")
-    .replace(/nas buscas\s+e\s+reduzir buscas pouco alinhadas\s+e\s+direcionar melhor o investimento/gi, "nas buscas, reduzir buscas pouco alinhadas e direcionar melhor o investimento")
+    .replace(/nas buscas\s+e\s+reduzir buscas pouco alinhadas\s+e\s+direcionar melhor o investimento/gi, "nas buscas, ao mesmo tempo em que reduzimos buscas pouco alinhadas e direcionamos melhor o investimento")
+    // Garante leitura em 3 blocos quando a IA devolve tudo em um único parágrafo.
+    .replace(/\.\s+(A revisão da semana passada|A revisão desse período|Na semana passada|Nesse período)/gi, ".\n\n$1")
+    .replace(/\.\s+(Esta semana|Nos próximos dias)/gi, ".\n\n$1")
     .replace(/\s+([,.!?;:])/g, "$1")
-    .replace(/\s{2,}/g, " ")
+    // Normaliza apenas espaços/tabs; não remove quebras de parágrafo.
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
