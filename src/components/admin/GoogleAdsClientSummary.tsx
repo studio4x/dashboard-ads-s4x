@@ -267,6 +267,8 @@ export async function GoogleAdsClientSummary({ sourceId, from, to }: Props) {
       .select("action_title,status,note,completed_at,validated_at,updated_at")
       .eq("data_source_id", sourceId)
       .in("status", ["completed", "validated"])
+      .gte("updated_at", `${currentStart}T00:00:00Z`)
+      .lt("updated_at", `${addDays(currentEnd, 1)}T00:00:00Z`)
       .order("updated_at", { ascending: false })
       .limit(20),
   ]);
