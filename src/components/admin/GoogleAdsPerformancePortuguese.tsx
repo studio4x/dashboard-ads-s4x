@@ -67,6 +67,8 @@ const ENUM_TRANSLATIONS: Array<[string, string]> = [
   ["CONTENT", "Rede de anúncios gráficos"],
 ];
 
+const SORTED_ENUM_TRANSLATIONS = [...ENUM_TRANSLATIONS].sort((a, b) => b[0].length - a[0].length);
+
 const TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/Análise de Performance/gi, "Análise de desempenho"],
   [/\bPerformance\b/gi, "Desempenho"],
@@ -100,7 +102,7 @@ const TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
 function translateText(value: string) {
   let result = value;
 
-  for (const [source, target] of ENUM_TRANSLATIONS) {
+  for (const [source, target] of SORTED_ENUM_TRANSLATIONS) {
     if (result.includes(source)) result = result.split(source).join(target);
   }
 
