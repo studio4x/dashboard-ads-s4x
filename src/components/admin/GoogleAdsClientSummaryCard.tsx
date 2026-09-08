@@ -26,6 +26,8 @@ function sanitizeClientText(value: string) {
     .replace(/concentrar o investimento/gi, "direcionar melhor o investimento")
     .replace(/reduzir buscas pouco alinhadas e direcionar melhor o investimento nas intenções com maior potencial/gi, "reduzir buscas pouco alinhadas e direcionar melhor o investimento para as buscas com maior potencial")
     .replace(/nas buscas\s+e\s+reduzir buscas pouco alinhadas\s+e\s+direcionar melhor o investimento/gi, "nas buscas, ao mesmo tempo em que reduzimos buscas pouco alinhadas e direcionamos melhor o investimento")
+    .replace(/nas buscas;\s*além disso,\s*vamos reduzir buscas pouco alinhadas e direcionar melhor o investimento para as buscas com maior potencial/gi, "nas buscas, ao mesmo tempo em que reduzimos buscas pouco alinhadas e direcionamos melhor o investimento para as buscas com maior potencial")
+    .replace(/Esta semana, vamos focar em melhorar/gi, "Esta semana, vamos trabalhar para melhorar")
     // Garante leitura em 3 blocos quando a IA devolve tudo em um único parágrafo.
     .replace(/\.\s+(A revisão da semana passada|A revisão desse período|Na semana passada|Nesse período)/gi, ".\n\n$1")
     .replace(/\.\s+(Esta semana|Nos próximos dias)/gi, ".\n\n$1")
