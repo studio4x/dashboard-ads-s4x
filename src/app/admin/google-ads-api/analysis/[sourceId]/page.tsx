@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { GoogleAdsPerformanceAnalysis } from "@/components/admin/GoogleAdsPerformanceAnalysis";
+import { GoogleAdsPerformancePortuguese } from "@/components/admin/GoogleAdsPerformancePortuguese";
 import { GoogleAdsActionProgressEnhancer } from "@/components/admin/GoogleAdsActionProgressEnhancer";
 import {
   GoogleAdsClientSummary,
@@ -33,7 +34,8 @@ export default async function GoogleAdsAnalysisPage({
   const to = single(query.to);
 
   return (
-    <>
+    <div data-google-ads-performance-page="true">
+      <GoogleAdsPerformancePortuguese />
       <GoogleAdsPerformanceAnalysis
         sourceId={sourceId}
         from={from}
@@ -52,6 +54,6 @@ export default async function GoogleAdsAnalysisPage({
           <GoogleAdsClientSummary sourceId={sourceId} from={from} to={to} />
         </Suspense>
       </div>
-    </>
+    </div>
   );
 }
