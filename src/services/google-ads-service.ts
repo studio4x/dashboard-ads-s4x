@@ -306,7 +306,9 @@ async function persistAnalytics(
         const legacyNullKeys = Array.from(new Set(normalized
           .filter((row) => row.dimensions.matchedKeywordCriterion !== null)
           .map((row) => analyticsRowKey(dataset, { ...row.dimensions, matchedKeywordCriterion: null }))));
-        for (const chunk of chunks(legacyNullKeys)) {
+        // Keep DELETE query strings below the PostgREST/proxy URL limit. The
+        // upsert batches can remain larger because they are sent in the body.
+        for (const chunk of chunks(legacyNullKeys, 100)) {
           if (!chunk.length) continue;
           const { error } = await supabase.from("google_ads_analytics_rows")
             .delete().eq("data_source_id", source.id).eq("dataset", dataset).in("row_key", chunk);
