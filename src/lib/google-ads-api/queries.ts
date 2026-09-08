@@ -11,19 +11,10 @@ const METRICS = [
   "metrics.interactions",
 ].join(", ");
 
-// Deliberately shared only by resources whose v25 field metadata exposes these
-// metrics together. Resource-specific metrics stay in their own query below.
-const ANALYTIC_METRICS = [
-  "metrics.impressions", "metrics.clicks", "metrics.interactions", "metrics.cost_micros",
-  "metrics.ctr", "metrics.interaction_rate", "metrics.average_cpc", "metrics.average_cpm",
-  "metrics.conversions", "metrics.all_conversions", "metrics.conversions_value", "metrics.all_conversions_value",
-  "metrics.cost_per_conversion", "metrics.cost_per_all_conversions",
-  "metrics.conversions_from_interactions_rate", "metrics.all_conversions_from_interactions_rate",
-  "metrics.value_per_conversion", "metrics.value_per_all_conversions",
-  "metrics.conversions_value_per_cost", "metrics.all_conversions_value_per_cost",
-  "metrics.cross_device_conversions", "metrics.view_through_conversions",
-  "metrics.invalid_clicks", "metrics.invalid_click_rate",
-].join(", ");
+// This is the field set proven by the legacy production query across the
+// common Google Ads resources. Resource- and segment-specific metrics remain
+// isolated below so one incompatible field cannot block the P0 backfill.
+const ANALYTIC_METRICS = METRICS;
 
 const SEARCH_SHARE_METRICS = [
   "metrics.search_impression_share", "metrics.search_budget_lost_impression_share",
@@ -47,8 +38,8 @@ export const googleAdsAnalyticsQueries = {
   // the legacy connector. Optional dimensions/metrics are queried separately
   // so one incompatible field cannot block the whole backfill.
   campaignDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, ${METRICS} FROM campaign WHERE ${between(start, end)} ORDER BY segments.date, campaign.id`,
-  adGroupDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group.status, ad_group.type, ad_group.primary_status, ad_group.primary_status_reasons, ${ANALYTIC_METRICS}, ${SEARCH_SHARE_METRICS} FROM ad_group WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, ad_group.id`,
-  keywordDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.primary_status, ad_group_criterion.primary_status_reasons, ad_group_criterion.quality_info.quality_score, ad_group_criterion.quality_info.creative_quality_score, ad_group_criterion.quality_info.post_click_quality_score, ad_group_criterion.quality_info.search_predicted_ctr, ${ANALYTIC_METRICS}, metrics.search_impression_share, metrics.search_budget_lost_impression_share, metrics.search_rank_lost_impression_share, metrics.search_top_impression_share, metrics.search_absolute_top_impression_share FROM keyword_view WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, ad_group.id, ad_group_criterion.criterion_id`,
+  adGroupDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group.status, ${ANALYTIC_METRICS} FROM ad_group WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, ad_group.id`,
+  keywordDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.quality_info.quality_score, ad_group_criterion.quality_info.creative_quality_score, ad_group_criterion.quality_info.post_click_quality_score, ad_group_criterion.quality_info.search_predicted_ctr, ${ANALYTIC_METRICS} FROM keyword_view WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, ad_group.id, ad_group_criterion.criterion_id`,
   searchTermsDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, campaign.advertising_channel_type, ad_group.id, ad_group.name, search_term_view.search_term, search_term_view.status, segments.search_term_match_type, segments.search_term_targeting_status, segments.search_term_match_source, segments.keyword.ad_group_criterion, segments.keyword.info.text, segments.keyword.info.match_type, ${ANALYTIC_METRICS} FROM search_term_view WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, ad_group.id, search_term_view.search_term`,
   pmaxSearchTermsDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, campaign.advertising_channel_type, campaign_search_term_view.search_term, segments.search_term_match_type, segments.search_term_targeting_status, segments.search_term_match_source, segments.device, segments.ad_network_type, ${ANALYTIC_METRICS} FROM campaign_search_term_view WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, campaign_search_term_view.search_term`,
   adDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.status, ad_group_ad.primary_status, ad_group_ad.primary_status_reasons, ad_group_ad.ad.type, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.responsive_display_ad.headlines, ad_group_ad.ad.responsive_display_ad.descriptions, ad_group_ad.ad.video_responsive_ad.headlines, ad_group_ad.ad.video_responsive_ad.descriptions, ${ANALYTIC_METRICS} FROM ad_group_ad WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, ad_group.id, ad_group_ad.ad.id`,
@@ -65,7 +56,9 @@ export const googleAdsAnalyticsQueries = {
   conversionGoals: `SELECT customer_conversion_goal.resource_name, customer_conversion_goal.category, customer_conversion_goal.origin, customer_conversion_goal.biddable FROM customer_conversion_goal ORDER BY customer_conversion_goal.category`,
   budgets: `SELECT campaign.id, campaign.name, campaign.campaign_budget, campaign_budget.id, campaign_budget.name, campaign_budget.status, campaign_budget.amount_micros, campaign_budget.total_amount_micros, campaign_budget.period, campaign_budget.delivery_method, campaign_budget.explicitly_shared, campaign_budget.reference_count, campaign_budget.has_recommended_budget, campaign_budget.recommended_budget_amount_micros FROM campaign_budget ORDER BY campaign_budget.id`,
   bidding: `SELECT campaign.resource_name, campaign.id, campaign.name, campaign.bidding_strategy_type, campaign.bidding_strategy, campaign.maximize_conversions.target_cpa_micros, campaign.maximize_conversion_value.target_roas, campaign.target_cpa.target_cpa_micros, campaign.target_roas.target_roas FROM campaign ORDER BY campaign.id`,
-  changeEvents: (start: string, end: string) => `SELECT change_event.resource_name, change_event.change_date_time, change_event.change_resource_name, change_event.change_resource_type, change_event.resource_change_operation, change_event.changed_fields, change_event.old_resource, change_event.new_resource, change_event.client_type, change_event.user_email FROM change_event WHERE ${limitedChangeEventPeriod(start, end)} ORDER BY change_event.change_date_time DESC LIMIT 10000`,
+  // old_resource/new_resource are not selectable in every v25 customer
+  // response. Keep the primary event query on the documented stable fields.
+  changeEvents: (start: string, end: string) => `SELECT change_event.resource_name, change_event.change_date_time, change_event.change_resource_name, change_event.change_resource_type, change_event.resource_change_operation, change_event.changed_fields, change_event.client_type, change_event.user_email FROM change_event WHERE ${limitedChangeEventPeriod(start, end)} ORDER BY change_event.change_date_time DESC LIMIT 10000`,
   placements: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, ad_group.id, ad_group.name, segments.ad_network_type, detail_placement_view.display_name, detail_placement_view.placement, ${ANALYTIC_METRICS} FROM detail_placement_view WHERE ${between(start, end)} ORDER BY segments.date, campaign.id`,
   shopping: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, segments.product_item_id, segments.product_title, segments.product_brand, segments.product_category_level1, segments.product_category_level2, segments.product_type_l1, segments.product_condition, segments.product_channel, segments.product_merchant_id, ${ANALYTIC_METRICS} FROM shopping_performance_view WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, segments.product_item_id`,
   demographicsAge: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group_criterion.age_range.type, ${ANALYTIC_METRICS} FROM age_range_view WHERE ${between(start, end)} ORDER BY segments.date, campaign.id`,

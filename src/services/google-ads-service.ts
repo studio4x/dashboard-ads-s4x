@@ -184,7 +184,7 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
     { key: "bidding", query: googleAdsAnalyticsQueries.bidding },
     // Google only accepts a maximum 30-day window for change_event, regardless
     // of the performance history configured for the source.
-    { key: "changeEvents", query: googleAdsAnalyticsQueries.changeEvents(daysAgo(30), end) },
+    { key: "changeEvents", query: googleAdsAnalyticsQueries.changeEvents(daysAgo(29), end) },
   ];
   const channelTypes = new Set((data.dailyRows || []).map((row) => String(row.campaign?.advertisingChannelType || "").toUpperCase()));
   const isPmax = channelTypes.has("PERFORMANCE_MAX");
@@ -315,12 +315,21 @@ async function persistAnalytics(
       bidding: queried.configurationRows.bidding?.length || 0,
       changeEvents: queried.changeEventRows.length,
     };
+    const legacyDatasetByAnalytics: Record<string, string> = {
+      campaign_daily: "dailyRows", ad_group_daily: "adGroupRows", keyword_daily: "keywordRows",
+      search_terms_daily: "searchTermRows", ad_daily: "adRows", asset_daily: "adAssetRows",
+      pmax_asset_group_asset: "pmaxAssetRows",
+    };
+    const warningForDataset = (dataset: string) => {
+      const aliases = [dataset, legacyDatasetByAnalytics[dataset]].filter(Boolean).map((value) => String(value).toLowerCase());
+      return queried.warnings.find((warning) => aliases.some((alias) => warning.toLowerCase().startsWith(`${alias}:`))) || null;
+    };
     const runs = Object.entries(queried.statuses).map(([dataset, status]) => ({
       data_source_id: source.id, customer_id: source.customer_id, dataset, status,
       queried_from: dateStart, queried_to: dateEnd, received_rows: receivedRowsByDataset[dataset] || 0,
       inserted_rows: persistedRows[dataset] || 0, updated_rows: 0, request_ids: queried.requestIds.slice(0, 30),
-      warning: queried.warnings.find((warning) => warning.toLowerCase().startsWith(`${dataset}:`)) || null,
-      error: status === "error" ? (queried.warnings.find((warning) => warning.toLowerCase().startsWith(`${dataset}:`)) || null) : null,
+      warning: warningForDataset(dataset),
+      error: status === "error" || status === "unsupported" ? warningForDataset(dataset) : null,
       capabilities: { apiVersion, source: "google_ads_api" },
     }));
     if (runs.length) {
