@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { GoogleAdsPerformanceAnalysis } from "@/components/admin/GoogleAdsPerformanceAnalysis";
 import { GoogleAdsPerformancePortuguese } from "@/components/admin/GoogleAdsPerformancePortuguese";
+import { GoogleAdsOptimizationOverview } from "@/components/admin/GoogleAdsOptimizationOverview";
+import { GoogleAdsAnalysisComposer } from "@/components/admin/GoogleAdsAnalysisComposer";
 import { GoogleAdsActionProgressEnhancer } from "@/components/admin/GoogleAdsActionProgressEnhancer";
 import {
   GoogleAdsClientSummary,
@@ -41,6 +43,8 @@ export default async function GoogleAdsAnalysisPage({
         from={from}
         to={to}
       />
+      <GoogleAdsOptimizationOverview sourceId={sourceId} from={from} to={to} />
+      <GoogleAdsAnalysisComposer />
       <GoogleAdsActionProgressEnhancer sourceId={sourceId} />
       <div
         style={{
