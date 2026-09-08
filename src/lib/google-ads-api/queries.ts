@@ -16,16 +16,6 @@ const METRICS = [
 // isolated below so one incompatible field cannot block the P0 backfill.
 const ANALYTIC_METRICS = METRICS;
 
-const SEARCH_SHARE_METRICS = [
-  "metrics.search_impression_share", "metrics.search_budget_lost_impression_share",
-  "metrics.search_rank_lost_impression_share", "metrics.search_top_impression_share",
-  "metrics.search_absolute_top_impression_share", "metrics.search_budget_lost_top_impression_share",
-  "metrics.search_budget_lost_absolute_top_impression_share", "metrics.search_rank_lost_top_impression_share",
-  "metrics.search_rank_lost_absolute_top_impression_share", "metrics.search_click_share",
-  "metrics.search_exact_match_impression_share", "metrics.top_impression_percentage",
-  "metrics.absolute_top_impression_percentage",
-].join(", ");
-
 function limitedChangeEventPeriod(dateStart: string, dateEnd: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStart) || !/^\d{4}-\d{2}-\d{2}$/.test(dateEnd)) {
     throw new Error("Período de Change Event inválido.");

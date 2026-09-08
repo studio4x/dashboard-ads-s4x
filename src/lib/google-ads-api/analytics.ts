@@ -56,6 +56,8 @@ function dimensions(row: GoogleAdsApiRow): JsonRecord {
   const segments = object(row.segments);
   const landing = object(row.landingPageView);
   const geographic = object(row.geographicView);
+  const ageRange = object(criterion.ageRange);
+  const gender = object(criterion.gender);
   const placement = object(row.detailPlacementView);
   const budget = object(row.campaignBudget || row.accountBudget);
   const change = object(row.changeEvent);
@@ -73,6 +75,8 @@ function dimensions(row: GoogleAdsApiRow): JsonRecord {
     adGroupPrimaryStatus: stringValue(adGroup, "primaryStatus"), adGroupPrimaryStatusReasons: get(adGroup, "primaryStatusReasons") ?? null,
     criterionId: stringValue(criterion, "criterionId"), keywordText: stringValue(keyword, "text"), keywordMatchType: stringValue(keyword, "matchType"),
     keywordStatus: stringValue(criterion, "status"), keywordPrimaryStatus: stringValue(criterion, "primaryStatus"), keywordPrimaryStatusReasons: get(criterion, "primaryStatusReasons") ?? null,
+    ageRange: stringValue(ageRange, "type") || stringValue(object(row.ageRangeView), "type"),
+    gender: stringValue(gender, "type") || stringValue(object(row.genderView), "type"),
     searchTerm: stringValue(searchTerm, "searchTerm") || stringValue(campaignSearchTerm, "searchTerm"),
     searchTermStatus: stringValue(searchTerm, "status"), searchTermSource: stringValue(segments, "searchTermMatchSource"),
     searchTermMatchType: stringValue(segments, "searchTermMatchType"), searchTermTargetingStatus: stringValue(segments, "searchTermTargetingStatus"),
@@ -118,7 +122,12 @@ function metrics(row: GoogleAdsApiRow) {
 }
 
 function rowKey(dataset: GoogleAdsAnalyticDataset, dims: JsonRecord) {
-  const keys = ["date", "campaignId", "adGroupId", "criterionId", "searchTerm", "adId", "assetId", "assetGroupId", "device", "network", "subNetwork", "hour", "landingPageUrl", "conversionAction", "country", "region", "city", "placementName", "productItemId", "keywordText"];
+  const keys = [
+    "date", "campaignId", "adGroupId", "criterionId", "searchTerm", "searchTermMatchType", "searchTermTargetingStatus", "matchedKeywordCriterion",
+    "adId", "assetId", "assetGroupId", "assetFieldType", "device", "network", "subNetwork", "dayOfWeek", "hour",
+    "landingPageUrl", "landingPageSource", "conversionAction", "countryCriterionId", "locationType", "country", "region", "city",
+    "placementName", "productItemId", "keywordText", "ageRange", "gender",
+  ];
   return hash({ dataset, ...Object.fromEntries(keys.map((key) => [key, dims[key] ?? null])) });
 }
 
@@ -147,7 +156,7 @@ export function normalizeAnalyticsRows(dataset: GoogleAdsAnalyticDataset, rows: 
 }
 
 export function normalizeConfigurationSnapshot(dataset: string, rows: GoogleAdsApiRow[], source: AnalyticsSource) {
-  return rows.map((row) => {
+  const snapshots = rows.map((row) => {
     const raw = object(row[dataset === "conversion_action" ? "conversionAction" : dataset === "conversion_goal" ? "customerConversionGoal" : dataset === "campaign_budget" ? "campaignBudget" : dataset === "keyword_quality" ? "adGroupCriterion" : "campaign"]);
     const resourceName = stringValue(raw, "resourceName") || hash(raw);
     const campaign = object(row.campaign);
@@ -158,6 +167,10 @@ export function normalizeConfigurationSnapshot(dataset: string, rows: GoogleAdsA
       payload: row,
     };
   });
+  return Array.from(new Map(snapshots.map((snapshot) => [
+    `${snapshot.config_type}:${snapshot.resource_name}:${snapshot.observed_on}`,
+    snapshot,
+  ])).values());
 }
 
 export function normalizeChangeEvents(rows: GoogleAdsApiRow[], source: AnalyticsSource) {
