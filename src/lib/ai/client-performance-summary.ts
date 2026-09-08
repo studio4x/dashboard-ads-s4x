@@ -200,6 +200,70 @@ function summarizeExecutedOptimizations(values: string[]) {
   return `${actions[0]} e ${actions[1]}`;
 }
 
+function hasSearchQualitySignal(values: string[]) {
+  return values.some((value) => {
+    const item = normalizeAction(value).toLowerCase();
+    return (
+      item.includes("negativas") ||
+      item.includes("correspond") ||
+      item.includes("keywords com gasto") ||
+      item.includes("palavras-chave com gasto") ||
+      item.includes("termos de pesquisa") ||
+      item.includes("buscas pouco alinhadas")
+    );
+  });
+}
+
+function diagnosisSentence(input: ClientPerformanceSummaryInput) {
+  const clickDelta = pctChange(input.current.clicks, input.previous.clicks);
+  const impressionDelta = pctChange(input.current.impressions, input.previous.impressions);
+  const conversionDelta = pctChange(input.current.conversions, input.previous.conversions);
+  const rankLost = input.auction?.rankLostImpressionShare;
+  const budgetLost = input.auction?.budgetLostImpressionShare;
+
+  const rankIsMainBottleneck =
+    rankLost != null &&
+    rankLost >= 0.25 &&
+    (budgetLost == null || rankLost > budgetLost);
+
+  const lowVolume =
+    input.current.clicks <= 15 ||
+    (clickDelta != null && clickDelta <= -20) ||
+    (impressionDelta != null && impressionDelta <= -20);
+
+  const lowResults =
+    input.current.conversions === 0 ||
+    (conversionDelta != null && conversionDelta <= -20);
+
+  const searchQualityIssue = hasSearchQualitySignal(input.nextActions);
+
+  if (rankIsMainBottleneck && lowVolume && searchQualityIssue && lowResults) {
+    return "A análise indica que o principal problema esteve na entrega: a campanha perdeu espaço nas buscas e, com isso, recebeu poucos acessos. Também identificamos buscas menos alinhadas ao serviço, o que reduz a qualidade do tráfego. Com poucas oportunidades qualificadas chegando ao site, a chance de gerar novos resultados também caiu.";
+  }
+
+  if (rankIsMainBottleneck && lowVolume && lowResults) {
+    return "A análise indica que a campanha perdeu espaço nas buscas e, com isso, recebeu poucos acessos. Com poucas pessoas chegando ao site, tivemos menos oportunidades para transformar essas visitas em novos resultados.";
+  }
+
+  if (lowVolume && searchQualityIssue && lowResults) {
+    return "O baixo volume de acessos foi um dos principais fatores para o resultado da semana. Além disso, identificamos buscas menos alinhadas ao serviço, o que reduziu a qualidade das oportunidades que chegaram ao site.";
+  }
+
+  if (lowVolume && lowResults) {
+    return "O volume de acessos ficou baixo e isso reduziu bastante o número de oportunidades disponíveis para gerar novos resultados. Com poucas visitas na semana, a ausência de novas conversões fica mais provável, mesmo sem indicar sozinha um problema definitivo na procura pelo serviço.";
+  }
+
+  if (searchQualityIssue && lowResults) {
+    return "O volume de acessos não explica sozinho a queda nos resultados. A análise também mostrou buscas menos alinhadas ao serviço, então parte do trabalho agora é melhorar a qualidade de quem chega ao site e aumentar a chance dessas visitas avançarem.";
+  }
+
+  if (lowResults) {
+    return "Os resultados ficaram abaixo do esperado mesmo com tráfego no período, então a análise aponta espaço para melhorar tanto a qualidade dos acessos quanto o caminho até a conversão. Esse ponto será acompanhado nos próximos dias antes de qualquer conclusão mais forte.";
+  }
+
+  return "A análise não mostrou um único fator isolado explicando o desempenho. Por isso, estamos olhando em conjunto para volume de acessos, qualidade das buscas e capacidade da campanha de transformar essas visitas em resultado.";
+}
+
 function movementSentence(input: ClientPerformanceSummaryInput) {
   const clickDelta = pctChange(input.current.clicks, input.previous.clicks);
   const cpcDelta = pctChange(input.current.cpc, input.previous.cpc);
@@ -253,9 +317,10 @@ export function buildAutomaticClientPerformanceSummary(input: ClientPerformanceS
       : `no período de ${periodLabel}, tivemos ${brl(input.current.cost)} investidos, ${integer(input.current.clicks)} acessos pelos anúncios e ${integer(input.current.conversions)} resultado(s) registrado(s) pela campanha.`;
 
   const executed = summarizeExecutedOptimizations(input.executedOptimizations);
+  const diagnosis = diagnosisSentence(input);
   const optimizationLine = executed
-    ? `${weekly ? "Na semana passada" : "Nesse período"}, também fizemos ${executed}, buscando melhorar a qualidade dos acessos e aproveitar melhor o investimento.`
-    : `${weekly ? "A revisão da semana passada" : "A revisão desse período"} mostrou com mais clareza onde a campanha perdeu força e quais pontos precisam ser ajustados agora.`;
+    ? `${diagnosis} ${weekly ? "Na semana passada" : "Nesse período"}, também fizemos ${executed}, buscando melhorar a qualidade dos acessos e aproveitar melhor o investimento.`
+    : `${diagnosis} Com essa análise, conseguimos definir com mais clareza os ajustes que precisam ser feitos agora.`;
 
   const nextFocus = summarizeNextActions(input.nextActions);
   const nextLine = weekly
@@ -276,7 +341,7 @@ function cleanAiText(value: string) {
 }
 
 function hasExcessiveJargon(value: string) {
-  return /\b(Ad Rank|Search IS|GAQL|Quality Score|Smart Bidding|criterion|change event)\b/i.test(value);
+  return /\b(Ad Rank|Search IS|GAQL|Quality Score|Smart Bidding|criterion|change event|competitividade|ranking)\b/i.test(value);
 }
 
 function buildPrompt(input: ClientPerformanceSummaryInput, fallback: string) {
@@ -286,14 +351,24 @@ function buildPrompt(input: ClientPerformanceSummaryInput, fallback: string) {
   const weekly = isWeeklyWindow(input);
   const friendlyNextActions = uniqueActions(input.nextActions, humanizeAction);
   const friendlyExecuted = uniqueActions(input.executedOptimizations, humanizeOptimization);
+  const friendlyDiagnosis = diagnosisSentence(input);
 
   return `Você é responsável pela comunicação de performance da S4X com seus clientes. Escreva uma mensagem de WhatsApp curta, informal, clara e profissional, como se ela fosse enviada na segunda-feira ou no começo da semana.
 
 OBJETIVO
 Explicar de forma natural:
 1. como foi o resultado da semana passada;
-2. o que realmente foi ajustado ou o que a revisão identificou;
-3. o que será feito esta semana e o que esperamos observar.
+2. por que provavelmente o volume de acessos/resultados ficou baixo ou mudou;
+3. o que realmente foi ajustado ou o que a revisão identificou;
+4. o que será feito esta semana e o que esperamos observar.
+
+EXPLICAÇÃO DO MOTIVO — OBRIGATÓRIA
+- A mensagem NÃO pode apenas dizer que houve menos acessos ou menos resultados; precisa explicar o motivo provável de forma simples.
+- Diferencie demanda de mercado de entrega da campanha: não diga que "houve menos procura pelo serviço" apenas porque a campanha teve menos cliques.
+- Quando os dados de leilão mostrarem perda maior por ranking/relevância do que por orçamento, explique para a cliente que os anúncios perderam espaço/apareceram menos nas buscas. Não use a palavra "ranking".
+- Quando houver sinais de termos de pesquisa pouco alinhados, explique que parte das buscas trouxe acessos menos alinhados ao serviço, reduzindo a qualidade das oportunidades.
+- Quando houver poucos acessos, conecte isso à conversão: poucas visitas significam poucas oportunidades de gerar resultado. Não diga que isso garante ou explica 100% das conversões.
+- Se os dados não permitirem confirmar uma causa, use linguagem como "a análise indica", "um dos fatores" ou "provavelmente".
 
 CONTEXTO TEMPORAL
 - ${weekly ? "O período analisado deve ser chamado de \"semana passada\"." : "O período selecionado não corresponde exatamente a uma semana; use \"período analisado\" quando necessário."}
@@ -308,7 +383,7 @@ TOM E FLUIDEZ
 - Use linguagem próxima, simples e objetiva.
 - Prefira "acessos" a "cliques" quando ficar mais natural.
 - Prefira "resultados registrados pela campanha" a "conversões".
-- Use 3 parágrafos curtos, aproximadamente 450 a 800 caracteres no total.
+- Use 3 parágrafos curtos, aproximadamente 550 a 950 caracteres no total.
 - Não use título, markdown, listas, bullets ou emojis.
 - NÃO copie ou cole os nomes das ações um após o outro.
 - Resuma as ações em no máximo 2 ideias principais e transforme-as em uma frase natural.
@@ -325,7 +400,7 @@ PRECISÃO
 - Não trate conversões do Google Ads como leads ou contatos confirmados.
 - Não diga que falta orçamento se a maior perda estiver ligada a ranking/relevância.
 - Não exponha ferramentas, histórico da conta, banco, API, IA ou processos internos.
-- Não use Ad Rank, Search IS, GAQL, Quality Score, Smart Bidding, criterion ou change event.
+- Não use Ad Rank, Search IS, GAQL, Quality Score, Smart Bidding, criterion, change event, competitividade ou ranking.
 - Use no máximo 3 números relevantes.
 - Preserve os fatos e não atribua causalidade sem evidência.
 
@@ -343,6 +418,9 @@ Resultados registrados: ${integer(current.conversions)} | anterior: ${integer(pr
 Taxa de conversão: ${percent(current.cvr, 2)} | anterior: ${percent(previous.cvr, 2)}
 CPA: ${brl(current.cpa)} | anterior: ${brl(previous.cpa)}
 ${auction ? `Participação de impressões: ${auction.searchImpressionShare == null ? "n/d" : percent(auction.searchImpressionShare * 100)} | perda por orçamento: ${auction.budgetLostImpressionShare == null ? "n/d" : percent(auction.budgetLostImpressionShare * 100)} | perda por ranking/relevância: ${auction.rankLostImpressionShare == null ? "n/d" : percent(auction.rankLostImpressionShare * 100)}` : "Dados de leilão: não disponíveis"}
+
+DIAGNÓSTICO EM LINGUAGEM AMIGÁVEL — USE COMO BASE, SEM COPIAR DE FORMA ROBÓTICA
+${friendlyDiagnosis}
 
 OTIMIZAÇÕES REGISTRADAS — JÁ EXECUTADAS
 ${friendlyExecuted.length ? friendlyExecuted.map((item) => `- ${item}`).join("\n") : "Nenhuma alteração estrutural registrada no período. Fale apenas da revisão e do diagnóstico, sem expor esta regra."}
