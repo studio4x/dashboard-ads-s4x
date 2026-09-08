@@ -77,6 +77,19 @@ function describeGoogleAdsError(error: unknown) {
   return details.join(" | ");
 }
 
+function describeAnyError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const candidate = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    const message = typeof candidate.message === "string" ? candidate.message : JSON.stringify(error);
+    const extras = [candidate.code, candidate.details, candidate.hint]
+      .filter(Boolean)
+      .map((value) => typeof value === "string" ? value : JSON.stringify(value));
+    return [message, ...extras].join(" | ").slice(0, 1800);
+  }
+  return "erro desconhecido";
+}
+
 function normalizeCustomerId(value: unknown) {
   return String(value || "").replace(/\D/g, "");
 }
@@ -190,6 +203,12 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
   const isPmax = channelTypes.has("PERFORMANCE_MAX");
   const isShopping = isPmax || channelTypes.has("SHOPPING");
   const isDisplayOrVideo = channelTypes.has("DISPLAY") || channelTypes.has("VIDEO") || channelTypes.has("VIDEO_PARTNERS");
+  if (!isPmax) {
+    data.pmaxAssetRows = [];
+    statuses.pmaxAssetRows = "not_applicable";
+    const pmaxWarningIndex = warnings.findIndex((warning) => warning.toLowerCase().startsWith("pmaxassetrows:"));
+    if (pmaxWarningIndex >= 0) warnings.splice(pmaxWarningIndex, 1);
+  }
   analyticsSpecs.forEach((spec) => {
     spec.applicable = spec.key === "pmaxSearchTerms" || spec.key === "pmaxAssetGroups" ? isPmax
       : spec.key === "shopping" ? isShopping : spec.key === "placements" ? isDisplayOrVideo || isPmax : true;
@@ -201,6 +220,10 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
     catch (error) { return { spec, result: null, error }; }
   }));
   analyticsResults.forEach(({ spec, result, error }) => {
+    if (!spec.applicable) {
+      if (spec.dataset) statuses[spec.dataset] = "not_applicable";
+      return;
+    }
     if (!spec.dataset && spec.key === "changeEvents") {
       if (result) { changeEventRows.push(...result.rows); requestIds.push(...result.requestIds); statuses.changeEvents = result.rows.length ? "success" : "no_data"; }
       else { statuses.changeEvents = statusForQueryError(error); warnings.push(`changeEvents: ${describeGoogleAdsError(error)}`); }
@@ -268,7 +291,7 @@ async function persistAnalytics(
       }
       persistedRows[dataset] = normalized.length;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "persistência indisponível";
+      const message = describeAnyError(error);
       persistenceWarnings.push(`${dataset}: ${message}`);
       persistedRows[dataset] = 0;
     }
@@ -290,7 +313,7 @@ async function persistAnalytics(
         if (error) throw error;
       }
     } catch (error) {
-      persistenceWarnings.push(`${configType}: ${error instanceof Error ? error.message : "persistência indisponível"}`);
+      persistenceWarnings.push(`${configType}: ${describeAnyError(error)}`);
     }
   }
 
@@ -302,7 +325,7 @@ async function persistAnalytics(
         if (error) throw error;
       }
     } catch (error) {
-      persistenceWarnings.push(`changeEvents: ${error instanceof Error ? error.message : "persistência indisponível"}`);
+      persistenceWarnings.push(`changeEvents: ${describeAnyError(error)}`);
     }
   }
 
@@ -337,7 +360,7 @@ async function persistAnalytics(
       if (error) throw error;
     }
   } catch (error) {
-    persistenceWarnings.push(`analyticsRuns: ${error instanceof Error ? error.message : "persistência indisponível"}`);
+    persistenceWarnings.push(`analyticsRuns: ${describeAnyError(error)}`);
   }
   return { persistenceWarnings, persistedRows };
 }

@@ -31,6 +31,12 @@ function googleAdsErrorCodes(body: GoogleAdsErrorBody) {
     .filter((value): value is string => typeof value === "string" && Boolean(value))));
 }
 
+function googleAdsErrorDetailsSummary(body: GoogleAdsErrorBody) {
+  const details = body.error?.details || [];
+  const serialized = JSON.stringify(details);
+  return serialized && serialized !== "[]" ? serialized.slice(0, 700) : null;
+}
+
 export class GoogleAdsApiError extends Error {
   readonly statusCode: number;
   readonly apiStatus: string | null;
@@ -111,8 +117,10 @@ export class GoogleAdsRestClient {
     if (!response.ok || (body as GoogleAdsErrorBody).error) {
       const errorBody = body as GoogleAdsErrorBody;
       const detailMessage = googleAdsErrorDetails(errorBody)[0]?.message;
+      const detailSummary = googleAdsErrorDetailsSummary(errorBody);
       const safeMessage = detailMessage || errorBody.error?.message || `Google Ads API respondeu HTTP ${response.status}.`;
-      throw new GoogleAdsApiError(safeMessage.slice(0, 900), response.status, errorBody, response.headers.get("request-id"));
+      const diagnosticMessage = detailSummary && !detailMessage ? `${safeMessage} | details=${detailSummary}` : safeMessage;
+      throw new GoogleAdsApiError(diagnosticMessage.slice(0, 1800), response.status, errorBody, response.headers.get("request-id"));
     }
     return { body, requestId: response.headers.get("request-id") };
   }
