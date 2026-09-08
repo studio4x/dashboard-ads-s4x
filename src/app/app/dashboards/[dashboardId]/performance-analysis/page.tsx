@@ -4,6 +4,8 @@ import { getSessionProfile } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 import { GoogleAdsPerformanceAnalysis } from "@/components/admin/GoogleAdsPerformanceAnalysis";
 import { GoogleAdsPerformancePortuguese } from "@/components/admin/GoogleAdsPerformancePortuguese";
+import { GoogleAdsOptimizationOverview } from "@/components/admin/GoogleAdsOptimizationOverview";
+import { GoogleAdsAnalysisComposer } from "@/components/admin/GoogleAdsAnalysisComposer";
 import { GoogleAdsActionProgressEnhancer } from "@/components/admin/GoogleAdsActionProgressEnhancer";
 import {
   GoogleAdsClientSummary,
@@ -60,6 +62,8 @@ export default async function DashboardPerformanceAnalysisPage({
         to={to}
         embedded
       />
+      <GoogleAdsOptimizationOverview sourceId={source.id} from={from} to={to} embedded />
+      <GoogleAdsAnalysisComposer />
       <GoogleAdsActionProgressEnhancer sourceId={source.id} />
       <div
         style={{
