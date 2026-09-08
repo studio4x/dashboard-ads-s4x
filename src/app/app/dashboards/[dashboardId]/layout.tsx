@@ -4,6 +4,8 @@ import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { DashboardDataProvider } from "@/components/dashboard/DashboardDataContext";
 import { mockClients, mockDashboards } from "@/data/mock-sheet-overview";
 import { DashboardService } from "@/services/dashboard-service";
+import { getSessionProfile } from "@/lib/auth/guards";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 
 export async function generateMetadata(
@@ -52,6 +54,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
   let dashboardTitle = "Dashboard";
   let dashboardType = "custom";
   let hasFoundDb = false;
+  let showPerformanceAnalysis = false;
 
   try {
     const dbDashboard = await DashboardService.getDashboardById(dashboardId);
@@ -70,6 +73,25 @@ export default async function DashboardLayout({ children, params }: DashboardLay
     const client = mockClients.find((c) => c.id === dashboard?.client_id) ?? mockClients[0];
     clientName = client?.name ?? "Cliente Demo";
     dashboardTitle = dashboard?.title ?? "Dashboard";
+  }
+
+  try {
+    const profile = await getSessionProfile();
+    const isAdmin = profile?.role === "admin" || profile?.role === "owner";
+    if (isAdmin) {
+      const supabase = await createAdminClient();
+      const { data: googleAdsSource } = await supabase
+        .from("data_sources")
+        .select("id")
+        .eq("dashboard_id", dashboardId)
+        .eq("type", "google_ads")
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+      showPerformanceAnalysis = Boolean(googleAdsSource?.id);
+    }
+  } catch (err) {
+    console.error("Erro ao verificar disponibilidade da análise de performance:", err);
   }
 
   return (
@@ -93,7 +115,7 @@ export default async function DashboardLayout({ children, params }: DashboardLay
           }}
         >
           <div className="dashboard-tabs-inner" style={{ maxWidth: "1440px", margin: "0 auto", padding: "0 24px" }}>
-            <DashboardTabs dashboardId={dashboardId} />
+            <DashboardTabs dashboardId={dashboardId} showPerformanceAnalysis={showPerformanceAnalysis} />
           </div>
         </div>
 
