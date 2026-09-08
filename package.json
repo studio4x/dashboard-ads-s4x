@@ -1,6 +1,6 @@
 {
   "name": "dashboard-ads-s4x",
-  "version": "0.1.107",
+  "version": "0.1.108",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -34,7 +34,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react-dom": "^19.2.4",
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
