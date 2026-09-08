@@ -25,6 +25,12 @@ function isIsoDate(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(new Date(`${value}T12:00:00Z`).getTime());
 }
 
+function addDays(date: string, days: number) {
+  const parsed = new Date(`${date}T12:00:00Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+}
+
 function numberValue(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -43,8 +49,26 @@ async function validateSource(sourceId: string) {
   return source || null;
 }
 
+async function resolvePeriod(sourceId: string, from: string | null, to: string | null) {
+  if (isIsoDate(from) && isIsoDate(to) && from <= to) return { from, to };
+  const supabase = await createAdminClient();
+  const { data: latest, error } = await supabase
+    .from("google_ads_analytics_rows")
+    .select("observed_date")
+    .eq("data_source_id", sourceId)
+    .eq("dataset", "campaign_daily")
+    .order("observed_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!latest?.observed_date) return null;
+  const resolvedTo = String(latest.observed_date);
+  return { from: addDays(resolvedTo, -29), to: resolvedTo };
+}
+
 async function captureMetrics(sourceId: string, from: string | null, to: string | null) {
-  if (!isIsoDate(from) || !isIsoDate(to) || from > to) return null;
+  const period = await resolvePeriod(sourceId, from, to);
+  if (!period) return null;
 
   const supabase = await createAdminClient();
   const rows: AnalyticsRow[] = [];
@@ -56,8 +80,8 @@ async function captureMetrics(sourceId: string, from: string | null, to: string 
       .select("observed_date,metrics")
       .eq("data_source_id", sourceId)
       .eq("dataset", "campaign_daily")
-      .gte("observed_date", from)
-      .lte("observed_date", to)
+      .gte("observed_date", period.from)
+      .lte("observed_date", period.to)
       .order("observed_date", { ascending: true })
       .range(offset, offset + pageSize - 1);
     if (error) throw error;
@@ -94,7 +118,7 @@ async function captureMetrics(sourceId: string, from: string | null, to: string 
   }
 
   return {
-    period: { from, to },
+    period,
     metrics: {
       cost,
       impressions,
@@ -205,6 +229,7 @@ export async function POST(request: NextRequest) {
       metricsAfter = existing.metrics_after || null;
     }
 
+    const resolvedStoredPeriod = metricsBefore?.period || metricsAfter?.period || null;
     const payload = {
       data_source_id: sourceId,
       action_key: key,
@@ -218,8 +243,8 @@ export async function POST(request: NextRequest) {
       completed_by: isCompleted ? profile?.id || null : null,
       metrics_before: metricsBefore,
       metrics_after: metricsAfter,
-      period_from: periodFrom || existing?.period_from || null,
-      period_to: periodTo || existing?.period_to || null,
+      period_from: periodFrom || resolvedStoredPeriod?.from || existing?.period_from || null,
+      period_to: periodTo || resolvedStoredPeriod?.to || existing?.period_to || null,
       updated_at: now,
     };
 
