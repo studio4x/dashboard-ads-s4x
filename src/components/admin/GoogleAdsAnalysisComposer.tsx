@@ -45,6 +45,71 @@ function createTechnicalDetails() {
   return details;
 }
 
+function addInvestigationShortcuts(details: HTMLDetailsElement, content: HTMLElement) {
+  let toolbar = content.querySelector<HTMLElement>("[data-s4x-investigation-shortcuts]");
+  if (!toolbar) {
+    toolbar = document.createElement("div");
+    toolbar.dataset.s4xInvestigationShortcuts = "true";
+    toolbar.style.display = "flex";
+    toolbar.style.alignItems = "center";
+    toolbar.style.gap = "6px";
+    toolbar.style.flexWrap = "wrap";
+    toolbar.style.padding = "7px 0 12px";
+    content.prepend(toolbar);
+  }
+
+  const targets = [
+    { match: ["leilão", "participação de impressões"], label: "Leilão" },
+    { match: ["palavras-chave", "keywords"], label: "Palavras-chave" },
+    { match: ["termos de pesquisa"], label: "Termos de pesquisa" },
+    { match: ["dispositivos"], label: "Dispositivos" },
+    { match: ["horários"], label: "Horários" },
+    { match: ["anúncios"], label: "Anúncios" },
+    { match: ["páginas de destino", "landing pages"], label: "Páginas" },
+    { match: ["índice de qualidade", "quality score"], label: "Qualidade" },
+    { match: ["alterações na conta"], label: "Alterações" },
+  ];
+
+  toolbar.innerHTML = "";
+  const intro = document.createElement("span");
+  intro.textContent = "Ir para:";
+  intro.style.fontSize = "10px";
+  intro.style.fontWeight = "700";
+  intro.style.color = "#94A3B8";
+  intro.style.marginRight = "2px";
+  toolbar.appendChild(intro);
+
+  const headings = Array.from(content.querySelectorAll<HTMLElement>("h2"));
+  for (const target of targets) {
+    const heading = headings.find((item) => {
+      const text = item.textContent?.trim().toLowerCase() || "";
+      return target.match.some((token) => text.includes(token));
+    });
+    if (!heading) continue;
+    const section = heading.closest<HTMLElement>("section.card") || heading.parentElement;
+    if (!section) continue;
+    const id = `s4x-tech-${target.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")}`;
+    section.id = id;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = target.label;
+    button.style.border = "1px solid #E2E8F0";
+    button.style.background = "#F8FAFC";
+    button.style.color = "#475569";
+    button.style.borderRadius = "999px";
+    button.style.padding = "4px 7px";
+    button.style.fontSize = "9.5px";
+    button.style.fontWeight = "700";
+    button.style.cursor = "pointer";
+    button.addEventListener("click", () => {
+      details.open = true;
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    toolbar.appendChild(button);
+  }
+}
+
 export function GoogleAdsAnalysisComposer() {
   useEffect(() => {
     const page = document.querySelector<HTMLElement>("[data-google-ads-performance-page='true']");
@@ -92,6 +157,7 @@ export function GoogleAdsAnalysisComposer() {
         });
 
         for (const node of movable) content.appendChild(node);
+        addInvestigationShortcuts(details, content);
       } finally {
         composing = false;
       }
