@@ -6,6 +6,8 @@ import { GoogleAdsApiError, GoogleAdsRestClient } from "@/lib/google-ads-api/cli
 import { discoverGoogleAdsAccounts } from "@/lib/google-ads-api/discovery";
 import { buildGoogleAdsApiPayload } from "@/lib/google-ads-api/normalizer";
 import { googleAdsQueries } from "@/lib/google-ads-api/queries";
+import { googleAdsAnalyticsQueries } from "@/lib/google-ads-api/queries";
+import { normalizeAnalyticsRows, normalizeChangeEvents, normalizeConfigurationSnapshot, type GoogleAdsAnalyticDataset, type GoogleAdsDatasetStatus } from "@/lib/google-ads-api/analytics";
 import { getGoogleAdsSettings, resolveGoogleAdsApiVersion } from "@/lib/google-ads-api/settings";
 import { readGoogleAdsRefreshToken } from "@/lib/google-ads-api/token-vault";
 import { buildIntegratedAdsPayload } from "@/lib/dashboard/integrated-payload";
@@ -24,6 +26,15 @@ type SourceCreateInput = {
 
 type DatasetName = "dailyRows" | "campaignRows" | "adGroupRows" | "keywordRows" | "searchTermRows"
   | "campaignNegativeRows" | "sharedNegativeRows" | "campaignSharedSetRows" | "adRows" | "adAssetRows" | "pmaxAssetRows" | "accountBudgetRows";
+
+type AnalyticsQueryResult = {
+  rows: Record<GoogleAdsAnalyticDataset, GoogleAdsApiRow[]>;
+  statuses: Record<string, GoogleAdsDatasetStatus>;
+  warnings: string[];
+  requestIds: string[];
+  configurationRows: Record<string, GoogleAdsApiRow[]>;
+  changeEventRows: GoogleAdsApiRow[];
+};
 
 type GooglePayloadLike = {
   dailyPerformance?: unknown[];
@@ -71,22 +82,22 @@ function extractGoogleSheetsComparisonPayload(payload: unknown) {
   return candidate?.comparisonPayloads?.google_ads || extractGooglePayload(payload);
 }
 
-async function queryDatasets(client: GoogleAdsRestClient, customerId: string, loginCustomerId: string | null, start: string, end: string) {
+async function queryDatasets(client: GoogleAdsRestClient, customerId: string, loginCustomerId: string | null, start: string, end: string): Promise<AnalyticsQueryResult & { data: Record<DatasetName, GoogleAdsApiRow[]>; financialError: string | null }> {
   const required: Array<[DatasetName, string]> = [
-    ["dailyRows", googleAdsQueries.dailyPerformance(start, end)],
+    ["dailyRows", googleAdsAnalyticsQueries.campaignDaily(start, end)],
     ["campaignRows", googleAdsQueries.campaigns(start, end)],
-    ["adGroupRows", googleAdsQueries.adGroups(start, end)],
-    ["keywordRows", googleAdsQueries.keywords(start, end)],
-    ["searchTermRows", googleAdsQueries.searchTerms(start, end)],
+    ["adGroupRows", googleAdsAnalyticsQueries.adGroupDaily(start, end)],
+    ["keywordRows", googleAdsAnalyticsQueries.keywordDaily(start, end)],
+    ["searchTermRows", googleAdsAnalyticsQueries.searchTermsDaily(start, end)],
   ];
   const optional: Array<[DatasetName, string]> = [
     ["accountBudgetRows", googleAdsQueries.accountBudget],
     ["campaignNegativeRows", googleAdsQueries.campaignNegatives],
     ["sharedNegativeRows", googleAdsQueries.sharedNegatives],
     ["campaignSharedSetRows", googleAdsQueries.campaignSharedSets],
-    ["adRows", googleAdsQueries.ads(start, end)],
-    ["adAssetRows", googleAdsQueries.adAssets(start, end)],
-    ["pmaxAssetRows", googleAdsQueries.pmaxAssets],
+    ["adRows", googleAdsAnalyticsQueries.adDaily(start, end)],
+    ["adAssetRows", googleAdsAnalyticsQueries.assetDaily(start, end)],
+    ["pmaxAssetRows", googleAdsAnalyticsQueries.pmaxAssets],
   ];
   const data: Record<DatasetName, GoogleAdsApiRow[]> = {
     dailyRows: [], campaignRows: [], adGroupRows: [], keywordRows: [], searchTermRows: [],
@@ -96,11 +107,23 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
   const requestIds: string[] = [];
   const warnings: string[] = [];
   let financialError: string | null = null;
+  const statuses: Record<string, GoogleAdsDatasetStatus> = {};
+  const statusForQueryError = (error: unknown): GoogleAdsDatasetStatus => {
+    const message = error instanceof Error ? error.message : String(error || "");
+    return /unrecognized field|invalid field|not compatible|cannot be selected|query.*invalid|invalid.*query/i.test(message) ? "unsupported" : "error";
+  };
 
-  const requiredResults = await Promise.all(required.map(async ([name, query]) => [name, await client.search(customerId, query, loginCustomerId)] as const));
-  requiredResults.forEach(([name, result]) => {
-    data[name] = result.rows;
-    requestIds.push(...result.requestIds);
+  const requiredResults = await Promise.allSettled(required.map(async ([name, query]) => [name, await client.search(customerId, query, loginCustomerId)] as const));
+  requiredResults.forEach((result, index) => {
+    const [name] = required[index];
+    if (result.status === "fulfilled") {
+      data[name] = result.value[1].rows;
+      requestIds.push(...result.value[1].requestIds);
+      statuses[name] = result.value[1].rows.length ? "success" : "no_data";
+    } else {
+      statuses[name] = statusForQueryError(result.reason);
+      warnings.push(`${name}: ${result.reason instanceof Error ? result.reason.message : "consulta indisponível"}`);
+    }
   });
 
   const optionalResults = await Promise.allSettled(optional.map(async ([name, query]) => [name, await client.search(customerId, query, loginCustomerId)] as const));
@@ -109,14 +132,84 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
     if (result.status === "fulfilled") {
       data[name] = result.value[1].rows;
       requestIds.push(...result.value[1].requestIds);
+      statuses[name] = result.value[1].rows.length ? "success" : "no_data";
     } else {
       const message = result.reason instanceof Error ? result.reason.message : "consulta indisponível";
       warnings.push(`${name}: ${message}`);
+      statuses[name] = statusForQueryError(result.reason);
       if (name === "accountBudgetRows") financialError = message;
     }
   });
 
-  return { data, warnings, requestIds: Array.from(new Set(requestIds)), financialError };
+  if (statuses.dailyRows === "error") throw new Error(warnings.find((warning) => warning.startsWith("dailyRows:")) || "Dataset diário de campanha indisponível.");
+
+  const analyticsRows = {} as Record<GoogleAdsAnalyticDataset, GoogleAdsApiRow[]>;
+  const configurationRows: Record<string, GoogleAdsApiRow[]> = {};
+  const changeEventRows: GoogleAdsApiRow[] = [];
+  const analyticsSpecs: Array<{ key: string; dataset?: GoogleAdsAnalyticDataset; query: string; applicable?: boolean }> = [
+    { key: "pmaxSearchTerms", dataset: "pmax_search_terms_daily", query: googleAdsAnalyticsQueries.pmaxSearchTermsDaily(start, end) },
+    { key: "pmaxAssetGroups", dataset: "pmax_asset_group", query: googleAdsAnalyticsQueries.pmaxAssetGroups },
+    { key: "deviceDaily", dataset: "device_daily", query: googleAdsAnalyticsQueries.deviceDaily(start, end) },
+    { key: "networkDaily", dataset: "network_daily", query: googleAdsAnalyticsQueries.networkDaily(start, end) },
+    { key: "timeDaily", dataset: "time_daily", query: googleAdsAnalyticsQueries.timeDaily(start, end) },
+    { key: "locationDaily", dataset: "location_daily", query: googleAdsAnalyticsQueries.locationDaily(start, end) },
+    { key: "landingPageDaily", dataset: "landing_page_daily", query: googleAdsAnalyticsQueries.landingPageDaily(start, end) },
+    { key: "conversionActionDaily", dataset: "conversion_action_daily", query: googleAdsAnalyticsQueries.conversionActionDaily(start, end) },
+    { key: "placements", dataset: "placement_daily", query: googleAdsAnalyticsQueries.placements(start, end) },
+    { key: "shopping", dataset: "shopping_daily", query: googleAdsAnalyticsQueries.shopping(start, end) },
+    { key: "demographicsAge", dataset: "demographics_age_daily", query: googleAdsAnalyticsQueries.demographicsAge(start, end) },
+    { key: "demographicsGender", dataset: "demographics_gender_daily", query: googleAdsAnalyticsQueries.demographicsGender(start, end) },
+    { key: "conversionActions", query: googleAdsAnalyticsQueries.conversionActions },
+    { key: "conversionGoals", query: googleAdsAnalyticsQueries.conversionGoals },
+    { key: "budgets", query: googleAdsAnalyticsQueries.budgets },
+    { key: "bidding", query: googleAdsAnalyticsQueries.bidding },
+    // Google only accepts a maximum 30-day window for change_event, regardless
+    // of the performance history configured for the source.
+    { key: "changeEvents", query: googleAdsAnalyticsQueries.changeEvents(daysAgo(29), end) },
+  ];
+  const channelTypes = new Set((data.dailyRows || []).map((row) => String(row.campaign?.advertisingChannelType || "").toUpperCase()));
+  const isPmax = channelTypes.has("PERFORMANCE_MAX");
+  const isShopping = isPmax || channelTypes.has("SHOPPING");
+  const isDisplayOrVideo = channelTypes.has("DISPLAY") || channelTypes.has("VIDEO") || channelTypes.has("VIDEO_PARTNERS");
+  analyticsSpecs.forEach((spec) => {
+    spec.applicable = spec.key === "pmaxSearchTerms" || spec.key === "pmaxAssetGroups" ? isPmax
+      : spec.key === "shopping" ? isShopping : spec.key === "placements" ? isDisplayOrVideo || isPmax : true;
+    if (!spec.applicable && spec.dataset) statuses[spec.dataset] = "not_applicable";
+  });
+  const analyticsResults = await Promise.all(analyticsSpecs.map(async (spec) => {
+    if (!spec.applicable) return { spec, result: null as Awaited<ReturnType<GoogleAdsRestClient["search"]>> | null, error: null };
+    try { return { spec, result: await client.search(customerId, spec.query, loginCustomerId), error: null }; }
+    catch (error) { return { spec, result: null, error }; }
+  }));
+  analyticsResults.forEach(({ spec, result, error }) => {
+    if (!spec.dataset && spec.key === "changeEvents") {
+      if (result) { changeEventRows.push(...result.rows); requestIds.push(...result.requestIds); statuses.changeEvents = result.rows.length ? "success" : "no_data"; }
+      else { statuses.changeEvents = statusForQueryError(error); warnings.push(`changeEvents: ${error instanceof Error ? error.message : "consulta indisponível"}`); }
+      return;
+    }
+    if (!spec.dataset) {
+      if (result) { configurationRows[spec.key] = result.rows; requestIds.push(...result.requestIds); statuses[spec.key] = result.rows.length ? "success" : "no_data"; }
+      else { statuses[spec.key] = statusForQueryError(error); warnings.push(`${spec.key}: ${error instanceof Error ? error.message : "consulta indisponível"}`); }
+      return;
+    }
+    if (result) { analyticsRows[spec.dataset] = result.rows; requestIds.push(...result.requestIds); statuses[spec.dataset] = result.rows.length ? "success" : "no_data"; }
+    else { analyticsRows[spec.dataset] = []; statuses[spec.dataset] = statusForQueryError(error); warnings.push(`${spec.key}: ${error instanceof Error ? error.message : "consulta indisponível"}`); }
+  });
+  analyticsRows.campaign_daily = data.dailyRows || [];
+  analyticsRows.ad_group_daily = data.adGroupRows || [];
+  analyticsRows.keyword_daily = data.keywordRows || [];
+  analyticsRows.search_terms_daily = data.searchTermRows || [];
+  analyticsRows.ad_daily = data.adRows || [];
+  analyticsRows.asset_daily = data.adAssetRows || [];
+  analyticsRows.pmax_asset_group_asset = data.pmaxAssetRows || [];
+  statuses.campaign_daily = statuses.dailyRows;
+  statuses.ad_group_daily = statuses.adGroupRows;
+  statuses.keyword_daily = statuses.keywordRows;
+  statuses.search_terms_daily = statuses.searchTermRows;
+  statuses.ad_daily = statuses.adRows || "not_applicable";
+  statuses.asset_daily = statuses.adAssetRows || "not_applicable";
+  statuses.pmax_asset_group_asset = statuses.pmaxAssetRows || (isPmax ? "no_data" : "not_applicable");
+  return { data, warnings, requestIds: Array.from(new Set(requestIds)), financialError, rows: analyticsRows, statuses, configurationRows, changeEventRows };
 }
 
 function compareMetric(apiValue: number, sheetValue: number, tolerancePercent: number) {
@@ -130,6 +223,95 @@ function compareMetric(apiValue: number, sheetValue: number, tolerancePercent: n
     tolerancePercent,
     withinTolerance: percentDifference !== null && Math.abs(percentDifference) <= tolerancePercent,
   };
+}
+
+async function persistAnalytics(
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
+  source: { id: string; customer_id: string; manager_customer_id?: string | null },
+  queried: AnalyticsQueryResult,
+  dateStart: string,
+  dateEnd: string,
+  observedAt: string,
+  apiVersion: string,
+) {
+  const context = { dataSourceId: source.id, customerId: source.customer_id, managerCustomerId: source.manager_customer_id, observedAt };
+  const persistenceWarnings: string[] = [];
+  const persistedRows: Record<string, number> = {};
+  const chunks = <T>(items: T[], size = 500) => Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));
+
+  for (const [dataset, rows] of Object.entries(queried.rows) as Array<[GoogleAdsAnalyticDataset, GoogleAdsApiRow[]]>) {
+    if (!rows?.length) { persistedRows[dataset] = 0; continue; }
+    try {
+      const normalized = normalizeAnalyticsRows(dataset, rows, context);
+      for (const chunk of chunks(normalized)) {
+        const { error } = await supabase.from("google_ads_analytics_rows").upsert(chunk, { onConflict: "data_source_id,dataset,row_key" });
+        if (error) throw error;
+      }
+      persistedRows[dataset] = normalized.length;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "persistência indisponível";
+      persistenceWarnings.push(`${dataset}: ${message}`);
+      persistedRows[dataset] = 0;
+    }
+  }
+
+  const configurations = [
+    ["conversion_action", queried.configurationRows.conversionActions || []],
+    ["conversion_goal", queried.configurationRows.conversionGoals || []],
+    ["campaign_budget", queried.configurationRows.budgets || []],
+    ["campaign_bidding", queried.configurationRows.bidding || []],
+    ["keyword_quality", queried.rows.keyword_daily || []],
+  ] as const;
+  for (const [configType, rows] of configurations) {
+    if (!rows.length) continue;
+    try {
+      const snapshots = normalizeConfigurationSnapshot(configType, rows, context);
+      for (const chunk of chunks(snapshots)) {
+        const { error } = await supabase.from("google_ads_config_history").upsert(chunk, { onConflict: "data_source_id,config_type,resource_name,observed_on" });
+        if (error) throw error;
+      }
+    } catch (error) {
+      persistenceWarnings.push(`${configType}: ${error instanceof Error ? error.message : "persistência indisponível"}`);
+    }
+  }
+
+  if (queried.changeEventRows.length) {
+    try {
+      const events = normalizeChangeEvents(queried.changeEventRows, context);
+      for (const chunk of chunks(events)) {
+        const { error } = await supabase.from("google_ads_change_events").upsert(chunk, { onConflict: "data_source_id,customer_id,google_resource_name" });
+        if (error) throw error;
+      }
+    } catch (error) {
+      persistenceWarnings.push(`changeEvents: ${error instanceof Error ? error.message : "persistência indisponível"}`);
+    }
+  }
+
+  try {
+    const receivedRowsByDataset: Record<string, number> = {
+      ...Object.fromEntries(Object.entries(queried.rows).map(([dataset, rows]) => [dataset, rows?.length || 0])),
+      conversionActions: queried.configurationRows.conversionActions?.length || 0,
+      conversionGoals: queried.configurationRows.conversionGoals?.length || 0,
+      budgets: queried.configurationRows.budgets?.length || 0,
+      bidding: queried.configurationRows.bidding?.length || 0,
+      changeEvents: queried.changeEventRows.length,
+    };
+    const runs = Object.entries(queried.statuses).map(([dataset, status]) => ({
+      data_source_id: source.id, customer_id: source.customer_id, dataset, status,
+      queried_from: dateStart, queried_to: dateEnd, received_rows: receivedRowsByDataset[dataset] || 0,
+      inserted_rows: persistedRows[dataset] || 0, updated_rows: 0, request_ids: queried.requestIds.slice(0, 30),
+      warning: queried.warnings.find((warning) => warning.toLowerCase().startsWith(`${dataset}:`)) || null,
+      error: status === "error" ? (queried.warnings.find((warning) => warning.toLowerCase().startsWith(`${dataset}:`)) || null) : null,
+      capabilities: { apiVersion, source: "google_ads_api" },
+    }));
+    if (runs.length) {
+      const { error } = await supabase.from("google_ads_analytics_runs").insert(runs);
+      if (error) throw error;
+    }
+  } catch (error) {
+    persistenceWarnings.push(`analyticsRuns: ${error instanceof Error ? error.message : "persistência indisponível"}`);
+  }
+  return { persistenceWarnings, persistedRows };
 }
 
 export const GoogleAdsService = {
@@ -266,8 +448,26 @@ export const GoogleAdsService = {
         managerCustomerId: config.manager_customer_id, timezone: config.timezone, apiVersion, dateStart, dateEnd,
         currency: config.currency_code,
         ...queried.data, warnings: queried.warnings,
+        analyticsDiagnostics: {
+          datasets: queried.statuses,
+          rows: Object.fromEntries(Object.entries(queried.rows).map(([dataset, rows]) => [dataset, rows.length])),
+          period: { from: dateStart, to: dateEnd }, warnings: queried.warnings,
+        },
         financialError: queried.financialError,
       });
+      const persistedAnalytics = await persistAnalytics(
+        supabase,
+        { id: source.id, customer_id: config.customer_id, manager_customer_id: config.manager_customer_id },
+        queried,
+        dateStart,
+        dateEnd,
+        new Date().toISOString(),
+        apiVersion,
+      );
+      if (persistedAnalytics.persistenceWarnings.length) {
+        payload.diagnostics.warnings.push(...persistedAnalytics.persistenceWarnings.map((warning) => `analytics persistence: ${warning}`));
+        if (payload.diagnostics.googleAdsAnalytics) payload.diagnostics.googleAdsAnalytics.warnings.push(...persistedAnalytics.persistenceWarnings);
+      }
       const preferredIds = await DataSourceService.getPreferredSnapshotSourceIds(
         source.dashboard_id,
         dashboard.dashboard_type,
@@ -371,5 +571,41 @@ export const GoogleAdsService = {
       metrics, collections,
       note: "Diferenças recentes podem refletir atribuição, timezone e atualização da API. Compare o mesmo período antes de desativar a planilha.",
     };
+  },
+
+  async queryAnalytics(sourceId: string, filters: {
+    dataset?: string | null; from?: string | null; to?: string | null; campaignId?: string | null;
+    adGroupId?: string | null; device?: string | null; network?: string | null; limit?: number;
+  }) {
+    const supabase = await createAdminClient({ actor: "api_admin", action: "query_google_ads_analytics" });
+    const { data: source, error: sourceError } = await supabase.from("data_sources")
+      .select("id,name,dashboard_id,type,google_ads_sources(customer_id,manager_customer_id)")
+      .eq("id", sourceId).eq("type", "google_ads").maybeSingle();
+    if (sourceError) throw sourceError;
+    if (!source) throw new Error("Fonte Google Ads não encontrada.");
+    const limit = Math.min(Math.max(Number(filters.limit) || 1000, 1), 10000);
+    if (filters.dataset === "change_events") {
+      let query = supabase.from("google_ads_change_events").select("*").eq("data_source_id", sourceId).order("change_date_time", { ascending: false }).limit(limit);
+      if (filters.from) query = query.gte("change_date_time", `${filters.from}T00:00:00.000Z`);
+      if (filters.to) query = query.lte("change_date_time", `${filters.to}T23:59:59.999Z`);
+      const { data, error } = await query;
+      if (error) throw error;
+      return { source, dataset: "change_events", rows: data || [] };
+    }
+    let query = supabase.from("google_ads_analytics_rows").select("*").eq("data_source_id", sourceId).order("observed_date", { ascending: true }).limit(limit);
+    if (filters.dataset) query = query.eq("dataset", filters.dataset);
+    if (filters.from) query = query.gte("observed_date", filters.from);
+    if (filters.to) query = query.lte("observed_date", filters.to);
+    if (filters.campaignId) query = query.eq("campaign_id", filters.campaignId);
+    if (filters.adGroupId) query = query.eq("ad_group_id", filters.adGroupId);
+    if (filters.device) query = query.eq("dimensions->>device", filters.device);
+    if (filters.network) query = query.eq("dimensions->>network", filters.network);
+    const [{ data, error }, { data: runs, error: runsError }] = await Promise.all([
+      query,
+      supabase.from("google_ads_analytics_runs").select("*").eq("data_source_id", sourceId).order("created_at", { ascending: false }).limit(500),
+    ]);
+    if (error) throw error;
+    if (runsError) throw runsError;
+    return { source, dataset: filters.dataset || null, rows: data || [], runs: runs || [] };
   },
 };

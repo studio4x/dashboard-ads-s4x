@@ -226,6 +226,12 @@ export interface GoogleAdsS4XDiagnostics {
   apiVersion?: string;
   importedAt: string;
   snapshotVersion: string;
+  googleAdsAnalytics?: {
+    datasets: Record<string, string>;
+    rows: Record<string, number>;
+    period: { from: string; to: string };
+    warnings: string[];
+  };
 }
 
 export interface GoogleAdsS4XPayload {

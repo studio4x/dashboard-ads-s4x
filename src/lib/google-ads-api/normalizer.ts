@@ -284,6 +284,12 @@ export function buildGoogleAdsApiPayload(params: {
   financialError?: string | null;
   currency?: string | null;
   warnings?: string[];
+  analyticsDiagnostics?: {
+    datasets: Record<string, string>;
+    rows: Record<string, number>;
+    period: { from: string; to: string };
+    warnings: string[];
+  };
 }): GoogleAdsS4XPayload {
   const dailyPerformance = params.dailyRows.map(normalizeDailyPerformance);
   const campaigns = params.campaignRows.map(normalizeCampaign);
@@ -334,6 +340,7 @@ export function buildGoogleAdsApiPayload(params: {
       ignoredRows: 0, sourceCustomerId: params.customerId,
       sourceManagerCustomerId: params.managerCustomerId || null, sourceType: "google_ads_api",
       apiVersion: params.apiVersion, importedAt: now, snapshotVersion: "google_ads_s4x_v1",
+      googleAdsAnalytics: params.analyticsDiagnostics,
     },
   };
 }

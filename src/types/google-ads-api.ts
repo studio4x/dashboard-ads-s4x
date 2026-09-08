@@ -57,6 +57,7 @@ export interface GoogleAdsAccessibleAccount {
 }
 
 export interface GoogleAdsApiRow {
+  [key: string]: unknown;
   customer?: Record<string, unknown>;
   customerClient?: Record<string, unknown>;
   campaign?: Record<string, unknown>;
@@ -72,6 +73,16 @@ export interface GoogleAdsApiRow {
   asset?: Record<string, unknown>;
   assetGroup?: Record<string, unknown>;
   assetGroupAsset?: Record<string, unknown>;
+  campaignSearchTermView?: Record<string, unknown>;
+  landingPageView?: Record<string, unknown>;
+  geographicView?: Record<string, unknown>;
+  detailPlacementView?: Record<string, unknown>;
+  ageRangeView?: Record<string, unknown>;
+  genderView?: Record<string, unknown>;
+  conversionAction?: Record<string, unknown>;
+  customerConversionGoal?: Record<string, unknown>;
+  campaignBudget?: Record<string, unknown>;
+  changeEvent?: Record<string, unknown>;
   accountBudget?: Record<string, unknown>;
   segments?: Record<string, unknown>;
   metrics?: Record<string, unknown>;
