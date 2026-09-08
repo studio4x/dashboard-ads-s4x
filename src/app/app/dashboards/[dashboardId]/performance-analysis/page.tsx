@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/server";
 import { GoogleAdsPerformanceAnalysis } from "@/components/admin/GoogleAdsPerformanceAnalysis";
+import { GoogleAdsActionProgressEnhancer } from "@/components/admin/GoogleAdsActionProgressEnhancer";
 import {
   GoogleAdsClientSummary,
   GoogleAdsClientSummarySkeleton,
@@ -57,6 +58,7 @@ export default async function DashboardPerformanceAnalysisPage({
         to={to}
         embedded
       />
+      <GoogleAdsActionProgressEnhancer sourceId={source.id} />
       <div
         style={{
           maxWidth: 1440,
