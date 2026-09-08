@@ -49,7 +49,7 @@ export function DashboardFooter({ buildVersion, buildCommit }: DashboardFooterPr
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 14, flexWrap: "wrap" }}>
           <span
-            title={buildCommit ? `Commit ${buildCommit}` : `Versão ${buildVersion}`}
+            title={buildCommit ? `Revisão ${buildCommit}` : `Versão ${buildVersion}`}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -65,7 +65,7 @@ export function DashboardFooter({ buildVersion, buildCommit }: DashboardFooterPr
             }}
           >
             <Code2 size={12} style={{ color: "#94A3B8" }} />
-            Build <strong style={{ color: "#475569", fontWeight: 750 }}>{buildLabel}</strong>
+            Versão <strong style={{ color: "#475569", fontWeight: 750 }}>{buildLabel}</strong>
           </span>
 
           <BrandingLogo
