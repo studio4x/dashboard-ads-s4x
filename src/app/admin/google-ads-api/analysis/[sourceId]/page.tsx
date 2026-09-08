@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { GoogleAdsPerformanceAnalysis } from "@/components/admin/GoogleAdsPerformanceAnalysis";
+import { GoogleAdsActionProgressEnhancer } from "@/components/admin/GoogleAdsActionProgressEnhancer";
 import {
   GoogleAdsClientSummary,
   GoogleAdsClientSummarySkeleton,
@@ -38,6 +39,7 @@ export default async function GoogleAdsAnalysisPage({
         from={from}
         to={to}
       />
+      <GoogleAdsActionProgressEnhancer sourceId={sourceId} />
       <div
         style={{
           maxWidth: 1440,
