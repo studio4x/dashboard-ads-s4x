@@ -344,7 +344,13 @@ async function persistAnalytics(
       pmax_asset_group_asset: "pmaxAssetRows",
     };
     const warningForDataset = (dataset: string) => {
-      const aliases = [dataset, legacyDatasetByAnalytics[dataset]].filter(Boolean).map((value) => String(value).toLowerCase());
+      const analyticsQueryKeyByDataset: Record<string, string> = {
+        conversion_action_daily: "conversionActionDaily", demographics_age_daily: "demographicsAge", demographics_gender_daily: "demographicsGender",
+        landing_page_daily: "landingPageDaily", pmax_search_terms_daily: "pmaxSearchTerms", pmax_asset_group: "pmaxAssetGroups",
+        placement_daily: "placements", shopping_daily: "shopping", device_daily: "deviceDaily", network_daily: "networkDaily",
+        time_daily: "timeDaily", location_daily: "locationDaily",
+      };
+      const aliases = [dataset, legacyDatasetByAnalytics[dataset], analyticsQueryKeyByDataset[dataset]].filter(Boolean).map((value) => String(value).toLowerCase());
       return queried.warnings.find((warning) => aliases.some((alias) => warning.toLowerCase().startsWith(`${alias}:`))) || null;
     };
     const runs = Object.entries(queried.statuses).map(([dataset, status]) => ({
