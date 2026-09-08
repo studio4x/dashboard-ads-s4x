@@ -11,6 +11,27 @@ const METRICS = [
   "metrics.interactions",
 ].join(", ");
 
+// Search impression share metrics are ratios returned by Google Ads as raw
+// proportions (for example, 0.283). Keep them isolated from the common
+// resource field set so a non-Search account can fall back safely.
+const SEARCH_SHARE_METRICS = [
+  "metrics.search_impression_share",
+  "metrics.search_budget_lost_impression_share",
+  "metrics.search_rank_lost_impression_share",
+  "metrics.search_top_impression_share",
+  "metrics.search_absolute_top_impression_share",
+  "metrics.search_budget_lost_top_impression_share",
+  "metrics.search_rank_lost_top_impression_share",
+  "metrics.search_budget_lost_absolute_top_impression_share",
+  "metrics.search_rank_lost_absolute_top_impression_share",
+  "metrics.search_exact_match_impression_share",
+  "metrics.search_click_share",
+  "metrics.top_impression_percentage",
+  "metrics.absolute_top_impression_percentage",
+].join(", ");
+
+const CAMPAIGN_DAILY_FIELDS = `${METRICS}, ${SEARCH_SHARE_METRICS}`;
+
 // This is the field set proven by the legacy production query across the
 // common Google Ads resources. Resource- and segment-specific metrics remain
 // isolated below so one incompatible field cannot block the P0 backfill.
@@ -24,10 +45,8 @@ function limitedChangeEventPeriod(dateStart: string, dateEnd: string) {
 }
 
 export const googleAdsAnalyticsQueries = {
-  // Keep the primary daily dataset on the minimal field set already proven by
-  // the legacy connector. Optional dimensions/metrics are queried separately
-  // so one incompatible field cannot block the whole backfill.
-  campaignDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, ${METRICS} FROM campaign WHERE ${between(start, end)} ORDER BY segments.date, campaign.id`,
+  campaignDailyBase: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, ${METRICS} FROM campaign WHERE ${between(start, end)} ORDER BY segments.date, campaign.id`,
+  campaignDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type, ${CAMPAIGN_DAILY_FIELDS} FROM campaign WHERE ${between(start, end)} ORDER BY segments.date, campaign.id`,
   adGroupDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group.status, ${ANALYTIC_METRICS} FROM ad_group WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, ad_group.id`,
   keywordDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.quality_info.quality_score, ad_group_criterion.quality_info.creative_quality_score, ad_group_criterion.quality_info.post_click_quality_score, ad_group_criterion.quality_info.search_predicted_ctr, ${ANALYTIC_METRICS} FROM keyword_view WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, ad_group.id, ad_group_criterion.criterion_id`,
   searchTermsDaily: (start: string, end: string) => `SELECT segments.date, campaign.id, campaign.name, ad_group.id, ad_group.name, search_term_view.search_term, search_term_view.status, segments.search_term_match_type, ${ANALYTIC_METRICS} FROM search_term_view WHERE ${between(start, end)} ORDER BY segments.date, campaign.id, ad_group.id, search_term_view.search_term`,

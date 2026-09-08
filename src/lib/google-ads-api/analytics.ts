@@ -14,6 +14,15 @@ export type GoogleAdsDatasetStatus = "success" | "error" | "not_applicable" | "u
 type JsonRecord = Record<string, unknown>;
 type AnalyticsSource = { dataSourceId: string; customerId: string; managerCustomerId?: string | null; observedAt: string };
 
+export type ParsedChangeResourceIds = {
+  campaignId: string | null;
+  adGroupId: string | null;
+  criterionId: string | null;
+  adId: string | null;
+  assetId: string | null;
+  campaignBudgetId: string | null;
+};
+
 function object(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : {};
 }
@@ -173,23 +182,96 @@ export function normalizeConfigurationSnapshot(dataset: string, rows: GoogleAdsA
   ])).values());
 }
 
+const EMPTY_CHANGE_RESOURCE_IDS: ParsedChangeResourceIds = {
+  campaignId: null, adGroupId: null, criterionId: null, adId: null, assetId: null, campaignBudgetId: null,
+};
+
+function numericId(value: string | undefined) {
+  return value && /^\d+$/.test(value) ? value : null;
+}
+
+function parseResourceName(resourceName: string | null | undefined) {
+  if (!resourceName) return null;
+  const parts = resourceName.split("/");
+  if (parts.length !== 4 || parts[0] !== "customers" || !/^\d{10}$/.test(parts[1])) return null;
+  return { collection: parts[2], key: parts[3] };
+}
+
+function parseCompositeKey(key: string, expectedParts: number) {
+  const values = key.split("~");
+  if (values.length !== expectedParts) return null;
+  const ids = values.slice(0, 2).map(numericId);
+  if (ids.some((id) => !id) || (expectedParts === 3 && !values[2])) return null;
+  return ids as string[];
+}
+
+/**
+ * Parses IDs from change_resource_name according to the Google Ads resource
+ * type. The resource name is authoritative; old/new resource payloads are not
+ * required and malformed or unknown values intentionally produce null IDs.
+ */
+export function parseChangeResourceIds(changeResourceType: string | null | undefined, changeResourceName: string | null | undefined): ParsedChangeResourceIds {
+  const resource = parseResourceName(changeResourceName);
+  if (!resource) return { ...EMPTY_CHANGE_RESOURCE_IDS };
+
+  switch (changeResourceType) {
+    case "AD_GROUP":
+      return resource.collection === "adGroups" && numericId(resource.key)
+        ? { ...EMPTY_CHANGE_RESOURCE_IDS, adGroupId: resource.key }
+        : { ...EMPTY_CHANGE_RESOURCE_IDS };
+    case "AD_GROUP_CRITERION": {
+      const ids = resource.collection === "adGroupCriteria" ? parseCompositeKey(resource.key, 2) : null;
+      return ids ? { ...EMPTY_CHANGE_RESOURCE_IDS, adGroupId: ids[0], criterionId: ids[1] } : { ...EMPTY_CHANGE_RESOURCE_IDS };
+    }
+    case "AD_GROUP_AD": {
+      const ids = resource.collection === "adGroupAds" ? parseCompositeKey(resource.key, 2) : null;
+      return ids ? { ...EMPTY_CHANGE_RESOURCE_IDS, adGroupId: ids[0], adId: ids[1] } : { ...EMPTY_CHANGE_RESOURCE_IDS };
+    }
+    case "AD_GROUP_ASSET": {
+      const ids = resource.collection === "adGroupAssets" ? parseCompositeKey(resource.key, 3) : null;
+      return ids ? { ...EMPTY_CHANGE_RESOURCE_IDS, adGroupId: ids[0], assetId: ids[1] } : { ...EMPTY_CHANGE_RESOURCE_IDS };
+    }
+    case "CAMPAIGN":
+      return resource.collection === "campaigns" && numericId(resource.key)
+        ? { ...EMPTY_CHANGE_RESOURCE_IDS, campaignId: resource.key }
+        : { ...EMPTY_CHANGE_RESOURCE_IDS };
+    case "CAMPAIGN_CRITERION": {
+      const ids = resource.collection === "campaignCriteria" ? parseCompositeKey(resource.key, 2) : null;
+      return ids ? { ...EMPTY_CHANGE_RESOURCE_IDS, campaignId: ids[0], criterionId: ids[1] } : { ...EMPTY_CHANGE_RESOURCE_IDS };
+    }
+    case "CAMPAIGN_ASSET": {
+      const ids = resource.collection === "campaignAssets" ? parseCompositeKey(resource.key, 3) : null;
+      return ids ? { ...EMPTY_CHANGE_RESOURCE_IDS, campaignId: ids[0], assetId: ids[1] } : { ...EMPTY_CHANGE_RESOURCE_IDS };
+    }
+    case "CAMPAIGN_BUDGET":
+      return resource.collection === "campaignBudgets" && numericId(resource.key)
+        ? { ...EMPTY_CHANGE_RESOURCE_IDS, campaignBudgetId: resource.key }
+        : { ...EMPTY_CHANGE_RESOURCE_IDS };
+    case "ASSET":
+      return resource.collection === "assets" && numericId(resource.key)
+        ? { ...EMPTY_CHANGE_RESOURCE_IDS, assetId: resource.key }
+        : { ...EMPTY_CHANGE_RESOURCE_IDS };
+    default:
+      return { ...EMPTY_CHANGE_RESOURCE_IDS };
+  }
+}
+
 export function normalizeChangeEvents(rows: GoogleAdsApiRow[], source: AnalyticsSource) {
   return rows.flatMap((row) => {
     const event = object(row.changeEvent);
     const googleResourceName = stringValue(event, "resourceName");
     if (!googleResourceName) return [];
     const resourceName = stringValue(event, "changeResourceName");
-    const resourceParts = resourceName?.split("/") || [];
     const type = stringValue(event, "changeResourceType") || null;
-    const id = (type: string | null, kind: string) => type?.includes(kind) && resourceParts.length ? resourceParts[resourceParts.length - 1] : null;
+    const ids = parseChangeResourceIds(type, resourceName);
     return [{
       data_source_id: source.dataSourceId, customer_id: source.customerId, manager_customer_id: source.managerCustomerId || null,
       google_resource_name: googleResourceName, change_date_time: stringValue(event, "changeDateTime") || source.observedAt,
       change_resource_name: resourceName, change_resource_type: type, operation: stringValue(event, "resourceChangeOperation"),
       changed_fields: get(event, "changedFields") ?? {}, old_resource: get(event, "oldResource") ?? {}, new_resource: get(event, "newResource") ?? {},
       client_type: stringValue(event, "clientType"), user_email: stringValue(event, "userEmail"),
-      campaign_id: id(type, "CAMPAIGN"), campaign_name: null, ad_group_id: id(type, "AD_GROUP"), ad_id: id(type, "AD_GROUP_AD"),
-      asset_id: id(type, "ASSET"), criterion_id: id(type, "CRITERION"),
+      campaign_id: ids.campaignId, campaign_name: null, ad_group_id: ids.adGroupId, ad_id: ids.adId,
+      asset_id: ids.assetId, criterion_id: ids.criterionId, campaign_budget_id: ids.campaignBudgetId,
     }];
   });
 }

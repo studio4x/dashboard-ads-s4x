@@ -138,12 +138,26 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
     return /unrecognized field|invalid field|not compatible|cannot be selected|query.*invalid|invalid.*query/i.test(message) ? "unsupported" : "error";
   };
 
-  const requiredResults = await Promise.allSettled(required.map(async ([name, query]) => [name, await client.search(customerId, query, loginCustomerId)] as const));
+  const requiredResults = await Promise.allSettled(required.map(async ([name, query]) => {
+    if (name !== "dailyRows") return [name, await client.search(customerId, query, loginCustomerId), null] as const;
+    try {
+      return [name, await client.search(customerId, query, loginCustomerId), null] as const;
+    } catch (error) {
+      // Some account/resource combinations can reject Search-only metrics.
+      // Preserve the daily dataset with the proven base query and surface the
+      // capability limitation as a warning instead of failing the sync.
+      const message = error instanceof Error ? error.message : String(error || "");
+      if (!/unrecognized field|invalid field|not compatible|cannot be selected|query.*invalid|invalid.*query/i.test(message)) throw error;
+      const fallback = await client.search(customerId, googleAdsAnalyticsQueries.campaignDailyBase(start, end), loginCustomerId);
+      return [name, fallback, `dailyRows: Search Impression Share metrics unavailable for this account; base campaign metrics retained (${describeGoogleAdsError(error)})`] as const;
+    }
+  }));
   requiredResults.forEach((result, index) => {
     const [name] = required[index];
     if (result.status === "fulfilled") {
       data[name] = result.value[1].rows;
       requestIds.push(...result.value[1].requestIds);
+      if (result.value[2]) warnings.push(result.value[2]);
       statuses[name] = result.value[1].rows.length ? "success" : "no_data";
     } else {
       statuses[name] = statusForQueryError(result.reason);

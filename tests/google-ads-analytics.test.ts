@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeAnalyticsRows, normalizeChangeEvents, normalizeConfigurationSnapshot } from "../src/lib/google-ads-api/analytics.ts";
+import { normalizeAnalyticsRows, normalizeChangeEvents, normalizeConfigurationSnapshot, parseChangeResourceIds } from "../src/lib/google-ads-api/analytics.ts";
+import { googleAdsAnalyticsQueries } from "../src/lib/google-ads-api/queries.ts";
 
 const source = { dataSourceId: "source-1", customerId: "1234567890", managerCustomerId: "9999999999", observedAt: "2026-09-08T12:00:00.000Z" };
 
@@ -44,4 +45,56 @@ test("normaliza change events sem expor segredo e usa o resource name como ident
   assert.equal(event.google_resource_name, "customers/1234567890/changeEvents/abc");
   assert.equal(event.campaign_id, "10");
   assert.equal(event.user_email, "operator@example.com");
+});
+
+test("parseia IDs de change_resource_name por tipo, sem deixar chaves compostas", () => {
+  assert.deepEqual(parseChangeResourceIds("AD_GROUP", "customers/1234567890/adGroups/195371147454"), {
+    campaignId: null, adGroupId: "195371147454", criterionId: null, adId: null, assetId: null, campaignBudgetId: null,
+  });
+  assert.deepEqual(parseChangeResourceIds("AD_GROUP_CRITERION", "customers/1234567890/adGroupCriteria/199059715373~379377417593"), {
+    campaignId: null, adGroupId: "199059715373", criterionId: "379377417593", adId: null, assetId: null, campaignBudgetId: null,
+  });
+  assert.deepEqual(parseChangeResourceIds("AD_GROUP_AD", "customers/1234567890/adGroupAds/199059715373~123456789"), {
+    campaignId: null, adGroupId: "199059715373", criterionId: null, adId: "123456789", assetId: null, campaignBudgetId: null,
+  });
+  assert.deepEqual(parseChangeResourceIds("AD_GROUP_ASSET", "customers/1234567890/adGroupAssets/199059715373~987654321~HEADLINE"), {
+    campaignId: null, adGroupId: "199059715373", criterionId: null, adId: null, assetId: "987654321", campaignBudgetId: null,
+  });
+  assert.deepEqual(parseChangeResourceIds("CAMPAIGN", "customers/1234567890/campaigns/23776438287"), {
+    campaignId: "23776438287", adGroupId: null, criterionId: null, adId: null, assetId: null, campaignBudgetId: null,
+  });
+  assert.deepEqual(parseChangeResourceIds("CAMPAIGN_CRITERION", "customers/1234567890/campaignCriteria/23776438287~303638868443"), {
+    campaignId: "23776438287", adGroupId: null, criterionId: "303638868443", adId: null, assetId: null, campaignBudgetId: null,
+  });
+  assert.deepEqual(parseChangeResourceIds("CAMPAIGN_ASSET", "customers/1234567890/campaignAssets/23776438287~987654321~HEADLINE"), {
+    campaignId: "23776438287", adGroupId: null, criterionId: null, adId: null, assetId: "987654321", campaignBudgetId: null,
+  });
+  assert.deepEqual(parseChangeResourceIds("CAMPAIGN_BUDGET", "customers/1234567890/campaignBudgets/7654321"), {
+    campaignId: null, adGroupId: null, criterionId: null, adId: null, assetId: null, campaignBudgetId: "7654321",
+  });
+  assert.deepEqual(parseChangeResourceIds("ASSET", "customers/1234567890/assets/987654321"), {
+    campaignId: null, adGroupId: null, criterionId: null, adId: null, assetId: "987654321", campaignBudgetId: null,
+  });
+  for (const [type, resource] of [["UNKNOWN", "customers/1234567890/unknown/1"], ["AD_GROUP_AD", "malformed~value"]] as const) {
+    assert.deepEqual(parseChangeResourceIds(type, resource), {
+      campaignId: null, adGroupId: null, criterionId: null, adId: null, assetId: null, campaignBudgetId: null,
+    });
+  }
+});
+
+test("a query campaign_daily inclui Search Impression Share e preserva proporções nulas", () => {
+  const query = googleAdsAnalyticsQueries.campaignDaily("2026-08-03", "2026-08-21");
+  for (const field of [
+    "metrics.search_impression_share", "metrics.search_budget_lost_impression_share", "metrics.search_rank_lost_impression_share",
+    "metrics.search_top_impression_share", "metrics.search_absolute_top_impression_share", "metrics.search_budget_lost_top_impression_share",
+    "metrics.search_rank_lost_top_impression_share", "metrics.search_budget_lost_absolute_top_impression_share", "metrics.search_rank_lost_absolute_top_impression_share",
+    "metrics.search_exact_match_impression_share", "metrics.search_click_share", "metrics.top_impression_percentage", "metrics.absolute_top_impression_percentage",
+  ]) assert.match(query, new RegExp(field.replaceAll(".", "\\.")));
+
+  const [row] = normalizeAnalyticsRows("campaign_daily", [{ campaign: { id: "10" }, segments: { date: "2026-08-05" }, metrics: {
+    impressions: 10, searchImpressionShare: 0.283, searchBudgetLostImpressionShare: null,
+  } }], source);
+  assert.equal(row.metrics.searchImpressionShare, 0.283);
+  assert.equal(row.metrics.searchBudgetLostImpressionShare, null);
+  assert.equal((row.raw_row.metrics as Record<string, unknown>).searchImpressionShare, 0.283);
 });
