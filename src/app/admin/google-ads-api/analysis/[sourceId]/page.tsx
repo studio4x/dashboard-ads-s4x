@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { GoogleAdsPerformanceAnalysis } from "@/components/admin/GoogleAdsPerformanceAnalysis";
+import {
+  GoogleAdsClientSummary,
+  GoogleAdsClientSummarySkeleton,
+} from "@/components/admin/GoogleAdsClientSummary";
 
 export const metadata: Metadata = { title: "Análise Google Ads" };
 
@@ -21,11 +26,21 @@ export default async function GoogleAdsAnalysisPage({
   const query = await searchParams;
   await requireAdmin();
 
+  const from = single(query.from);
+  const to = single(query.to);
+
   return (
-    <GoogleAdsPerformanceAnalysis
-      sourceId={sourceId}
-      from={single(query.from)}
-      to={single(query.to)}
-    />
+    <>
+      <GoogleAdsPerformanceAnalysis
+        sourceId={sourceId}
+        from={from}
+        to={to}
+      />
+      <div style={{ maxWidth: 1280, padding: "0 clamp(14px, 3vw, 32px)", marginTop: -8 }}>
+        <Suspense fallback={<GoogleAdsClientSummarySkeleton />}>
+          <GoogleAdsClientSummary sourceId={sourceId} from={from} to={to} />
+        </Suspense>
+      </div>
+    </>
   );
 }
