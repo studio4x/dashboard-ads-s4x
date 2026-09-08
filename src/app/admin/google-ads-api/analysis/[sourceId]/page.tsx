@@ -38,7 +38,14 @@ export default async function GoogleAdsAnalysisPage({
         from={from}
         to={to}
       />
-      <div style={{ maxWidth: 1280, padding: "0 clamp(14px, 3vw, 32px)", marginTop: -8 }}>
+      <div
+        style={{
+          maxWidth: 1440,
+          width: "100%",
+          margin: "-8px auto 0",
+          padding: "0 clamp(14px, 3vw, 32px)",
+        }}
+      >
         <Suspense fallback={<GoogleAdsClientSummarySkeleton />}>
           <GoogleAdsClientSummary sourceId={sourceId} from={from} to={to} />
         </Suspense>
