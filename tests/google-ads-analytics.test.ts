@@ -126,3 +126,15 @@ test("search_terms_daily preserva keyword associada e não confunde os dois matc
   assert.equal(withoutKeyword.dimensions.matchedKeywordText, null);
   assert.equal(withoutKeyword.dimensions.matchedKeywordMatchType, null);
 });
+
+test("remove somente o agregado nulo quando search_terms tem keywords segmentadas", () => {
+  const base = { campaign: { id: "10" }, adGroup: { id: "20" }, searchTermView: { searchTerm: "psicologo", status: "NONE" }, segments: { date: "2026-08-11", searchTermMatchType: "NEAR_PHRASE" }, metrics: { impressions: 1 } };
+  const rows = normalizeAnalyticsRows("search_terms_daily", [
+    base,
+    { ...base, segments: { ...base.segments, keyword: { adGroupCriterion: "customers/1234567890/adGroupCriteria/20~30", info: { text: "psicologo", matchType: "EXACT" } } } },
+    { ...base, segments: { ...base.segments, keyword: { adGroupCriterion: "customers/1234567890/adGroupCriteria/20~31", info: { text: "terapia", matchType: "PHRASE" } } } },
+  ], source);
+  assert.equal(rows.length, 2);
+  assert.equal(rows.every((row) => row.dimensions.matchedKeywordCriterion !== null), true);
+  assert.notEqual(rows[0].row_key, rows[1].row_key);
+});

@@ -133,7 +133,7 @@ function metrics(row: GoogleAdsApiRow) {
   };
 }
 
-function rowKey(dataset: GoogleAdsAnalyticDataset, dims: JsonRecord) {
+export function analyticsRowKey(dataset: GoogleAdsAnalyticDataset, dims: JsonRecord) {
   const keys = [
     "date", "campaignId", "adGroupId", "criterionId", "searchTerm", "searchTermMatchType", "searchTermTargetingStatus", "matchedKeywordCriterion",
     "adId", "assetId", "assetGroupId", "assetFieldType", "device", "network", "subNetwork", "dayOfWeek", "hour",
@@ -151,7 +151,7 @@ export type GoogleAdsAnalyticsRowInsert = {
 };
 
 export function normalizeAnalyticsRows(dataset: GoogleAdsAnalyticDataset, rows: GoogleAdsApiRow[], source: AnalyticsSource): GoogleAdsAnalyticsRowInsert[] {
-  return rows.map((row) => {
+  const normalized = rows.map((row) => {
     const dims = dimensions(row);
     const computed = metrics(row);
     dims.source = dataset === "pmax_search_terms_daily" ? "PERFORMANCE_MAX"
@@ -159,12 +159,24 @@ export function normalizeAnalyticsRows(dataset: GoogleAdsAnalyticDataset, rows: 
     dims.observedAt = source.observedAt;
     return {
       data_source_id: source.dataSourceId, customer_id: source.customerId, manager_customer_id: source.managerCustomerId || null, dataset,
-      observed_date: typeof dims.date === "string" ? dims.date : null, observed_at: source.observedAt, row_key: rowKey(dataset, dims),
+      observed_date: typeof dims.date === "string" ? dims.date : null, observed_at: source.observedAt, row_key: analyticsRowKey(dataset, dims),
       campaign_id: typeof dims.campaignId === "string" ? dims.campaignId : null, ad_group_id: typeof dims.adGroupId === "string" ? dims.adGroupId : null,
       criterion_id: typeof dims.criterionId === "string" ? dims.criterionId : null, ad_id: typeof dims.adId === "string" ? dims.adId : null,
       asset_id: typeof dims.assetId === "string" ? dims.assetId : null, dimensions: dims, metrics: computed.raw, derived_metrics: computed.derived, raw_row: row,
     };
   });
+
+  if (dataset !== "search_terms_daily") return normalized;
+
+  // search_term_view can return a null-keyword aggregate alongside one or
+  // more keyword-segmented rows. Keep the segmented facts (their keys include
+  // the criterion) and discard only the aggregate when a match exists for the
+  // same date/campaign/ad group/search-term dimensions.
+  const matchedBases = new Set(normalized
+    .filter((row) => row.dimensions.matchedKeywordCriterion !== null)
+    .map((row) => analyticsRowKey(dataset, { ...row.dimensions, matchedKeywordCriterion: null })));
+  return normalized.filter((row) => row.dimensions.matchedKeywordCriterion !== null
+    || !matchedBases.has(analyticsRowKey(dataset, row.dimensions)));
 }
 
 export function normalizeConfigurationSnapshot(dataset: string, rows: GoogleAdsApiRow[], source: AnalyticsSource) {

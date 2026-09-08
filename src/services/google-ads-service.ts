@@ -7,7 +7,7 @@ import { discoverGoogleAdsAccounts } from "@/lib/google-ads-api/discovery";
 import { buildGoogleAdsApiPayload } from "@/lib/google-ads-api/normalizer";
 import { googleAdsQueries } from "@/lib/google-ads-api/queries";
 import { googleAdsAnalyticsQueries } from "@/lib/google-ads-api/queries";
-import { normalizeAnalyticsRows, normalizeChangeEvents, normalizeConfigurationSnapshot, type GoogleAdsAnalyticDataset, type GoogleAdsDatasetStatus } from "@/lib/google-ads-api/analytics";
+import { analyticsRowKey, normalizeAnalyticsRows, normalizeChangeEvents, normalizeConfigurationSnapshot, type GoogleAdsAnalyticDataset, type GoogleAdsDatasetStatus } from "@/lib/google-ads-api/analytics";
 import { getGoogleAdsSettings, resolveGoogleAdsApiVersion } from "@/lib/google-ads-api/settings";
 import { readGoogleAdsRefreshToken } from "@/lib/google-ads-api/token-vault";
 import { buildIntegratedAdsPayload } from "@/lib/dashboard/integrated-payload";
@@ -302,6 +302,17 @@ async function persistAnalytics(
     if (!rows?.length) { persistedRows[dataset] = 0; continue; }
     try {
       const normalized = normalizeAnalyticsRows(dataset, rows, context);
+      if (dataset === "search_terms_daily") {
+        const legacyNullKeys = Array.from(new Set(normalized
+          .filter((row) => row.dimensions.matchedKeywordCriterion !== null)
+          .map((row) => analyticsRowKey(dataset, { ...row.dimensions, matchedKeywordCriterion: null }))));
+        for (const chunk of chunks(legacyNullKeys)) {
+          if (!chunk.length) continue;
+          const { error } = await supabase.from("google_ads_analytics_rows")
+            .delete().eq("data_source_id", source.id).eq("dataset", dataset).in("row_key", chunk);
+          if (error) throw error;
+        }
+      }
       for (const chunk of chunks(normalized)) {
         const { error } = await supabase.from("google_ads_analytics_rows").upsert(chunk, { onConflict: "data_source_id,dataset,row_key" });
         if (error) throw error;
