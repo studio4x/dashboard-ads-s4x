@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Copy, MessageCircle, Sparkles } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Check, Copy, MessageCircle, RefreshCw, Sparkles } from "lucide-react";
 
 type Props = {
   text: string;
@@ -11,17 +12,38 @@ type Props = {
   generatedWithAi: boolean;
 };
 
+function sanitizeClientText(value: string) {
+  return String(value || "")
+    .replace(/melhorar a relevância e a competitividade dos anúncios nas buscas/gi, "melhorar a presença e a relevância dos anúncios nas buscas")
+    .replace(/competitividade dos anúncios(?: nas buscas)?/gi, "presença dos anúncios nas buscas")
+    .replace(/\bcompetitividade\b/gi, "presença nas buscas")
+    .replace(/concentrar a verba/gi, "direcionar melhor o investimento")
+    .replace(/concentrar o investimento/gi, "direcionar melhor o investimento")
+    .replace(/reduzir buscas pouco alinhadas e direcionar melhor o investimento nas intenções com maior potencial/gi, "reduzir buscas pouco alinhadas e direcionar melhor o investimento para as buscas com maior potencial")
+    .replace(/nas buscas\s+e\s+reduzir buscas pouco alinhadas\s+e\s+direcionar melhor o investimento/gi, "nas buscas, reduzir buscas pouco alinhadas e direcionar melhor o investimento")
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 export function GoogleAdsClientSummaryCard({ text, periodLabel, provider, model, generatedWithAi }: Props) {
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const [isRefreshing, startRefresh] = useTransition();
+  const [currentText, setCurrentText] = useState(() => sanitizeClientText(text));
+
+  useEffect(() => {
+    setCurrentText(sanitizeClientText(text));
+  }, [text]);
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(currentText);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
       const textarea = document.createElement("textarea");
-      textarea.value = text;
+      textarea.value = currentText;
       textarea.style.position = "fixed";
       textarea.style.opacity = "0";
       document.body.appendChild(textarea);
@@ -31,6 +53,12 @@ export function GoogleAdsClientSummaryCard({ text, periodLabel, provider, model,
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     }
+  }
+
+  function handleRefresh() {
+    startRefresh(() => {
+      router.refresh();
+    });
   }
 
   const providerLabel = provider === "openai"
@@ -86,6 +114,29 @@ export function GoogleAdsClientSummaryCard({ text, periodLabel, provider, model,
           </span>
           <button
             type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            style={{
+              height: 34,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "0 11px",
+              borderRadius: 8,
+              border: "1px solid #CBD5E1",
+              background: "#FFFFFF",
+              color: "#475569",
+              fontSize: 11,
+              fontWeight: 750,
+              cursor: isRefreshing ? "wait" : "pointer",
+              opacity: isRefreshing ? 0.65 : 1,
+            }}
+          >
+            <RefreshCw size={14} />
+            {isRefreshing ? "Gerando..." : "Gerar novamente"}
+          </button>
+          <button
+            type="button"
             onClick={handleCopy}
             style={{
               height: 34,
@@ -121,7 +172,7 @@ export function GoogleAdsClientSummaryCard({ text, periodLabel, provider, model,
           lineHeight: 1.7,
         }}
       >
-        {text}
+        {currentText}
       </div>
 
       <p style={{ marginTop: 9, fontSize: 10.5, lineHeight: 1.45, color: "#94A3B8" }}>
