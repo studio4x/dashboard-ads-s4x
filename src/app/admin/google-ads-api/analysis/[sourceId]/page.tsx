@@ -6,6 +6,7 @@ import { GoogleAdsPerformancePortuguese } from "@/components/admin/GoogleAdsPerf
 import { GoogleAdsOptimizationOverview } from "@/components/admin/GoogleAdsOptimizationOverview";
 import { GoogleAdsAnalysisComposer } from "@/components/admin/GoogleAdsAnalysisComposer";
 import { GoogleAdsActionProgressEnhancer } from "@/components/admin/GoogleAdsActionProgressEnhancer";
+import { GoogleAdsActionExecutionGuide } from "@/components/admin/GoogleAdsActionExecutionGuide";
 import {
   GoogleAdsClientSummary,
   GoogleAdsClientSummarySkeleton,
@@ -46,6 +47,7 @@ export default async function GoogleAdsAnalysisPage({
       <GoogleAdsOptimizationOverview sourceId={sourceId} from={from} to={to} />
       <GoogleAdsAnalysisComposer />
       <GoogleAdsActionProgressEnhancer sourceId={sourceId} />
+      <GoogleAdsActionExecutionGuide />
       <div
         style={{
           maxWidth: 1440,
