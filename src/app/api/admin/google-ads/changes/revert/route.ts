@@ -7,6 +7,7 @@ import { assertGoogleAdsRevertSafe } from "@/services/google-ads-revert-guard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const maxDuration = 120;
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
