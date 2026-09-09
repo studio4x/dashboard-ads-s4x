@@ -8,6 +8,7 @@ import { GoogleAdsWriteCenter } from "@/components/admin/GoogleAdsWriteCenter";
 import { GoogleAdsAnalysisComposer } from "@/components/admin/GoogleAdsAnalysisComposer";
 import { GoogleAdsActionProgressEnhancer } from "@/components/admin/GoogleAdsActionProgressEnhancer";
 import { GoogleAdsActionExecutionGuide } from "@/components/admin/GoogleAdsActionExecutionGuide";
+import { GoogleAdsActionApplyShortcut } from "@/components/admin/GoogleAdsActionApplyShortcut";
 import {
   GoogleAdsClientSummary,
   GoogleAdsClientSummarySkeleton,
@@ -50,6 +51,7 @@ export default async function GoogleAdsAnalysisPage({
       <GoogleAdsAnalysisComposer />
       <GoogleAdsActionProgressEnhancer sourceId={sourceId} />
       <GoogleAdsActionExecutionGuide />
+      <GoogleAdsActionApplyShortcut />
       <div
         style={{
           maxWidth: 1440,
