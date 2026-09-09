@@ -4,13 +4,12 @@ import { GoogleAdsApiError, GoogleAdsRestClient } from "@/lib/google-ads-api/cli
 import { getGoogleAdsSettings } from "@/lib/google-ads-api/settings";
 import { readGoogleAdsRefreshToken } from "@/lib/google-ads-api/token-vault";
 import type { GoogleAdsApiRow } from "@/types/google-ads-api";
+import type { GoogleAdsPlatformOperation as AllGoogleAdsPlatformOperation } from "@/types/google-ads-mutations";
+import { isAdvancedGoogleAdsOperation } from "@/types/google-ads-mutations";
+import { GoogleAdsAdvancedMutationService } from "./google-ads-advanced-mutation-service";
+import { googleAdsHighRiskWritesEnabled, googleAdsWritesEnabled } from "@/lib/google-ads-api/risk-policy";
 
-export type GoogleAdsPlatformOperation =
-  | "add_campaign_negative_keyword"
-  | "set_keyword_status"
-  | "set_ad_status"
-  | "set_ad_group_status"
-  | "set_campaign_budget";
+export type GoogleAdsPlatformOperation = AllGoogleAdsPlatformOperation;
 
 export type ChangePreview = {
   requestId: string;
@@ -38,6 +37,7 @@ type SourceContext = {
   currencyCode: string | null;
   connectionId: string;
   client: GoogleAdsRestClient;
+  writeEnabled: boolean;
 };
 
 type BuiltChange = {
@@ -121,7 +121,7 @@ async function sourceContext(sourceId: string): Promise<SourceContext> {
   const supabase = await createAdminClient({ actor: "api_admin", action: "google_ads_write_context" });
   const { data: source, error } = await supabase
     .from("data_sources")
-    .select("id,status,type,google_ads_sources(data_source_id,connection_id,customer_id,customer_name,manager_customer_id,currency_code,google_ads_connections(id,status))")
+    .select("id,status,type,google_ads_sources(data_source_id,connection_id,customer_id,customer_name,manager_customer_id,currency_code,write_enabled,google_ads_connections(id,status))")
     .eq("id", sourceId)
     .eq("type", "google_ads")
     .maybeSingle();
@@ -142,6 +142,7 @@ async function sourceContext(sourceId: string): Promise<SourceContext> {
     currencyCode: relation.currency_code ? text(relation.currency_code) : null,
     connectionId: relation.connection_id,
     client: new GoogleAdsRestClient(settings, await readGoogleAdsRefreshToken(relation.connection_id)),
+    writeEnabled: relation.write_enabled === true,
   };
 }
 
@@ -360,8 +361,29 @@ function extractMutatedResourceName(body: unknown) {
   return text(first.resourceName) || null;
 }
 
+async function readBackLegacy(ctx: SourceContext, change: BuiltChange) {
+  try {
+    const target = change.target;
+    const status = text(target.status).toUpperCase();
+    let query: string;
+    if (change.operationType === "add_campaign_negative_keyword") query = `SELECT campaign_criterion.resource_name FROM campaign_criterion WHERE campaign.id = ${digits(target.campaignId)} AND campaign_criterion.negative = TRUE AND campaign_criterion.keyword.text = '${escapeGaql(text(target.text))}' LIMIT 1`;
+    else if (change.operationType === "set_keyword_status") query = `SELECT ad_group_criterion.status FROM ad_group_criterion WHERE ad_group.id = ${digits(target.adGroupId)} AND ad_group_criterion.criterion_id = ${digits(target.criterionId)} LIMIT 1`;
+    else if (change.operationType === "set_ad_status") query = `SELECT ad_group_ad.status FROM ad_group_ad WHERE ad_group.id = ${digits(target.adGroupId)} AND ad_group_ad.ad.id = ${digits(target.adId)} LIMIT 1`;
+    else if (change.operationType === "set_ad_group_status") query = `SELECT ad_group.status FROM ad_group WHERE ad_group.id = ${digits(target.adGroupId)} LIMIT 1`;
+    else query = `SELECT campaign_budget.amount_micros FROM campaign_budget WHERE campaign.id = ${digits(target.campaignId)} LIMIT 1`;
+    const row = object(await one(ctx, query));
+    if (change.operationType === "add_campaign_negative_keyword") return Boolean(object(row.campaignCriterion).resourceName);
+    if (change.operationType === "set_campaign_budget") return String(object(row.campaignBudget).amountMicros || "") === String(change.after.amountMicros || "");
+    const entity = change.operationType === "set_keyword_status" ? row.adGroupCriterion : change.operationType === "set_ad_status" ? row.adGroupAd : row.adGroup;
+    return text(object(entity).status).toUpperCase() === status;
+  } catch {
+    return false;
+  }
+}
+
 export const GoogleAdsMutationService = {
   async preview(input: { sourceId: string; operationType: GoogleAdsPlatformOperation; target: Record<string, unknown>; actorId: string | null }): Promise<ChangePreview> {
+    if (isAdvancedGoogleAdsOperation(input.operationType)) return GoogleAdsAdvancedMutationService.preview(input as { sourceId: string; operationType: import("@/types/google-ads-mutations").GoogleAdsAdvancedOperation; target: Record<string, unknown>; actorId: string | null }) as unknown as ChangePreview;
     const ctx = await sourceContext(input.sourceId);
     const change = await build(ctx, input.operationType, input.target);
     const pHash = previewHash(ctx, change);
@@ -438,7 +460,7 @@ export const GoogleAdsMutationService = {
     };
   },
 
-  async execute(input: { requestId: string; previewHash: string; actorId: string | null }) {
+  async execute(input: { requestId: string; previewHash: string; actorId: string | null; confirmation?: string; actorRole?: string | null }) {
     const supabase = await createAdminClient({ actor: "api_admin", action: "execute_google_ads_change" });
     const { data: request, error } = await supabase
       .from("google_ads_platform_change_requests")
@@ -448,11 +470,15 @@ export const GoogleAdsMutationService = {
     if (error) throw error;
     if (!request) throw new Error("Solicitação de alteração não encontrada.");
     if (request.status === "applied") return { requestId: request.id, status: "applied", googleRequestId: request.google_request_id, alreadyApplied: true };
+    if (isAdvancedGoogleAdsOperation(String(request.operation_type))) return GoogleAdsAdvancedMutationService.execute({ requestId: input.requestId, previewHash: input.previewHash, confirmation: input.confirmation || "", actorId: input.actorId, actorRole: input.actorRole });
     if (request.status !== "validated") throw new Error(`A solicitação não pode ser executada no estado ${request.status}.`);
     if (text(request.preview_hash) !== text(input.previewHash)) throw new Error("A confirmação não corresponde à pré-visualização atual.");
     if (request.risk_level === "high") throw new Error("Alterações de alto risco não podem ser executadas diretamente nesta versão.");
 
     const ctx = await sourceContext(request.data_source_id);
+    if (!googleAdsWritesEnabled() || !ctx.writeEnabled) throw new Error("Alterações reais estão desativadas. Habilite a trava global e a escrita da fonte para executar.");
+    if (!googleAdsHighRiskWritesEnabled() && request.risk_level === "high") throw new Error("Alterações de alto risco estão desativadas pela trava GOOGLE_ADS_HIGH_RISK_WRITES_ENABLED.");
+    if (request.risk_level === "high" && String(input.confirmation || "").toUpperCase() !== "CONFIRMAR ALTERAÇÃO DE LANCES") throw new Error("Digite exatamente “CONFIRMAR ALTERAÇÃO DE LANCES” para confirmar esta alteração.");
     const rebuilt = await build(ctx, request.operation_type as GoogleAdsPlatformOperation, object(request.target));
     const currentHash = previewHash(ctx, rebuilt);
     if (currentHash !== request.preview_hash) {
@@ -478,6 +504,7 @@ export const GoogleAdsMutationService = {
       // Segunda validação imediatamente antes da escrita real.
       await ctx.client.mutate(ctx.customerId, rebuilt.collection, [rebuilt.operation], ctx.managerCustomerId, { validateOnly: true });
       const result = await ctx.client.mutate(ctx.customerId, rebuilt.collection, [rebuilt.operation], ctx.managerCustomerId, { validateOnly: false });
+      const postWriteVerified = await readBackLegacy(ctx, rebuilt);
       const createdResourceName = rebuilt.operationType === "add_campaign_negative_keyword" ? extractMutatedResourceName(result.body) : null;
       const revertPayload = createdResourceName ? { remove: createdResourceName } : rebuilt.revertOperation;
       await supabase.from("google_ads_platform_change_requests").update({
@@ -492,8 +519,8 @@ export const GoogleAdsMutationService = {
         error_message: null,
         updated_at: new Date().toISOString(),
       }).eq("id", request.id).eq("status", "executing");
-      await audit(request.id, "applied", input.actorId, { googleRequestId: result.requestId, resourceName: createdResourceName || rebuilt.resourceName, after: rebuilt.after });
-      return { requestId: request.id, status: "applied", googleRequestId: result.requestId, alreadyApplied: false };
+      await audit(request.id, "applied", input.actorId, { googleRequestId: result.requestId, resourceName: createdResourceName || rebuilt.resourceName, after: rebuilt.after, postWriteVerified });
+      return { requestId: request.id, status: "applied", googleRequestId: result.requestId, postWriteVerified, alreadyApplied: false };
     } catch (mutationFailure) {
       const failure = mutationError(mutationFailure);
       await supabase.from("google_ads_platform_change_requests").update({ status: "failed", error_code: failure.code, error_message: failure.message.slice(0, 1800), google_request_id: failure.requestId, updated_at: new Date().toISOString() }).eq("id", request.id);
@@ -507,18 +534,21 @@ export const GoogleAdsMutationService = {
     const { data: request, error } = await supabase.from("google_ads_platform_change_requests").select("*").eq("id", input.requestId).maybeSingle();
     if (error) throw error;
     if (!request) throw new Error("Alteração não encontrada.");
+    if (isAdvancedGoogleAdsOperation(String(request.operation_type))) return GoogleAdsAdvancedMutationService.revert(input);
     if (request.status !== "applied") throw new Error("Somente alterações aplicadas podem ser revertidas.");
     if (!request.revertible || !request.revert_payload) throw new Error("Essa alteração não possui reversão segura disponível.");
 
     const ctx = await sourceContext(request.data_source_id);
-    const collectionByOperation: Record<GoogleAdsPlatformOperation, BuiltChange["collection"]> = {
+    if (!googleAdsWritesEnabled() || !ctx.writeEnabled) throw new Error("Alterações reais estão desativadas. Habilite a trava global e a escrita da fonte para executar.");
+    const collectionByOperation: Record<string, BuiltChange["collection"]> = {
       add_campaign_negative_keyword: "campaignCriteria",
       set_keyword_status: "adGroupCriteria",
       set_ad_status: "adGroupAds",
       set_ad_group_status: "adGroups",
       set_campaign_budget: "campaignBudgets",
     };
-    const collection = collectionByOperation[request.operation_type as GoogleAdsPlatformOperation];
+    const collection = collectionByOperation[String(request.operation_type)];
+    if (!collection) throw new Error("Tipo de alteração sem regra de reversão.");
     const revertOperation = object(request.revert_payload);
     await ctx.client.mutate(ctx.customerId, collection, [revertOperation], ctx.managerCustomerId, { validateOnly: true });
     try {

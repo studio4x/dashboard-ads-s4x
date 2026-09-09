@@ -26,13 +26,14 @@ export async function POST(request: NextRequest) {
     const requestId = String(body.requestId || "").trim();
     const previewHash = String(body.previewHash || "").trim();
     const confirmation = String(body.confirmation || "").trim().toUpperCase();
-    if (!requestId || !previewHash || confirmation !== "APLICAR") {
+    const acceptedConfirmations = new Set(["APLICAR", "CONFIRMAR ALTERAÇÃO DE LANCES", "CONFIRMAR ALTERAÇÃO CRÍTICA"]);
+    if (!requestId || !previewHash || !acceptedConfirmations.has(confirmation)) {
       return NextResponse.json({ error: "Confirmação explícita obrigatória antes de alterar o Google Ads." }, { status: 400 });
     }
 
     await assertStoredGoogleAdsChangePolicy(requestId);
     const profile = await getSessionProfile();
-    const result = await GoogleAdsMutationService.execute({ requestId, previewHash, actorId: profile?.id || null });
+    const result = await GoogleAdsMutationService.execute({ requestId, previewHash, confirmation, actorId: profile?.id || null, actorRole: profile?.role || null });
     return NextResponse.json({ result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Erro ao executar alteração Google Ads:", error);

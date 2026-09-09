@@ -4,6 +4,8 @@ import { GoogleAdsApiError } from "@/lib/google-ads-api/client";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 import { GoogleAdsMutationService } from "@/services/google-ads-mutation-service";
 import { assertGoogleAdsRevertSafe } from "@/services/google-ads-revert-guard";
+import { createAdminClient } from "@/lib/supabase/server";
+import { isAdvancedGoogleAdsOperation } from "@/types/google-ads-mutations";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -29,7 +31,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Confirmação explícita obrigatória para desfazer a alteração." }, { status: 400 });
     }
     const profile = await getSessionProfile();
-    await assertGoogleAdsRevertSafe(requestId);
+    const supabase = await createAdminClient({ actor: "api_admin", action: "route_google_ads_revert" });
+    const { data: storedRequest } = await supabase.from("google_ads_platform_change_requests").select("operation_type").eq("id", requestId).maybeSingle();
+    if (!storedRequest || !isAdvancedGoogleAdsOperation(String(storedRequest.operation_type))) await assertGoogleAdsRevertSafe(requestId);
     const result = await GoogleAdsMutationService.revert({ requestId, actorId: profile?.id || null });
     return NextResponse.json({ result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

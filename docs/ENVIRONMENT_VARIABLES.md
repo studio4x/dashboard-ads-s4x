@@ -29,6 +29,8 @@ Este documento lista as variáveis de ambiente necessárias para o funcionamento
 - **GOOGLE_ADS_DEVELOPER_TOKEN**: token obtido na API Center de uma conta Google Ads Manager. Obrigatório e exclusivamente server-side.
 - **GOOGLE_ADS_CLIENT_ID**: fallback opcional para o OAuth Client ID. Normalmente o valor não sensível é informado em `/admin/google-ads-api`.
 - **GOOGLE_ADS_API_VERSION**: fallback opcional da versão REST, `v25` por padrão. A configuração persistida no painel tem precedência.
+- **GOOGLE_ADS_WRITES_ENABLED**: trava global server-side; somente `true` permite mutações reais.
+- **GOOGLE_ADS_HIGH_RISK_WRITES_ENABLED**: segunda trava server-side para operações de alto risco/críticas; deve permanecer `false` até homologação.
 - Refresh tokens não são variáveis de ambiente: são gravados criptografados no Supabase Vault.
 - Redirect URI de produção: `https://dashboardads.studio4x.com.br/api/admin/google-ads/oauth/callback`.
 

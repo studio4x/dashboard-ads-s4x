@@ -21,12 +21,17 @@ type GoogleAdsErrorBody = {
   };
 };
 
-type MutableCollection = "campaignCriteria" | "adGroupCriteria" | "adGroupAds" | "adGroups" | "campaignBudgets";
+export type GoogleAdsMutableCollection =
+  | "campaignCriteria" | "adGroupCriteria" | "adGroupAds" | "adGroups" | "campaignBudgets"
+  | "campaigns" | "assets" | "campaignAssets" | "conversionActions"
+  | "customerConversionGoals" | "campaignConversionGoals";
 
 export type GoogleAdsMutateResult = {
   body: unknown;
   requestId: string | null;
 };
+
+export type GoogleAdsRecommendationResult = GoogleAdsMutateResult;
 
 function googleAdsErrorDetails(body: GoogleAdsErrorBody) {
   return body.error?.details?.flatMap((detail) => detail.errors || []) || [];
@@ -163,7 +168,7 @@ export class GoogleAdsRestClient {
    */
   async mutate(
     customerId: string,
-    collection: MutableCollection,
+    collection: GoogleAdsMutableCollection,
     operations: Array<Record<string, unknown>>,
     loginCustomerId?: string | null,
     options?: { validateOnly?: boolean },
@@ -172,7 +177,13 @@ export class GoogleAdsRestClient {
     if (!Array.isArray(operations) || operations.length < 1 || operations.length > 100) {
       throw new Error("A mutação Google Ads deve conter entre 1 e 100 operações.");
     }
-    const allowed = new Set<MutableCollection>(["campaignCriteria", "adGroupCriteria", "adGroupAds", "adGroups", "campaignBudgets"]);
+    if (collection === "assets" && operations.some((operation) => "assetOperation" in operation || "campaignAssetOperation" in operation)) {
+      return this.mutateAtomic(target, operations, loginCustomerId, options);
+    }
+    const allowed = new Set<GoogleAdsMutableCollection>([
+      "campaignCriteria", "adGroupCriteria", "adGroupAds", "adGroups", "campaignBudgets", "campaigns", "assets",
+      "campaignAssets", "conversionActions", "customerConversionGoals", "campaignConversionGoals",
+    ]);
     if (!allowed.has(collection)) throw new Error("Coleção Google Ads não autorizada para escrita.");
 
     const { body, requestId } = await this.request(
@@ -188,5 +199,28 @@ export class GoogleAdsRestClient {
       loginCustomerId,
     );
     return { body, requestId };
+  }
+
+  async mutateAtomic(customerId: string, operations: Array<Record<string, unknown>>, loginCustomerId?: string | null, options?: { validateOnly?: boolean }) {
+    const target = normalizeCustomerId(customerId);
+    if (!Array.isArray(operations) || operations.length < 1 || operations.length > 100) throw new Error("O lote Google Ads deve conter entre 1 e 100 operações.");
+    return this.request(`/customers/${target}/googleAds:mutate`, { method: "POST", body: JSON.stringify({ mutateOperations: operations, partialFailure: false, validateOnly: options?.validateOnly === true, responseContentType: "MUTABLE_RESOURCE" }) }, loginCustomerId);
+  }
+
+  async applyRecommendation(customerId: string, recommendationResourceName: string, loginCustomerId?: string | null, parameters?: Record<string, unknown>) {
+    const target = normalizeCustomerId(customerId);
+    if (!/^customers\/\d+\/recommendations\/[^/]+$/.test(recommendationResourceName)) throw new Error("Recommendation resource name inválido.");
+    return this.request(`/customers/${target}/recommendations:apply`, { method: "POST", body: JSON.stringify({ operations: [{ resourceName: recommendationResourceName, ...(parameters || {}) }], partialFailure: false }) }, loginCustomerId);
+  }
+
+  async dismissRecommendation(customerId: string, recommendationResourceName: string, loginCustomerId?: string | null) {
+    const target = normalizeCustomerId(customerId);
+    if (!/^customers\/\d+\/recommendations\/[^/]+$/.test(recommendationResourceName)) throw new Error("Recommendation resource name inválido.");
+    return this.request(`/customers/${target}/recommendations:dismiss`, { method: "POST", body: JSON.stringify({ operations: [{ resourceName: recommendationResourceName }] }) }, loginCustomerId);
+  }
+
+  async suggestGeoTargets(customerId: string, query: string, locale = "pt", countryCode = "BR", loginCustomerId?: string | null) {
+    const target = normalizeCustomerId(customerId);
+    return this.request(`/geoTargetConstants:suggest`, { method: "POST", body: JSON.stringify({ locale, countryCode, locationNames: { names: [query] } }) }, loginCustomerId);
   }
 }

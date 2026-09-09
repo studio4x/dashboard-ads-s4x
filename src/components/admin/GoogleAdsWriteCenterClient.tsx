@@ -41,7 +41,7 @@ type Preview = {
   requestId: string;
   previewHash: string;
   operationType: string;
-  riskLevel: "low" | "medium" | "high";
+  riskLevel: "low" | "medium" | "high" | "critical";
   executable: boolean;
   blockedReason: string | null;
   account: { customerId: string; customerName: string; currencyCode: string | null };
@@ -53,6 +53,7 @@ type Preview = {
   warnings: string[];
   reversible: boolean;
   validatedByGoogle: boolean;
+  requiredConfirmation?: string | null;
 };
 
 type HistoryItem = {
@@ -95,6 +96,7 @@ function statusLabel(value: unknown) {
 function risk(value: Preview["riskLevel"]) {
   if (value === "low") return { label: "Baixo risco", color: "#047857", bg: "#ECFDF5", border: "#A7F3D0" };
   if (value === "medium") return { label: "Risco moderado", color: "#92400E", bg: "#FFFBEB", border: "#FDE68A" };
+  if (value === "critical") return { label: "Risco crítico", color: "#991B1B", bg: "#FEF2F2", border: "#FECACA" };
   return { label: "Alto risco", color: "#B91C1C", bg: "#FEF2F2", border: "#FECACA" };
 }
 
@@ -192,7 +194,7 @@ export function GoogleAdsWriteCenterClient({ sourceId, negatives, keywords, ads,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ requestId: preview.requestId, previewHash: preview.previewHash, confirmation: "APLICAR" }),
+        body: JSON.stringify({ requestId: preview.requestId, previewHash: preview.previewHash, confirmation: preview.requiredConfirmation || "APLICAR" }),
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || "Não foi possível aplicar a alteração.");

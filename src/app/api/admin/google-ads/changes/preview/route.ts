@@ -4,18 +4,11 @@ import { GoogleAdsApiError } from "@/lib/google-ads-api/client";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
 import { assertGoogleAdsChangePolicy } from "@/services/google-ads-change-policy";
 import { GoogleAdsMutationService, type GoogleAdsPlatformOperation } from "@/services/google-ads-mutation-service";
+import { isGoogleAdsPlatformOperation } from "@/types/google-ads-mutations";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const maxDuration = 90;
-
-const OPERATIONS = new Set<GoogleAdsPlatformOperation>([
-  "add_campaign_negative_keyword",
-  "set_keyword_status",
-  "set_ad_status",
-  "set_ad_group_status",
-  "set_campaign_budget",
-]);
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -34,7 +27,7 @@ export async function POST(request: NextRequest) {
     const sourceId = String(body.sourceId || "").trim();
     const operationType = String(body.operationType || "").trim() as GoogleAdsPlatformOperation;
     const target = record(body.target);
-    if (!sourceId || !OPERATIONS.has(operationType)) {
+    if (!sourceId || !isGoogleAdsPlatformOperation(operationType)) {
       return NextResponse.json({ error: "Solicitação de alteração inválida." }, { status: 400 });
     }
 

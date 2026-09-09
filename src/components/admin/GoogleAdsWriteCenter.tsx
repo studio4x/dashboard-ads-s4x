@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { GoogleAdsWriteCenterClient, type BudgetOption, type EntityOption, type KeywordSuggestion, type NegativeSuggestion } from "./GoogleAdsWriteCenterClient";
+import { GoogleAdsAdvancedActions } from "./GoogleAdsAdvancedActions";
 
 type Props = {
   sourceId: string;
@@ -177,5 +178,5 @@ export async function GoogleAdsWriteCenter({ sourceId, from, to }: Props) {
     budgets.push({ campaignId, campaignName: String(campaign.name || `Campanha ${campaignId}`), amount, currencyCode: String(sourceConfig?.currency_code || "BRL") });
   }
 
-  return <GoogleAdsWriteCenterClient sourceId={sourceId} negatives={negatives} keywords={keywords} ads={ads} adGroups={adGroups} budgets={budgets} />;
+  return <><GoogleAdsWriteCenterClient sourceId={sourceId} negatives={negatives} keywords={keywords} ads={ads} adGroups={adGroups} budgets={budgets} /><GoogleAdsAdvancedActions sourceId={sourceId} /></>;
 }
