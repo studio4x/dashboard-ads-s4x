@@ -125,6 +125,7 @@ export function GoogleAdsAnalysisComposer() {
 
       const analysisRoot = findAnalysisRoot(page);
       const overview = page.querySelector<HTMLElement>("[data-s4x-optimization-overview='true']");
+      const writeCenter = page.querySelector<HTMLElement>("[data-s4x-google-ads-write-center='true']");
       if (!analysisRoot || !overview) return;
 
       const header = analysisRoot.firstElementChild as HTMLElement | null;
@@ -141,19 +142,24 @@ export function GoogleAdsAnalysisComposer() {
           analysisRoot.insertBefore(actionPlan, overview.nextSibling);
         }
 
+        if (writeCenter && (writeCenter.parentElement !== analysisRoot || writeCenter.previousElementSibling !== actionPlan)) {
+          analysisRoot.insertBefore(writeCenter, actionPlan.nextSibling);
+        }
+
+        const anchor = writeCenter?.parentElement === analysisRoot ? writeCenter : actionPlan;
         let details = analysisRoot.querySelector<HTMLElement>("[data-s4x-technical-details='true']") as HTMLDetailsElement | null;
         if (!details) {
           details = createTechnicalDetails();
-          analysisRoot.insertBefore(details, actionPlan.nextSibling);
-        } else if (details.previousElementSibling !== actionPlan) {
-          analysisRoot.insertBefore(details, actionPlan.nextSibling);
+          analysisRoot.insertBefore(details, anchor.nextSibling);
+        } else if (details.previousElementSibling !== anchor) {
+          analysisRoot.insertBefore(details, anchor.nextSibling);
         }
 
         const content = details.querySelector<HTMLElement>("[data-s4x-technical-details-content='true']");
         if (!content) return;
 
         const movable = Array.from(analysisRoot.children).filter((child): child is HTMLElement => {
-          return child instanceof HTMLElement && child !== header && child !== overview && child !== actionPlan && child !== details;
+          return child instanceof HTMLElement && child !== header && child !== overview && child !== actionPlan && child !== writeCenter && child !== details;
         });
 
         for (const node of movable) content.appendChild(node);
