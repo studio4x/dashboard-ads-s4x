@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile, requireAdmin } from "@/lib/auth/guards";
 import { GoogleAdsApiError } from "@/lib/google-ads-api/client";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { assertGoogleAdsChangePolicy } from "@/services/google-ads-change-policy";
 import { GoogleAdsMutationService, type GoogleAdsPlatformOperation } from "@/services/google-ads-mutation-service";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Solicitação de alteração inválida." }, { status: 400 });
     }
 
+    await assertGoogleAdsChangePolicy(sourceId, operationType, target);
     const profile = await getSessionProfile();
     const preview = await GoogleAdsMutationService.preview({ sourceId, operationType, target, actorId: profile?.id || null });
     return NextResponse.json({ preview }, { headers: { "Cache-Control": "no-store" } });
