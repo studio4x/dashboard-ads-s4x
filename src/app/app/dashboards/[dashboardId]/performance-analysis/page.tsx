@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { GoogleAdsPerformanceAnalysis } from "@/components/admin/GoogleAdsPerformanceAnalysis";
 import { GoogleAdsPerformancePortuguese } from "@/components/admin/GoogleAdsPerformancePortuguese";
 import { GoogleAdsOptimizationOverview } from "@/components/admin/GoogleAdsOptimizationOverview";
+import { GoogleAdsWriteCenter } from "@/components/admin/GoogleAdsWriteCenter";
 import { GoogleAdsAnalysisComposer } from "@/components/admin/GoogleAdsAnalysisComposer";
 import { GoogleAdsActionProgressEnhancer } from "@/components/admin/GoogleAdsActionProgressEnhancer";
 import { GoogleAdsActionExecutionGuide } from "@/components/admin/GoogleAdsActionExecutionGuide";
@@ -64,6 +65,7 @@ export default async function DashboardPerformanceAnalysisPage({
         embedded
       />
       <GoogleAdsOptimizationOverview sourceId={source.id} from={from} to={to} embedded />
+      <GoogleAdsWriteCenter sourceId={source.id} from={from} to={to} />
       <GoogleAdsAnalysisComposer />
       <GoogleAdsActionProgressEnhancer sourceId={source.id} />
       <GoogleAdsActionExecutionGuide />
