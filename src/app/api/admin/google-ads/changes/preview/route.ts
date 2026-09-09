@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile, requireAdmin } from "@/lib/auth/guards";
 import { GoogleAdsApiError } from "@/lib/google-ads-api/client";
+import { requireSameOrigin } from "@/lib/security/same-origin-request";
 import { GoogleAdsMutationService, type GoogleAdsPlatformOperation } from "@/services/google-ads-mutation-service";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,8 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 export async function POST(request: NextRequest) {
+  const originGuard = requireSameOrigin(request);
+  if (originGuard) return originGuard;
   const guard = await requireAdmin();
   if (guard) return guard;
 
