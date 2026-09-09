@@ -178,5 +178,10 @@ export async function GoogleAdsWriteCenter({ sourceId, from, to }: Props) {
     budgets.push({ campaignId, campaignName: String(campaign.name || `Campanha ${campaignId}`), amount, currencyCode: String(sourceConfig?.currency_code || "BRL") });
   }
 
-  return <><GoogleAdsWriteCenterClient sourceId={sourceId} negatives={negatives} keywords={keywords} ads={ads} adGroups={adGroups} budgets={budgets} /><GoogleAdsAdvancedActions sourceId={sourceId} /></>;
+  return <>
+    <GoogleAdsWriteCenterClient sourceId={sourceId} negatives={negatives} keywords={keywords} ads={ads} adGroups={adGroups} budgets={budgets} />
+    <div style={{ maxWidth: 1440, width: "100%", margin: "0 auto", padding: "0 clamp(14px, 3vw, 32px)", boxSizing: "border-box" }}>
+      <GoogleAdsAdvancedActions sourceId={sourceId} />
+    </div>
+  </>;
 }
