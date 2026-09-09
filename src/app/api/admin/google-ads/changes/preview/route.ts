@@ -6,6 +6,7 @@ import { GoogleAdsMutationService, type GoogleAdsPlatformOperation } from "@/ser
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const maxDuration = 90;
 
 const OPERATIONS = new Set<GoogleAdsPlatformOperation>([
   "add_campaign_negative_keyword",
