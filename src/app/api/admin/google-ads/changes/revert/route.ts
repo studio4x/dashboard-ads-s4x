@@ -3,6 +3,7 @@ import { getSessionProfile, requireAdmin } from "@/lib/auth/guards";
 import { GoogleAdsApiError } from "@/lib/google-ads-api/client";
 import { requireSameOrigin } from "@/lib/security/same-origin-request";
 import { GoogleAdsMutationService } from "@/services/google-ads-mutation-service";
+import { assertGoogleAdsRevertSafe } from "@/services/google-ads-revert-guard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Confirmação explícita obrigatória para desfazer a alteração." }, { status: 400 });
     }
     const profile = await getSessionProfile();
+    await assertGoogleAdsRevertSafe(requestId);
     const result = await GoogleAdsMutationService.revert({ requestId, actorId: profile?.id || null });
     return NextResponse.json({ result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
