@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile, requireAdmin } from "@/lib/auth/guards";
 import { GoogleAdsApiError } from "@/lib/google-ads-api/client";
 import { enforceRateLimit, enforceSameOrigin } from "@/lib/security/request-guards";
+import { assertStoredGoogleAdsChangePolicy } from "@/services/google-ads-change-policy";
 import { GoogleAdsMutationService } from "@/services/google-ads-mutation-service";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Confirmação explícita obrigatória antes de alterar o Google Ads." }, { status: 400 });
     }
 
+    await assertStoredGoogleAdsChangePolicy(requestId);
     const profile = await getSessionProfile();
     const result = await GoogleAdsMutationService.execute({ requestId, previewHash, actorId: profile?.id || null });
     return NextResponse.json({ result }, { headers: { "Cache-Control": "no-store" } });
