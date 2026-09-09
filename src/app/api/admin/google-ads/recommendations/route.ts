@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const rateLimitError = enforceRateLimit(request, { key: "admin:google-ads:recommendations", limit: 10, windowMs: 60_000 }); if (rateLimitError) return rateLimitError;
   try {
     const body = await request.json() as Record<string, unknown>; const sourceId = String(body.sourceId || "").trim(); const operationType = body.action === "dismiss" ? "dismiss_google_recommendation" : "apply_google_recommendation"; const recommendationResourceName = String(body.recommendationResourceName || "").trim();
-    const preview = await GoogleAdsAdvancedMutationService.preview({ sourceId, operationType, target: { recommendationResourceName, recommendationType: body.recommendationType, parameters: body.parameters }, actorId: null });
+    const preview = await GoogleAdsAdvancedMutationService.preview({ sourceId, operationType, target: { recommendationResourceName, recommendationType: body.recommendationType, parameters: body.parameters }, origin: "GOOGLE_RECOMMENDATION", actorId: null });
     return NextResponse.json({ preview });
   } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível preparar a recomendação." }, { status: 400 }); }
 }

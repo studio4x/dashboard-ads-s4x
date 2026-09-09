@@ -14,6 +14,8 @@ function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+const ALLOWED_ORIGINS = new Set(["S4X_ANALYSIS", "GOOGLE_RECOMMENDATION", "MANUAL", "AI_DRAFT"]);
+
 export async function POST(request: NextRequest) {
   const guard = await requireAdmin();
   if (guard) return guard;
@@ -27,13 +29,15 @@ export async function POST(request: NextRequest) {
     const sourceId = String(body.sourceId || "").trim();
     const operationType = String(body.operationType || "").trim() as GoogleAdsPlatformOperation;
     const target = record(body.target);
+    const requestedOrigin = String(body.origin || "MANUAL").trim().toUpperCase();
+    const origin = ALLOWED_ORIGINS.has(requestedOrigin) ? requestedOrigin : "MANUAL";
     if (!sourceId || !isGoogleAdsPlatformOperation(operationType)) {
       return NextResponse.json({ error: "Solicitação de alteração inválida." }, { status: 400 });
     }
 
     await assertGoogleAdsChangePolicy(sourceId, operationType, target);
     const profile = await getSessionProfile();
-    const preview = await GoogleAdsMutationService.preview({ sourceId, operationType, target, actorId: profile?.id || null });
+    const preview = await GoogleAdsMutationService.preview({ sourceId, operationType, target, origin, actorId: profile?.id || null });
     return NextResponse.json({ preview }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Erro ao preparar alteração Google Ads:", error);

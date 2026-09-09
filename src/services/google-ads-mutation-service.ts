@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/server";
 import { GoogleAdsApiError, GoogleAdsRestClient } from "@/lib/google-ads-api/client";
 import { getGoogleAdsSettings } from "@/lib/google-ads-api/settings";
@@ -382,8 +382,8 @@ async function readBackLegacy(ctx: SourceContext, change: BuiltChange) {
 }
 
 export const GoogleAdsMutationService = {
-  async preview(input: { sourceId: string; operationType: GoogleAdsPlatformOperation; target: Record<string, unknown>; actorId: string | null }): Promise<ChangePreview> {
-    if (isAdvancedGoogleAdsOperation(input.operationType)) return GoogleAdsAdvancedMutationService.preview(input as { sourceId: string; operationType: import("@/types/google-ads-mutations").GoogleAdsAdvancedOperation; target: Record<string, unknown>; actorId: string | null }) as unknown as ChangePreview;
+  async preview(input: { sourceId: string; operationType: GoogleAdsPlatformOperation; target: Record<string, unknown>; origin: string; actorId: string | null }): Promise<ChangePreview> {
+    if (isAdvancedGoogleAdsOperation(input.operationType)) return GoogleAdsAdvancedMutationService.preview(input as { sourceId: string; operationType: import("@/types/google-ads-mutations").GoogleAdsAdvancedOperation; target: Record<string, unknown>; origin: string; actorId: string | null }) as unknown as ChangePreview;
     const ctx = await sourceContext(input.sourceId);
     const change = await build(ctx, input.operationType, input.target);
     const pHash = previewHash(ctx, change);
@@ -415,6 +415,7 @@ export const GoogleAdsMutationService = {
     const idempotencyKey = hash({ sourceId: ctx.sourceId, operationType: change.operationType, target: change.target, before: change.before });
     const requestPayload = {
       data_source_id: ctx.sourceId,
+      origin: input.origin,
       operation_type: change.operationType,
       risk_level: change.riskLevel,
       resource_type: change.resourceType,
@@ -439,7 +440,7 @@ export const GoogleAdsMutationService = {
       .select("id")
       .single();
     if (error) throw error;
-    await audit(inserted.id, "validated", input.actorId, { description: change.description, riskLevel: change.riskLevel, target: change.target, previewHash: pHash });
+    await audit(inserted.id, "validated", input.actorId, { origin: input.origin, description: change.description, riskLevel: change.riskLevel, target: change.target, previewHash: pHash });
 
     return {
       requestId: inserted.id,

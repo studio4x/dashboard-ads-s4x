@@ -35,6 +35,17 @@ test("preserva snapshots de configuração na data observada", () => {
   assert.equal(snapshot.observed_on, "2026-09-08");
 });
 
+test("identifica campaign_asset pela associação, não pela campanha", () => {
+  const [snapshot] = normalizeConfigurationSnapshot("campaign_asset", [{
+    campaign: { id: "10", resourceName: "customers/1234567890/campaigns/10" },
+    campaignAsset: { resourceName: "customers/1234567890/campaignAssets/10~70~SITELINK", fieldType: "SITELINK" },
+    asset: { id: "70", resourceName: "customers/1234567890/assets/70", sitelinkAsset: { linkText: "Serviços" } },
+  }], source);
+  assert.equal(snapshot.resource_name, "customers/1234567890/campaignAssets/10~70~SITELINK");
+  assert.equal(snapshot.campaign_id, "10");
+  assert.match(googleAdsAnalyticsQueries.campaignAssets, /FROM campaign_asset/);
+});
+
 test("normaliza change events sem expor segredo e usa o resource name como identidade", () => {
   const [event] = normalizeChangeEvents([{ changeEvent: {
     resourceName: "customers/1234567890/changeEvents/abc", changeDateTime: "2026-09-08 10:00:00",

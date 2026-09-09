@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { buildGoogleAdsAutomationContext, type OptimizationAnalyticsRow, type OptimizationConfigRow } from "@/lib/google-ads-api/optimization-actions";
 import { GoogleAdsWriteCenterClient, type BudgetOption, type EntityOption, type KeywordSuggestion, type NegativeSuggestion } from "./GoogleAdsWriteCenterClient";
 import { GoogleAdsAdvancedActions } from "./GoogleAdsAdvancedActions";
 
@@ -8,11 +9,7 @@ type Props = {
   to?: string | null;
 };
 
-type Row = {
-  observed_date: string;
-  dimensions: Record<string, unknown> | null;
-  metrics: Record<string, unknown> | null;
-};
+type Row = OptimizationAnalyticsRow;
 
 function object(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -61,7 +58,7 @@ async function fetchDataset(supabase: Awaited<ReturnType<typeof createAdminClien
   for (;;) {
     const { data, error } = await supabase
       .from("google_ads_analytics_rows")
-      .select("observed_date,dimensions,metrics")
+      .select("observed_date,dimensions,metrics,raw_row")
       .eq("data_source_id", sourceId)
       .eq("dataset", dataset)
       .gte("observed_date", start)
@@ -81,7 +78,7 @@ export async function GoogleAdsWriteCenter({ sourceId, from, to }: Props) {
   const supabase = await createAdminClient({ actor: "server_component", action: "google_ads_write_center" });
   const [{ data: latest }, { data: sourceConfig }] = await Promise.all([
     supabase.from("google_ads_analytics_rows").select("observed_date").eq("data_source_id", sourceId).eq("dataset", "campaign_daily").order("observed_date", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("google_ads_sources").select("currency_code").eq("data_source_id", sourceId).maybeSingle(),
+    supabase.from("google_ads_sources").select("customer_id,customer_name,currency_code,timezone").eq("data_source_id", sourceId).maybeSingle(),
   ]);
   if (!latest?.observed_date) return null;
 
@@ -91,13 +88,15 @@ export async function GoogleAdsWriteCenter({ sourceId, from, to }: Props) {
   const end = isIsoDate(to) ? to : defaultEnd;
   const start = isIsoDate(from) && from <= end ? from : addDays(end, -29);
 
-  const [campaignRows, searchRows, keywordRows, adRows, adGroupRows, budgetResult] = await Promise.all([
+  const [campaignRows, searchRows, keywordRows, adRows, adGroupRows, timeRows, configResult, assetInventoryResult] = await Promise.all([
     fetchDataset(supabase, sourceId, "campaign_daily", start, end),
     fetchDataset(supabase, sourceId, "search_terms_daily", start, end),
     fetchDataset(supabase, sourceId, "keyword_daily", start, end),
     fetchDataset(supabase, sourceId, "ad_daily", start, end),
     fetchDataset(supabase, sourceId, "ad_group_daily", start, end),
-    supabase.from("google_ads_config_history").select("campaign_id,payload,observed_at").eq("data_source_id", sourceId).eq("config_type", "campaign_budget").order("observed_at", { ascending: false }).limit(500),
+    fetchDataset(supabase, sourceId, "time_daily", start, end),
+    supabase.from("google_ads_config_history").select("config_type,resource_name,campaign_id,payload,observed_at").eq("data_source_id", sourceId).in("config_type", ["campaign_budget", "campaign_bidding", "campaign_asset", "conversion_action"]).order("observed_at", { ascending: false }).limit(3000),
+    supabase.from("google_ads_analytics_runs").select("status,received_rows,created_at").eq("data_source_id", sourceId).eq("dataset", "campaignAssets").order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const totalCost = campaignRows.reduce((sum, row) => sum + cost(row), 0);
@@ -122,7 +121,7 @@ export async function GoogleAdsWriteCenter({ sourceId, from, to }: Props) {
     .filter((item) => item.conversions === 0 && item.clicks > 0 && item.cost > 0 && lowIntentTokens.some((token) => normalize(item.term).includes(token)))
     .sort((a, b) => b.cost - a.cost)
     .slice(0, 8)
-    .map(({ conversions: _conversions, ...item }) => item);
+    .map((item) => ({ campaignId: item.campaignId, campaignName: item.campaignName, term: item.term, clicks: item.clicks, cost: item.cost }));
 
   const keywordMap = new Map<string, KeywordSuggestion>();
   for (const row of keywordRows) {
@@ -166,7 +165,8 @@ export async function GoogleAdsWriteCenter({ sourceId, from, to }: Props) {
 
   const budgets: BudgetOption[] = [];
   const seenCampaigns = new Set<string>();
-  for (const row of budgetResult.data || []) {
+  for (const row of configResult.data || []) {
+    if (row.config_type !== "campaign_budget") continue;
     const campaignId = String(row.campaign_id || "");
     if (!campaignId || seenCampaigns.has(campaignId)) continue;
     const payload = object(row.payload);
@@ -178,10 +178,31 @@ export async function GoogleAdsWriteCenter({ sourceId, from, to }: Props) {
     budgets.push({ campaignId, campaignName: String(campaign.name || `Campanha ${campaignId}`), amount, currencyCode: String(sourceConfig?.currency_code || "BRL") });
   }
 
+  const automationContext = buildGoogleAdsAutomationContext({
+    period: { start, end },
+    account: {
+      customerId: String(sourceConfig?.customer_id || ""),
+      customerName: String(sourceConfig?.customer_name || "Conta Google Ads"),
+      currencyCode: String(sourceConfig?.currency_code || "BRL"),
+      timezone: String(sourceConfig?.timezone || "Fuso da conta"),
+    },
+    campaignRows,
+    adGroupRows,
+    keywordRows,
+    searchRows,
+    adRows,
+    timeRows,
+    configRows: (configResult.data || []) as OptimizationConfigRow[],
+    assetInventory: {
+      available: assetInventoryResult.data?.status === "success" || assetInventoryResult.data?.status === "no_data",
+      receivedRows: numeric(assetInventoryResult.data?.received_rows),
+    },
+  });
+
   return <>
     <GoogleAdsWriteCenterClient sourceId={sourceId} negatives={negatives} keywords={keywords} ads={ads} adGroups={adGroups} budgets={budgets} />
     <div style={{ maxWidth: 1440, width: "100%", margin: "0 auto", padding: "0 clamp(14px, 3vw, 32px)", boxSizing: "border-box" }}>
-      <GoogleAdsAdvancedActions sourceId={sourceId} />
+      <GoogleAdsAdvancedActions sourceId={sourceId} context={automationContext} />
     </div>
   </>;
 }

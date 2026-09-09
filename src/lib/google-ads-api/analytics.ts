@@ -181,7 +181,7 @@ export function normalizeAnalyticsRows(dataset: GoogleAdsAnalyticDataset, rows: 
 
 export function normalizeConfigurationSnapshot(dataset: string, rows: GoogleAdsApiRow[], source: AnalyticsSource) {
   const snapshots = rows.map((row) => {
-    const raw = object(row[dataset === "conversion_action" ? "conversionAction" : dataset === "conversion_goal" ? "customerConversionGoal" : dataset === "campaign_budget" ? "campaignBudget" : dataset === "keyword_quality" ? "adGroupCriterion" : "campaign"]);
+    const raw = object(row[dataset === "conversion_action" ? "conversionAction" : dataset === "conversion_goal" ? "customerConversionGoal" : dataset === "campaign_asset" ? "campaignAsset" : dataset === "campaign_budget" ? "campaignBudget" : dataset === "keyword_quality" ? "adGroupCriterion" : "campaign"]);
     const resourceName = stringValue(raw, "resourceName") || hash(raw);
     const campaign = object(row.campaign);
     const criterion = object(row.adGroupCriterion);

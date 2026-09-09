@@ -210,6 +210,7 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
     { key: "demographicsGender", dataset: "demographics_gender_daily", query: googleAdsAnalyticsQueries.demographicsGender(start, end) },
     { key: "conversionActions", query: googleAdsAnalyticsQueries.conversionActions },
     { key: "conversionGoals", query: googleAdsAnalyticsQueries.conversionGoals },
+    { key: "campaignAssets", query: googleAdsAnalyticsQueries.campaignAssets },
     { key: "budgets", query: googleAdsAnalyticsQueries.budgets },
     { key: "bidding", query: googleAdsAnalyticsQueries.bidding },
     // Google only accepts a maximum 30-day window for change_event, regardless
@@ -330,6 +331,7 @@ async function persistAnalytics(
   const configurations = [
     ["conversion_action", queried.configurationRows.conversionActions || []],
     ["conversion_goal", queried.configurationRows.conversionGoals || []],
+    ["campaign_asset", queried.configurationRows.campaignAssets || []],
     ["campaign_budget", queried.configurationRows.budgets || []],
     ["campaign_bidding", queried.configurationRows.bidding || []],
     ["keyword_quality", queried.rows.keyword_daily || []],
@@ -364,6 +366,7 @@ async function persistAnalytics(
       ...Object.fromEntries(Object.entries(queried.rows).map(([dataset, rows]) => [dataset, rows?.length || 0])),
       conversionActions: queried.configurationRows.conversionActions?.length || 0,
       conversionGoals: queried.configurationRows.conversionGoals?.length || 0,
+      campaignAssets: queried.configurationRows.campaignAssets?.length || 0,
       budgets: queried.configurationRows.budgets?.length || 0,
       bidding: queried.configurationRows.bidding?.length || 0,
       changeEvents: queried.changeEventRows.length,
