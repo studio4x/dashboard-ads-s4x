@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { GoogleAdsPerformanceAnalysis } from "@/components/admin/GoogleAdsPerformanceAnalysis";
 import { GoogleAdsPerformancePortuguese } from "@/components/admin/GoogleAdsPerformancePortuguese";
 import { GoogleAdsOptimizationOverview } from "@/components/admin/GoogleAdsOptimizationOverview";
+import { GoogleAdsWriteCenter } from "@/components/admin/GoogleAdsWriteCenter";
 import { GoogleAdsAnalysisComposer } from "@/components/admin/GoogleAdsAnalysisComposer";
 import { GoogleAdsActionProgressEnhancer } from "@/components/admin/GoogleAdsActionProgressEnhancer";
 import { GoogleAdsActionExecutionGuide } from "@/components/admin/GoogleAdsActionExecutionGuide";
@@ -45,6 +46,7 @@ export default async function GoogleAdsAnalysisPage({
         to={to}
       />
       <GoogleAdsOptimizationOverview sourceId={sourceId} from={from} to={to} />
+      <GoogleAdsWriteCenter sourceId={sourceId} from={from} to={to} />
       <GoogleAdsAnalysisComposer />
       <GoogleAdsActionProgressEnhancer sourceId={sourceId} />
       <GoogleAdsActionExecutionGuide />
