@@ -21,6 +21,13 @@ type GoogleAdsErrorBody = {
   };
 };
 
+type MutableCollection = "campaignCriteria" | "adGroupCriteria" | "adGroupAds" | "adGroups" | "campaignBudgets";
+
+export type GoogleAdsMutateResult = {
+  body: unknown;
+  requestId: string | null;
+};
+
 function googleAdsErrorDetails(body: GoogleAdsErrorBody) {
   return body.error?.details?.flatMap((detail) => detail.errors || []) || [];
 }
@@ -146,5 +153,40 @@ export class GoogleAdsRestClient {
     const requestIds = [requestId, ...chunks.map((chunk) => String((chunk as { requestId?: string }).requestId || ""))]
       .filter((value): value is string => Boolean(value));
     return { rows, requestIds: Array.from(new Set(requestIds)) };
+  }
+
+  /**
+   * Executa uma mutação em uma coleção explicitamente permitida.
+   * `partialFailure` permanece sempre false para garantir atomicidade do lote.
+   * O chamador deve executar primeiro com `validateOnly: true` e só depois,
+   * após confirmação humana e nova leitura do estado, executar de fato.
+   */
+  async mutate(
+    customerId: string,
+    collection: MutableCollection,
+    operations: Array<Record<string, unknown>>,
+    loginCustomerId?: string | null,
+    options?: { validateOnly?: boolean },
+  ): Promise<GoogleAdsMutateResult> {
+    const target = normalizeCustomerId(customerId);
+    if (!Array.isArray(operations) || operations.length < 1 || operations.length > 100) {
+      throw new Error("A mutação Google Ads deve conter entre 1 e 100 operações.");
+    }
+    const allowed = new Set<MutableCollection>(["campaignCriteria", "adGroupCriteria", "adGroupAds", "adGroups", "campaignBudgets"]);
+    if (!allowed.has(collection)) throw new Error("Coleção Google Ads não autorizada para escrita.");
+
+    const { body, requestId } = await this.request(
+      `/customers/${target}/${collection}:mutate`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          operations,
+          partialFailure: false,
+          validateOnly: options?.validateOnly === true,
+        }),
+      },
+      loginCustomerId,
+    );
+    return { body, requestId };
   }
 }
