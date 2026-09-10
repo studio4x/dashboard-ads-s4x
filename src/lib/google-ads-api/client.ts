@@ -22,7 +22,7 @@ type GoogleAdsErrorBody = {
 };
 
 export type GoogleAdsMutableCollection =
-  | "campaignCriteria" | "adGroupCriteria" | "adGroupAds" | "adGroups" | "campaignBudgets"
+  | "campaignCriteria" | "adGroupCriteria" | "adGroupAds" | "ads" | "adGroups" | "campaignBudgets"
   | "campaigns" | "assets" | "campaignAssets" | "conversionActions"
   | "customerConversionGoals" | "campaignConversionGoals";
 
@@ -181,7 +181,7 @@ export class GoogleAdsRestClient {
       return this.mutateAtomic(target, operations, loginCustomerId, options);
     }
     const allowed = new Set<GoogleAdsMutableCollection>([
-      "campaignCriteria", "adGroupCriteria", "adGroupAds", "adGroups", "campaignBudgets", "campaigns", "assets",
+      "campaignCriteria", "adGroupCriteria", "adGroupAds", "ads", "adGroups", "campaignBudgets", "campaigns", "assets",
       "campaignAssets", "conversionActions", "customerConversionGoals", "campaignConversionGoals",
     ]);
     if (!allowed.has(collection)) throw new Error("Coleção Google Ads não autorizada para escrita.");

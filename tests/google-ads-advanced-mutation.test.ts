@@ -35,7 +35,11 @@ test("location uses official GeoTargetConstant and guards the last coverage", ()
 });
 
 test("RSA limits and target gate are enforced before API mutation", () => {
-  assert.throws(() => buildResponsiveSearchAd({ headlines: ["A", "A", "B"], descriptions: ["D1", "D2"], finalUrls: ["https://example.com"] }, { resourceName: "customers/1234567890/adGroupAds/1", adType: "RESPONSIVE_SEARCH_AD" }), /duplicados/);
+  assert.throws(() => buildResponsiveSearchAd({ headlines: ["A", "A", "B"], descriptions: ["D1", "D2"], finalUrls: ["https://example.com"] }, { resourceName: "customers/1234567890/ads/1", adType: "RESPONSIVE_SEARCH_AD" }), /duplicados/);
+  const rsa = buildResponsiveSearchAd({ headlines: ["Título A", "Título B", "Título C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] }, { resourceName: "customers/1234567890/ads/1", adType: "RESPONSIVE_SEARCH_AD", headlines: ["Anterior A", "Anterior B", "Anterior C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] });
+  assert.equal(rsa.collection, "ads");
+  assert.equal(rsa.operations[0].updateMask, "responsive_search_ad.headlines,responsive_search_ad.descriptions,final_urls,final_mobile_urls");
+  assert.deepEqual(rsa.operations[0].update, { resourceName: "customers/1234567890/ads/1", responsiveSearchAd: { headlines: [{ text: "Título A" }, { text: "Título B" }, { text: "Título C" }], descriptions: [{ text: "Descrição A" }, { text: "Descrição B" }] }, finalUrls: ["https://example.com"], finalMobileUrls: [] });
   const blocked = buildTargetOrBidding("set_target_cpa", { targetCpaMicros: 1000000 }, { resourceName: "customers/1234567890/campaigns/1", biddingStrategyType: "MAXIMIZE_CONVERSIONS", recentConversions: 29 });
   assert.equal(blocked.executable, false);
   assert.match(blocked.blockedReason || "", /30/);
