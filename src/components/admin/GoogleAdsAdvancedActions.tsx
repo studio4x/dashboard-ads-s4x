@@ -202,9 +202,9 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
   const executionBlockReason = useMemo(() => {
     if (!preview?.executable) return null;
     if (!controls) return "Verificando as travas de escrita antes de permitir a aplicação.";
-    if (!controls.globalEnabled) return "A prévia foi validada, mas a escrita real está bloqueada pela trava global GOOGLE_ADS_WRITES_ENABLED. Nenhuma alteração será enviada ao Google Ads até que ela seja habilitada em produção.";
+    if (!controls.globalEnabled) return "A prévia foi validada, mas a escrita real está bloqueada pela trava global de produção. Nenhuma alteração será enviada ao Google Ads até que ela seja habilitada.";
     if (!controls.sourceEnabled) return "A prévia foi validada, mas a escrita desta fonte está desativada. Um owner precisa habilitá-la antes da aplicação.";
-    if ((preview.riskLevel === "high" || preview.riskLevel === "critical") && !controls.highRiskEnabled) return "Esta é uma alteração de alto risco. A prévia foi validada, mas a trava GOOGLE_ADS_HIGH_RISK_WRITES_ENABLED ainda impede a aplicação real.";
+    if ((preview.riskLevel === "high" || preview.riskLevel === "critical") && !controls.highRiskEnabled) return "Esta é uma alteração de alto risco. A prévia foi validada, mas a trava adicional de alto risco ainda impede a aplicação real.";
     return null;
   }, [controls, preview]);
 
