@@ -16,6 +16,21 @@ type Destination = {
   status: "ready" | "manual" | "blocked";
 };
 
+type IndexedAction = {
+  group: Exclude<Destination["group"], null>;
+  readiness: string;
+};
+
+function readActionIndex(center: HTMLElement): IndexedAction[] {
+  try {
+    const value = JSON.parse(center.dataset.s4xActionIndex || "[]");
+    if (!Array.isArray(value)) return [];
+    return value.filter((item): item is IndexedAction => Boolean(item && typeof item.group === "string" && typeof item.readiness === "string"));
+  } catch {
+    return [];
+  }
+}
+
 function destination(title: string): Destination {
   const value = normalize(title);
   if (["preservar estrutura", "acumular evidencia", "nao aumentar orcamento", "antes de escalar"].some((token) => value.includes(token))) return { group: null, status: "blocked" };
@@ -43,8 +58,9 @@ export function GoogleAdsActionApplyShortcut() {
       if (!grid) return;
 
       const cards = Array.from(grid.children).filter((card): card is HTMLElement => card instanceof HTMLElement);
-      const actionSignature = Array.from(center.querySelectorAll<HTMLElement>("[data-s4x-smart-action]"))
-        .map((node) => `${node.dataset.s4xSmartAction || ""}:${node.dataset.s4xActionReadiness || ""}`)
+      const actionIndex = readActionIndex(center);
+      const actionSignature = actionIndex
+        .map((action) => `${action.group}:${action.readiness}`)
         .join("|");
       const signature = `${cards.map((card) => normalize(card.querySelector("strong")?.textContent || "")).join("|")}::${actionSignature}`;
       if (signature === lastSignature) return;
@@ -56,8 +72,8 @@ export function GoogleAdsActionApplyShortcut() {
         const title = header?.querySelector("strong")?.textContent?.trim() || "";
         if (!header) continue;
         const target = destination(title);
-        const relatedActions = target.group ? Array.from(center.querySelectorAll<HTMLElement>(`[data-s4x-smart-action="${target.group}"]`)) : [];
-        const relatedReadiness = relatedActions.map((node) => node.dataset.s4xActionReadiness || "");
+        const relatedActions = target.group ? actionIndex.filter((action) => action.group === target.group) : [];
+        const relatedReadiness = relatedActions.map((action) => action.readiness);
         const status: Destination["status"] = target.status === "blocked"
           ? "blocked"
           : relatedReadiness.some((value) => value === "ready" || value === "review")

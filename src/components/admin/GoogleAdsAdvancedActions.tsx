@@ -192,6 +192,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
   const availableAds = useMemo(() => context.ads.filter((item) => !values.adGroupId || item.adGroupId === values.adGroupId), [context.ads, values.adGroupId]);
   const selectedAd = useMemo(() => availableAds.find((item) => item.id === values.adId) || null, [availableAds, values.adId]);
   const visibleActions = useMemo(() => context.actions.filter((item) => activeGroup === "all" || item.group === activeGroup), [activeGroup, context.actions]);
+  const actionIndex = useMemo(() => JSON.stringify(context.actions.map((item) => ({ group: item.group, readiness: item.readiness }))), [context.actions]);
   const batchableActions = useMemo(() => context.actions.filter((item) => item.target && item.operationType && ["add_campaign_negative_keyword", "add_ad_group_keyword", "set_keyword_status"].includes(item.operationType) && item.readiness !== "wait" && item.readiness !== "manual"), [context.actions]);
   const selectedBatch = batchableActions.filter((item) => selectedActionIds.includes(item.id));
   const readyCount = context.actions.filter((item) => item.readiness === "ready").length;
@@ -449,7 +450,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
   const isLoading = loading;
   const campaignSelect = <select value={values.campaignId} onChange={(event) => selectCampaign(event.target.value)} style={fieldStyle()}>{context.campaigns.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>;
 
-  return <section ref={rootRef} id="google-ads-optimization-center" data-s4x-google-ads-advanced-actions="true" className="card" style={{ width: "100%", boxSizing: "border-box", margin: "18px 0", padding: 20, border: "1px solid #BFDBFE", borderRadius: 12, background: "linear-gradient(180deg,#FFFFFF 0%,#F8FBFF 100%)", overflow: "hidden", scrollMarginTop: 24 }}>
+  return <section ref={rootRef} id="google-ads-optimization-center" data-s4x-google-ads-advanced-actions="true" data-s4x-action-index={actionIndex} className="card" style={{ width: "100%", boxSizing: "border-box", margin: "18px 0", padding: 20, border: "1px solid #BFDBFE", borderRadius: 12, background: "linear-gradient(180deg,#FFFFFF 0%,#F8FBFF 100%)", overflow: "hidden", scrollMarginTop: 24 }}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start", minWidth: 250, flex: 1 }}>
         <div style={{ width: 34, height: 34, borderRadius: 10, display: "grid", placeItems: "center", background: "#DBEAFE", color: "#1D4ED8", flex: "0 0 auto" }}><Sparkles size={17} /></div>
