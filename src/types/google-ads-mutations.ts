@@ -10,6 +10,7 @@ export type GoogleAdsAdvancedOperation =
   | "add_campaign_location"
   | "remove_campaign_location"
   | "edit_responsive_search_ad"
+  | "create_responsive_search_ad"
   | "create_campaign_asset"
   | "link_campaign_asset"
   | "unlink_campaign_asset"
@@ -34,7 +35,7 @@ export type GoogleAdsPlatformOperation =
 export function isAdvancedGoogleAdsOperation(value: string): value is GoogleAdsAdvancedOperation {
   return new Set<GoogleAdsAdvancedOperation>([
     "batch_google_ads_changes", "add_ad_group_keyword", "set_keyword_cpc", "add_ad_schedule", "edit_ad_schedule", "remove_ad_schedule",
-    "add_campaign_location", "remove_campaign_location", "edit_responsive_search_ad", "create_campaign_asset",
+    "add_campaign_location", "remove_campaign_location", "edit_responsive_search_ad", "create_responsive_search_ad", "create_campaign_asset",
     "link_campaign_asset", "unlink_campaign_asset", "apply_google_recommendation", "dismiss_google_recommendation",
     "set_target_cpa", "set_target_roas", "set_campaign_bidding_strategy", "set_conversion_action_primary",
     "set_conversion_action_include_in_conversions", "set_customer_conversion_goal_biddable", "set_campaign_conversion_goal_biddable",

@@ -8,7 +8,7 @@ export function googleAdsRiskForOperation(operation: GoogleAdsPlatformOperation,
   }
   if (operation === "set_conversion_action_primary" || operation === "set_conversion_action_include_in_conversions" || operation.endsWith("conversion_goal_biddable")) return "critical";
   if (operation === "set_campaign_bidding_strategy" || operation === "set_target_cpa" || operation === "set_target_roas") return "high";
-  if (operation === "edit_responsive_search_ad" || operation === "apply_google_recommendation") return "high";
+  if (operation === "edit_responsive_search_ad" || operation === "create_responsive_search_ad" || operation === "apply_google_recommendation") return "high";
   if (operation === "add_ad_group_keyword") return String(target.matchType).toUpperCase() === "BROAD" ? "high" : String(target.matchType).toUpperCase() === "PHRASE" ? "medium" : "low";
   if (operation === "set_keyword_cpc") return Math.abs(Number(target.changePercent || 0)) > 20 ? "high" : "medium";
   if (operation === "remove_ad_schedule" || operation === "remove_campaign_location") return "high";

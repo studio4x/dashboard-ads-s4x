@@ -22,7 +22,7 @@ A origem também acompanha a solicitação e a auditoria: `S4X_ANALYSIS`, `AI_DR
 - Lances: CPC manual compatível com a estratégia; alterações acima de 20% são alto risco e acima de 50% são bloqueadas. Target CPA/ROAS exigem estratégia compatível e pelo menos 30 conversões recentes.
 - Programação: adicionar, editar e remover faixas de 15 minutos, com fuso da conta, intervalo válido, sobreposição bloqueada e proteção contra campanha sem faixa.
 - Localizações: busca por `GeoTargetConstant` oficial, adição/remoção e proteção contra campanha sem cobertura.
-- RSA: títulos, descrições, URLs finais e URLs mobile, com limites, duplicidade e diff. Campos pinned não são apagados silenciosamente. A IA gera apenas rascunho.
+- RSA: títulos, descrições, URLs finais e URLs mobile, com limites, duplicidade e diff. É possível substituir o conteúdo no mesmo anúncio, criar outro mantendo o atual ativo ou criar outro pausando o atual no mesmo lote. Fixações/pins são preservadas para textos idênticos. A IA gera apenas rascunho.
 - Assets: sitelink, callout e call; criação/vínculo, vínculo existente e desvínculo separado de exclusão. Quando há campanha, criação e vínculo usam uma mutação atômica com resource name temporário.
 - Recomendações: listar recomendações oficiais, revisar/aplicar/dispensar individualmente; não há aplicação automática. Esses métodos não oferecem `validateOnly`, por isso a revisão humana e a auditoria continuam obrigatórias.
 - Estratégia e conversões: mudança de estratégia de lances, `primary_for_goal`, campo legado `include_in_conversions_metric` com aviso, e `biddable` em metas do cliente/campanha. São operações críticas e restritas a owner.

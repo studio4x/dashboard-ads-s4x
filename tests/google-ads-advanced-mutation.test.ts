@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAdGroupKeyword, buildAdSchedule, buildKeywordCpc, buildLocation, buildResponsiveSearchAd, buildTargetOrBidding } from "../src/lib/google-ads-api/advanced-mutation-builders.ts";
+import { buildAdGroupKeyword, buildAdSchedule, buildKeywordCpc, buildLocation, buildNewResponsiveSearchAd, buildResponsiveSearchAd, buildTargetOrBidding } from "../src/lib/google-ads-api/advanced-mutation-builders.ts";
 import { detectGoogleAdsCapabilities } from "../src/lib/google-ads-api/capabilities.ts";
 import { googleAdsRiskForOperation, googleAdsWritesEnabled } from "../src/lib/google-ads-api/risk-policy.ts";
 
@@ -36,10 +36,17 @@ test("location uses official GeoTargetConstant and guards the last coverage", ()
 
 test("RSA limits and target gate are enforced before API mutation", () => {
   assert.throws(() => buildResponsiveSearchAd({ headlines: ["A", "A", "B"], descriptions: ["D1", "D2"], finalUrls: ["https://example.com"] }, { resourceName: "customers/1234567890/ads/1", adType: "RESPONSIVE_SEARCH_AD" }), /duplicados/);
-  const rsa = buildResponsiveSearchAd({ headlines: ["Título A", "Título B", "Título C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] }, { resourceName: "customers/1234567890/ads/1", adType: "RESPONSIVE_SEARCH_AD", headlines: ["Anterior A", "Anterior B", "Anterior C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] });
+  const rsa = buildResponsiveSearchAd({ headlines: ["Título A", "Título B", "Título C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] }, { resourceName: "customers/1234567890/ads/1", adType: "RESPONSIVE_SEARCH_AD", headlineAssets: [{ text: "Título A", pinnedField: "HEADLINE_1" }], headlines: ["Anterior A", "Anterior B", "Anterior C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] });
   assert.equal(rsa.collection, "ads");
   assert.equal(rsa.operations[0].updateMask, "responsive_search_ad.headlines,responsive_search_ad.descriptions,final_urls,final_mobile_urls");
-  assert.deepEqual(rsa.operations[0].update, { resourceName: "customers/1234567890/ads/1", responsiveSearchAd: { headlines: [{ text: "Título A" }, { text: "Título B" }, { text: "Título C" }], descriptions: [{ text: "Descrição A" }, { text: "Descrição B" }] }, finalUrls: ["https://example.com"], finalMobileUrls: [] });
+  assert.deepEqual(rsa.operations[0].update, { resourceName: "customers/1234567890/ads/1", responsiveSearchAd: { headlines: [{ text: "Título A", pinnedField: "HEADLINE_1" }, { text: "Título B" }, { text: "Título C" }], descriptions: [{ text: "Descrição A" }, { text: "Descrição B" }] }, finalUrls: ["https://example.com"], finalMobileUrls: [] });
+  const createAndPause = buildNewResponsiveSearchAd({ adGroupId: "2", adId: "1", pauseExisting: true, headlines: ["Título A", "Título B", "Título C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] }, { resourceName: "customers/1234567890/ads/1", adGroupResourceName: "customers/1234567890/adGroups/2", adGroupAdResourceName: "customers/1234567890/adGroupAds/2~1", adGroupAdStatus: "ENABLED", adType: "RESPONSIVE_SEARCH_AD" });
+  assert.equal(createAndPause.collection, "adGroupAds");
+  assert.equal(createAndPause.operations.length, 2);
+  assert.equal((createAndPause.operations[0].create as Record<string, unknown>).status, "ENABLED");
+  assert.deepEqual(createAndPause.operations[1], { update: { resourceName: "customers/1234567890/adGroupAds/2~1", status: "PAUSED" }, updateMask: "status" });
+  const createAndKeep = buildNewResponsiveSearchAd({ adGroupId: "2", adId: "1", pauseExisting: false, headlines: ["Título A", "Título B", "Título C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"] }, { resourceName: "customers/1234567890/ads/1", adGroupResourceName: "customers/1234567890/adGroups/2", adGroupAdResourceName: "customers/1234567890/adGroupAds/2~1", adGroupAdStatus: "ENABLED", adType: "RESPONSIVE_SEARCH_AD" });
+  assert.equal(createAndKeep.operations.length, 1);
   const blocked = buildTargetOrBidding("set_target_cpa", { targetCpaMicros: 1000000 }, { resourceName: "customers/1234567890/campaigns/1", biddingStrategyType: "MAXIMIZE_CONVERSIONS", recentConversions: 29 });
   assert.equal(blocked.executable, false);
   assert.match(blocked.blockedReason || "", /30/);
