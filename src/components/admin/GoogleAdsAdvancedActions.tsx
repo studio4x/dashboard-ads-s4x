@@ -185,6 +185,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [activeAction, setActiveAction] = useState<GoogleAdsAutomationAction | null>(null);
   const [confirmation, setConfirmation] = useState("");
+  const [executionError, setExecutionError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error" | "info"; text: string } | null>(null);
   const [geoResults, setGeoResults] = useState<Array<{ resourceName: string; name: string; canonicalName: string; countryCode: string; targetType?: string }>>([]);
@@ -198,6 +199,14 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
   const batchableActions = useMemo(() => context.actions.filter((item) => item.target && item.operationType && ["add_campaign_negative_keyword", "add_ad_group_keyword", "set_keyword_status"].includes(item.operationType) && item.readiness !== "wait" && item.readiness !== "manual"), [context.actions]);
   const selectedBatch = batchableActions.filter((item) => selectedActionIds.includes(item.id));
   const readyCount = context.actions.filter((item) => item.readiness === "ready").length;
+  const executionBlockReason = useMemo(() => {
+    if (!preview?.executable) return null;
+    if (!controls) return "Verificando as travas de escrita antes de permitir a aplicação.";
+    if (!controls.globalEnabled) return "A prévia foi validada, mas a escrita real está bloqueada pela trava global GOOGLE_ADS_WRITES_ENABLED. Nenhuma alteração será enviada ao Google Ads até que ela seja habilitada em produção.";
+    if (!controls.sourceEnabled) return "A prévia foi validada, mas a escrita desta fonte está desativada. Um owner precisa habilitá-la antes da aplicação.";
+    if ((preview.riskLevel === "high" || preview.riskLevel === "critical") && !controls.highRiskEnabled) return "Esta é uma alteração de alto risco. A prévia foi validada, mas a trava GOOGLE_ADS_HIGH_RISK_WRITES_ENABLED ainda impede a aplicação real.";
+    return null;
+  }, [controls, preview]);
 
   function setValue<Key extends keyof Values>(key: Key, value: Values[Key]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -290,6 +299,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
     setLoading(true);
     setMessage(null);
     setConfirmation("");
+    setExecutionError(null);
     setActiveAction(action);
     try {
       const response = await fetch("/api/admin/google-ads/changes/preview", {
@@ -310,10 +320,11 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
   }
 
   async function execute() {
-    if (!preview?.executable) return;
+    if (!preview?.executable || executionBlockReason) return;
     const required = preview.requiredConfirmation || "APLICAR";
     if (confirmation !== required) return;
     setLoading(true);
+    setExecutionError(null);
     try {
       const response = await fetch("/api/admin/google-ads/changes/execute", {
         method: "POST",
@@ -328,7 +339,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
       setConfirmation("");
       setMessage({ tone: "ok", text: "Alteração aplicada e confirmada pela leitura pós-escrita. Atualize a análise para ver o novo estado consolidado." });
     } catch (error) {
-      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível aplicar a alteração." });
+      setExecutionError(error instanceof Error ? error.message : "Não foi possível aplicar a alteração.");
     } finally {
       setLoading(false);
     }
@@ -522,14 +533,16 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
 
     {preview ? <div role="dialog" aria-modal="true" aria-labelledby="google-ads-preview-title" style={{ position: "fixed", inset: 0, zIndex: 10001, background: "rgba(15,23,42,.52)", display: "grid", placeItems: "center", padding: 16 }}>
       <div style={{ width: "min(720px,100%)", maxHeight: "92vh", overflowY: "auto", borderRadius: 14, background: "#FFF", padding: 18, boxShadow: "0 24px 70px rgba(15,23,42,.3)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}><div><div style={{ display: "flex", alignItems: "center", gap: 7 }}><ShieldCheck size={16} color="#2563EB" /><h3 id="google-ads-preview-title" style={{ fontSize: 14, color: "#0F172A" }}>Revisão antes da escrita</h3></div><p style={{ marginTop: 5, fontSize: 11, color: "#334155", lineHeight: 1.45 }}>{preview.description}</p></div><button type="button" aria-label="Fechar" onClick={() => { setPreview(null); setActiveAction(null); }} style={{ border: 0, background: "transparent", cursor: "pointer", color: "#64748B" }}><X size={17} /></button></div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}><div><div style={{ display: "flex", alignItems: "center", gap: 7 }}><ShieldCheck size={16} color="#2563EB" /><h3 id="google-ads-preview-title" style={{ fontSize: 14, color: "#0F172A" }}>Revisão antes da escrita</h3></div><p style={{ marginTop: 5, fontSize: 11, color: "#334155", lineHeight: 1.45 }}>{preview.description}</p></div><button type="button" aria-label="Fechar" onClick={() => { setPreview(null); setActiveAction(null); setExecutionError(null); }} style={{ border: 0, background: "transparent", cursor: "pointer", color: "#64748B" }}><X size={17} /></button></div>
         {activeAction ? <div style={{ marginTop: 10, border: "1px solid #DBEAFE", background: "#EFF6FF", borderRadius: 8, padding: 9 }}><p style={{ fontSize: 9, fontWeight: 850, color: "#1D4ED8" }}>MOTIVO DA ANÁLISE S4X</p><p style={{ marginTop: 3, fontSize: 10.5, color: "#334155" }}>{activeAction.reason}</p><p style={{ marginTop: 3, fontSize: 9.5, color: "#64748B" }}>{activeAction.evidence}</p></div> : null}
         <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}><span style={{ borderRadius: 999, padding: "4px 7px", fontSize: 9, fontWeight: 850, color: preview.riskLevel === "critical" || preview.riskLevel === "high" ? "#991B1B" : "#92400E", background: preview.riskLevel === "critical" || preview.riskLevel === "high" ? "#FEF2F2" : "#FFFBEB", border: `1px solid ${preview.riskLevel === "critical" || preview.riskLevel === "high" ? "#FECACA" : "#FDE68A"}` }}>{RISK_LABEL[preview.riskLevel]}</span><span style={{ borderRadius: 999, padding: "4px 7px", fontSize: 9, fontWeight: 800, color: preview.validatedByGoogle ? "#047857" : "#92400E", background: preview.validatedByGoogle ? "#ECFDF5" : "#FFFBEB", border: `1px solid ${preview.validatedByGoogle ? "#A7F3D0" : "#FDE68A"}` }}>{preview.validatedByGoogle ? "VALIDADO PELA API" : "NÃO VALIDADO"}</span><span style={{ fontSize: 9, color: "#64748B", alignSelf: "center" }}>{preview.reversible ? "Reversível com nova verificação" : "Sem reversão automática segura"}</span></div>
         <div className="admin-two-col" style={{ marginTop: 11, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><div><p style={{ marginBottom: 4, fontSize: 9, fontWeight: 850, color: "#64748B" }}>ANTES</p><pre style={{ minHeight: 110, whiteSpace: "pre-wrap", overflowWrap: "anywhere", background: "#F8FAFC", border: "1px solid #E2E8F0", padding: 9, borderRadius: 8, fontSize: 9.5 }}>{JSON.stringify(preview.before, null, 2)}</pre></div><div><p style={{ marginBottom: 4, fontSize: 9, fontWeight: 850, color: "#64748B" }}>DEPOIS</p><pre style={{ minHeight: 110, whiteSpace: "pre-wrap", overflowWrap: "anywhere", background: "#F8FAFC", border: "1px solid #E2E8F0", padding: 9, borderRadius: 8, fontSize: 9.5 }}>{JSON.stringify(preview.after, null, 2)}</pre></div></div>
         {preview.warnings.map((warning) => <p key={warning} style={{ marginTop: 7, color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A", padding: 7, borderRadius: 7, fontSize: 10 }}>{warning}</p>)}
         {preview.blockedReason ? <p style={{ marginTop: 8, color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA", padding: 8, borderRadius: 7, fontSize: 10.5 }}>{preview.blockedReason}</p> : null}
-        {preview.executable ? <Field label={`Digite exatamente: ${preview.requiredConfirmation || "APLICAR"}`}><input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" style={{ ...fieldStyle(), marginTop: 4 }} /></Field> : null}
-        <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8 }}><button type="button" onClick={() => { setPreview(null); setActiveAction(null); setConfirmation(""); }} style={buttonStyle("neutral")}>Cancelar</button>{preview.executable ? <button type="button" disabled={loading || confirmation !== (preview.requiredConfirmation || "APLICAR")} onClick={() => void execute()} style={{ ...buttonStyle(preview.riskLevel === "critical" || preview.riskLevel === "high" ? "danger" : "primary"), opacity: loading || confirmation !== (preview.requiredConfirmation || "APLICAR") ? 0.5 : 1 }}>{loading ? "Aplicando…" : "Confirmar e aplicar"}</button> : null}</div>
+        {executionBlockReason ? <p style={{ marginTop: 8, color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A", padding: 8, borderRadius: 7, fontSize: 10.5, lineHeight: 1.45 }}>{executionBlockReason}</p> : null}
+        {executionError ? <p role="alert" style={{ marginTop: 8, color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA", padding: 8, borderRadius: 7, fontSize: 10.5, lineHeight: 1.45 }}>{executionError}</p> : null}
+        {preview.executable && !executionBlockReason ? <Field label={`Digite exatamente: ${preview.requiredConfirmation || "APLICAR"}`}><input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" style={{ ...fieldStyle(), marginTop: 4 }} /></Field> : null}
+        <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8 }}><button type="button" onClick={() => { setPreview(null); setActiveAction(null); setConfirmation(""); setExecutionError(null); }} style={buttonStyle("neutral")}>Cancelar</button>{preview.executable && !executionBlockReason ? <button type="button" disabled={loading || confirmation !== (preview.requiredConfirmation || "APLICAR")} onClick={() => void execute()} style={{ ...buttonStyle(preview.riskLevel === "critical" || preview.riskLevel === "high" ? "danger" : "primary"), opacity: loading || confirmation !== (preview.requiredConfirmation || "APLICAR") ? 0.5 : 1 }}>{loading ? "Aplicando…" : "Confirmar e aplicar"}</button> : null}</div>
       </div>
     </div> : null}
   </section>;
