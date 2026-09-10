@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const requestId = String(body.requestId || "").trim();
     const previewHash = String(body.previewHash || "").trim();
     const confirmation = String(body.confirmation || "").trim().toUpperCase();
-    const acceptedConfirmations = new Set(["APLICAR", "CONFIRMAR ALTERAÇÃO DE LANCES", "CONFIRMAR ALTERAÇÃO CRÍTICA"]);
+    const acceptedConfirmations = new Set(["APLICAR", "CONFIRMAR ALTERAÇÃO DE LANCES", "CONFIRMAR ALTERAÇÃO DE ANÚNCIO", "CONFIRMAR ALTERAÇÃO CRÍTICA"]);
     if (!requestId || !previewHash || !acceptedConfirmations.has(confirmation)) {
       return NextResponse.json({ error: "Confirmação explícita obrigatória antes de alterar o Google Ads." }, { status: 400 });
     }

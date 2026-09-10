@@ -27,6 +27,13 @@ export function requiresStrongGoogleAdsConfirmation(risk: GoogleAdsRiskLevel) {
   return risk === "high" || risk === "critical";
 }
 
+export function googleAdsRequiredConfirmation(operation: GoogleAdsPlatformOperation, risk: GoogleAdsRiskLevel) {
+  if (!requiresStrongGoogleAdsConfirmation(risk)) return null;
+  if (risk === "critical") return "CONFIRMAR ALTERAÇÃO CRÍTICA";
+  if (operation === "edit_responsive_search_ad" || operation === "create_responsive_search_ad") return "CONFIRMAR ALTERAÇÃO DE ANÚNCIO";
+  return "CONFIRMAR ALTERAÇÃO DE LANCES";
+}
+
 export function googleAdsWritesEnabled() {
   return process.env.GOOGLE_ADS_WRITES_ENABLED === "true";
 }

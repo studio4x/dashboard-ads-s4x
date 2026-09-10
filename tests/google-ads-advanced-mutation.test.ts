@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildAdGroupKeyword, buildAdSchedule, buildKeywordCpc, buildLocation, buildNewResponsiveSearchAd, buildResponsiveSearchAd, buildTargetOrBidding } from "../src/lib/google-ads-api/advanced-mutation-builders.ts";
 import { detectGoogleAdsCapabilities } from "../src/lib/google-ads-api/capabilities.ts";
-import { googleAdsRiskForOperation, googleAdsWritesEnabled } from "../src/lib/google-ads-api/risk-policy.ts";
+import { googleAdsRequiredConfirmation, googleAdsRiskForOperation, googleAdsWritesEnabled } from "../src/lib/google-ads-api/risk-policy.ts";
 
 const keywordState = { customerId: "1234567890", campaignResourceName: "customers/1234567890/campaigns/1", adGroupResourceName: "customers/1234567890/adGroups/2", adGroupName: "Grupo" };
 
@@ -58,6 +58,10 @@ test("RSA limits and target gate are enforced before API mutation", () => {
 test("risk policy protects critical operations and global write switch", () => {
   assert.equal(googleAdsRiskForOperation("set_conversion_action_primary"), "critical");
   assert.equal(googleAdsRiskForOperation("batch_google_ads_changes", { items: [{ operationType: "add_ad_group_keyword", target: { matchType: "BROAD" } }] }), "high");
+  assert.equal(googleAdsRequiredConfirmation("edit_responsive_search_ad", "high"), "CONFIRMAR ALTERAÇÃO DE ANÚNCIO");
+  assert.equal(googleAdsRequiredConfirmation("create_responsive_search_ad", "high"), "CONFIRMAR ALTERAÇÃO DE ANÚNCIO");
+  assert.equal(googleAdsRequiredConfirmation("set_target_cpa", "high"), "CONFIRMAR ALTERAÇÃO DE LANCES");
+  assert.equal(googleAdsRequiredConfirmation("set_conversion_action_primary", "critical"), "CONFIRMAR ALTERAÇÃO CRÍTICA");
   const previous = process.env.GOOGLE_ADS_WRITES_ENABLED;
   process.env.GOOGLE_ADS_WRITES_ENABLED = "false";
   assert.equal(googleAdsWritesEnabled(), false);

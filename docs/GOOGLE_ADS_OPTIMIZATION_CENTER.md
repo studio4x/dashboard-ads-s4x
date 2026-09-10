@@ -29,7 +29,7 @@ A origem também acompanha a solicitação e a auditoria: `S4X_ANALYSIS`, `AI_DR
 
 ## Travas e permissões
 
-`GOOGLE_ADS_WRITES_ENABLED` e `GOOGLE_ADS_HIGH_RISK_WRITES_ENABLED` são server-side. Além delas, cada fonte possui `google_ads_sources.write_enabled`, alterável somente por owner. Operações críticas exigem owner e a confirmação textual `CONFIRMAR ALTERAÇÃO CRÍTICA`; operações high exigem `CONFIRMAR ALTERAÇÃO DE LANCES`.
+`GOOGLE_ADS_WRITES_ENABLED` e `GOOGLE_ADS_HIGH_RISK_WRITES_ENABLED` são server-side. Além delas, cada fonte possui `google_ads_sources.write_enabled`, alterável somente por owner. Operações críticas exigem owner e a confirmação textual `CONFIRMAR ALTERAÇÃO CRÍTICA`; alterações de anúncios exigem `CONFIRMAR ALTERAÇÃO DE ANÚNCIO`; as demais operações high mantêm `CONFIRMAR ALTERAÇÃO DE LANCES`.
 
 As rotas `/api/admin/google-ads/changes/*` continuam protegidas por sessão admin, same-origin, rate limit e política de mudança. A migration `20260909150000_google_ads_safe_write_controls.sql` adiciona a trava por fonte e amplia a auditoria com origem, operação, risco, hash, confirmação, request ID e recursos afetados.
 
