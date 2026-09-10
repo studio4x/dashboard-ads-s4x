@@ -270,8 +270,13 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
 
   useEffect(() => {
     const listener = (event: Event) => {
-      const detail = (event as CustomEvent<{ group?: GoogleAdsAutomationGroup }>).detail;
+      const detail = (event as CustomEvent<{ group?: GoogleAdsAutomationGroup; openAssistant?: boolean }>).detail;
       if (detail?.group) setActiveGroup(detail.group);
+      if (detail?.group && detail.openAssistant) {
+        setAssistantSection(detail.group);
+        setAssistantOrigin("S4X_ANALYSIS");
+        setAssistantOpen(true);
+      }
       rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
     window.addEventListener("s4x:open-google-ads-action", listener);
@@ -476,7 +481,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
       {visibleActions.map((action) => {
         const readiness = READINESS[action.readiness];
         const batchable = batchableActions.some((item) => item.id === action.id);
-        return <article key={action.id} data-s4x-smart-action={action.group} style={{ border: "1px solid #E2E8F0", borderRadius: 10, background: "#FFF", padding: 12, display: "grid", gap: 8, alignContent: "start" }}>
+        return <article key={action.id} data-s4x-smart-action={action.group} data-s4x-action-readiness={action.readiness} style={{ border: "1px solid #E2E8F0", borderRadius: 10, background: "#FFF", padding: 12, display: "grid", gap: 8, alignContent: "start" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><ActionIcon group={action.group} /><div style={{ minWidth: 0, flex: 1 }}><strong style={{ fontSize: 11.5, lineHeight: 1.35, color: "#334155" }}>{action.title}</strong>{action.campaignName ? <p style={{ marginTop: 2, fontSize: 9.5, color: "#94A3B8", overflowWrap: "anywhere" }}>{action.campaignName}</p> : null}</div>{batchable ? <input type="checkbox" aria-label={`Selecionar ${action.title} para lote`} checked={selectedActionIds.includes(action.id)} onChange={() => toggleBatchAction(action.id)} style={{ width: 15, height: 15, accentColor: "#2563EB", cursor: "pointer", flex: "0 0 auto" }} /> : null}</div>
           <p style={{ fontSize: 10.5, lineHeight: 1.45, color: "#475569" }}>{action.reason}</p>
           <p style={{ fontSize: 9.5, lineHeight: 1.4, color: "#64748B", background: "#F8FAFC", borderRadius: 7, padding: "6px 7px" }}>{action.evidence}</p>

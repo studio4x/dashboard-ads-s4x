@@ -18,11 +18,11 @@ type Destination = {
 
 function destination(title: string): Destination {
   const value = normalize(title);
+  if (["preservar estrutura", "acumular evidencia", "nao aumentar orcamento", "antes de escalar"].some((token) => value.includes(token))) return { group: null, status: "blocked" };
   if (["revisar negativas", "revisar keywords", "revisar palavras-chave com gasto"].some((token) => value.includes(token))) return { group: "keywords", status: "ready" };
   if (["ad rank", "melhorar relevancia", "anuncio", "landing page"].some((token) => value.includes(token))) return { group: "ads", status: "ready" };
   if (["horario", "dispositivo", "segmentacao"].some((token) => value.includes(token))) return { group: "segmentation", status: "manual" };
   if (["eficiencia antes de escalar", "orcamento", "verba", "lances"].some((token) => value.includes(token))) return { group: "budget_bidding", status: "ready" };
-  if (["preservar estrutura", "acumular evidencia"].some((token) => value.includes(token))) return { group: null, status: "blocked" };
   return { group: null, status: "manual" };
 }
 
@@ -30,6 +30,7 @@ export function GoogleAdsActionApplyShortcut() {
   useEffect(() => {
     let disposed = false;
     let scheduled = false;
+    let lastSignature = "";
 
     const apply = () => {
       scheduled = false;
@@ -41,31 +42,48 @@ export function GoogleAdsActionApplyShortcut() {
       const grid = plan.children.item(1) as HTMLElement | null;
       if (!grid) return;
 
-      for (const card of Array.from(grid.children)) {
-        if (!(card instanceof HTMLElement)) continue;
+      const cards = Array.from(grid.children).filter((card): card is HTMLElement => card instanceof HTMLElement);
+      const actionSignature = Array.from(center.querySelectorAll<HTMLElement>("[data-s4x-smart-action]"))
+        .map((node) => `${node.dataset.s4xSmartAction || ""}:${node.dataset.s4xActionReadiness || ""}`)
+        .join("|");
+      const signature = `${cards.map((card) => normalize(card.querySelector("strong")?.textContent || "")).join("|")}::${actionSignature}`;
+      if (signature === lastSignature) return;
+      lastSignature = signature;
+      plan.querySelectorAll("[data-s4x-apply-shortcut], [data-s4x-action-availability]").forEach((node) => node.remove());
+
+      for (const card of cards) {
         const header = card.firstElementChild as HTMLElement | null;
         const title = header?.querySelector("strong")?.textContent?.trim() || "";
-        if (!header || header.querySelector("[data-s4x-action-availability]")) continue;
+        if (!header) continue;
         const target = destination(title);
+        const relatedActions = target.group ? Array.from(center.querySelectorAll<HTMLElement>(`[data-s4x-smart-action="${target.group}"]`)) : [];
+        const relatedReadiness = relatedActions.map((node) => node.dataset.s4xActionReadiness || "");
+        const status: Destination["status"] = target.status === "blocked"
+          ? "blocked"
+          : relatedReadiness.some((value) => value === "ready" || value === "review")
+            ? "ready"
+            : relatedReadiness.includes("manual") || target.status === "manual" || Boolean(target.group)
+              ? "manual"
+              : "blocked";
 
         const availability = document.createElement("span");
         availability.dataset.s4xActionAvailability = "true";
-        availability.textContent = target.status === "ready" ? "PODE EXECUTAR PELA S4X" : target.status === "blocked" ? "BLOQUEADO POR FALTA DE DADOS" : "EXIGE AJUSTE ASSISTIDO";
+        availability.textContent = status === "ready" ? "PODE EXECUTAR PELA S4X" : status === "blocked" ? "BLOQUEADO POR FALTA DE DADOS" : "EXIGE AJUSTE ASSISTIDO";
         availability.style.padding = "3px 6px";
         availability.style.borderRadius = "999px";
         availability.style.fontSize = "8.5px";
         availability.style.fontWeight = "850";
-        availability.style.color = target.status === "ready" ? "#047857" : target.status === "blocked" ? "#92400E" : "#6D28D9";
-        availability.style.background = target.status === "ready" ? "#ECFDF5" : target.status === "blocked" ? "#FFFBEB" : "#F5F3FF";
-        availability.style.border = `1px solid ${target.status === "ready" ? "#A7F3D0" : target.status === "blocked" ? "#FDE68A" : "#DDD6FE"}`;
+        availability.style.color = status === "ready" ? "#047857" : status === "blocked" ? "#92400E" : "#6D28D9";
+        availability.style.background = status === "ready" ? "#ECFDF5" : status === "blocked" ? "#FFFBEB" : "#F5F3FF";
+        availability.style.border = `1px solid ${status === "ready" ? "#A7F3D0" : status === "blocked" ? "#FDE68A" : "#DDD6FE"}`;
         header.appendChild(availability);
 
-        if (!target.group) continue;
+        if (!target.group || status === "blocked") continue;
 
         const button = document.createElement("button");
         button.type = "button";
         button.dataset.s4xApplyShortcut = "true";
-        button.textContent = target.status === "ready" ? "Revisar alterações sugeridas" : "Abrir configuração assistida";
+        button.textContent = status === "ready" ? `Revisar ${relatedActions.length} alteração(ões)` : "Abrir configuração assistida";
         button.title = "Abrir no centro inteligente as ações relacionadas a este diagnóstico.";
         button.style.height = "27px";
         button.style.padding = "0 8px";
@@ -78,7 +96,7 @@ export function GoogleAdsActionApplyShortcut() {
         button.style.cursor = "pointer";
         button.style.whiteSpace = "nowrap";
         button.addEventListener("click", () => {
-          window.dispatchEvent(new CustomEvent("s4x:open-google-ads-action", { detail: { group: target.group } }));
+          window.dispatchEvent(new CustomEvent("s4x:open-google-ads-action", { detail: { group: target.group, openAssistant: status === "manual" } }));
           center.scrollIntoView({ behavior: "smooth", block: "start" });
         });
         header.appendChild(button);
