@@ -3,6 +3,7 @@ import test from "node:test";
 import { buildAdGroupKeyword, buildAdSchedule, buildKeywordCpc, buildLocation, buildNewResponsiveSearchAd, buildResponsiveSearchAd, buildTargetOrBidding } from "../src/lib/google-ads-api/advanced-mutation-builders.ts";
 import { detectGoogleAdsCapabilities } from "../src/lib/google-ads-api/capabilities.ts";
 import { googleAdsRequiredConfirmation, googleAdsRiskForOperation, googleAdsWritesEnabled } from "../src/lib/google-ads-api/risk-policy.ts";
+import { generateGoogleAdsRsaDraft } from "../src/lib/ai/google-ads-rsa-draft.ts";
 
 const keywordState = { customerId: "1234567890", campaignResourceName: "customers/1234567890/campaigns/1", adGroupResourceName: "customers/1234567890/adGroups/2", adGroupName: "Grupo" };
 
@@ -36,6 +37,7 @@ test("location uses official GeoTargetConstant and guards the last coverage", ()
 
 test("RSA limits and target gate are enforced before API mutation", () => {
   assert.throws(() => buildResponsiveSearchAd({ headlines: ["A", "A", "B"], descriptions: ["D1", "D2"], finalUrls: ["https://example.com"] }, { resourceName: "customers/1234567890/ads/1", adType: "RESPONSIVE_SEARCH_AD" }), /duplicados/);
+  assert.throws(() => buildResponsiveSearchAd({ headlines: ["Título A", "Título B", "Título C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] }, { resourceName: "customers/1234567890/ads/1", adType: "RESPONSIVE_SEARCH_AD", headlines: ["Título A", "Título B", "Título C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] }), /Nenhuma diferença/);
   const rsa = buildResponsiveSearchAd({ headlines: ["Título A", "Título B", "Título C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] }, { resourceName: "customers/1234567890/ads/1", adType: "RESPONSIVE_SEARCH_AD", headlineAssets: [{ text: "Título A", pinnedField: "HEADLINE_1" }], headlines: ["Anterior A", "Anterior B", "Anterior C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"], finalMobileUrls: [] });
   assert.equal(rsa.collection, "ads");
   assert.equal(rsa.operations[0].updateMask, "responsive_search_ad.headlines,responsive_search_ad.descriptions,final_urls,final_mobile_urls");
@@ -68,4 +70,21 @@ test("risk policy protects critical operations and global write switch", () => {
   process.env.GOOGLE_ADS_WRITES_ENABLED = "true";
   assert.equal(googleAdsWritesEnabled(), true);
   if (previous === undefined) delete process.env.GOOGLE_ADS_WRITES_ENABLED; else process.env.GOOGLE_ADS_WRITES_ENABLED = previous;
+});
+
+test("RSA draft fallback never returns a no-op proposal", async () => {
+  const previousOpenAi = process.env.OPENAI_API_KEY;
+  const previousGemini = process.env.GEMINI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+  try {
+    const currentAd = { headlines: ["Título A", "Título B", "Título C"], descriptions: ["Descrição A", "Descrição B"], finalUrls: ["https://example.com"] };
+    const draft = await generateGoogleAdsRsaDraft({ objective: "Melhorar relevância", keywords: ["terapia online"], currentAd, evidence: [] });
+    assert.equal(draft.fallbackUsed, true);
+    assert.equal(draft.headlines.every((value, index) => value === currentAd.headlines[index]), false);
+    assert.equal(draft.descriptions.every((value, index) => value === currentAd.descriptions[index]), false);
+  } finally {
+    if (previousOpenAi === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = previousOpenAi;
+    if (previousGemini === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = previousGemini;
+  }
 });

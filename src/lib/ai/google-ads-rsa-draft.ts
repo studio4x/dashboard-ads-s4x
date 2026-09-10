@@ -44,18 +44,23 @@ function titleCase(value: string) {
 function fallbackDraft(input: RsaDraftInput) {
   const keywordIdeas = input.keywords.map((item) => titleCase(clean(item, 30)));
   const headlines = unique([
-    ...input.currentAd.headlines,
     ...keywordIdeas,
     "Atendimento Especializado",
     "Fale Com Nossa Equipe",
     "Solicite Mais Informações",
+    "Atendimento Com Cuidado",
+    ...input.currentAd.headlines,
   ], 30, 15);
   const descriptions = unique([
-    ...input.currentAd.descriptions,
     "Conheça nossas soluções e fale com a equipe para receber mais informações.",
     "Atendimento profissional para entender sua necessidade. Entre em contato.",
+    ...input.currentAd.descriptions,
   ], 90, 4);
   return { headlines: headlines.slice(0, Math.max(3, headlines.length)), descriptions: descriptions.slice(0, Math.max(2, descriptions.length)) };
+}
+
+function sameList(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value.toLocaleLowerCase("pt-BR") === right[index]?.toLocaleLowerCase("pt-BR"));
 }
 
 function extractJson(value: string) {
@@ -66,14 +71,15 @@ function extractJson(value: string) {
   return JSON.parse(fenced.slice(start, end + 1)) as Record<string, unknown>;
 }
 
-function normalizeDraft(value: unknown, fallback: ReturnType<typeof fallbackDraft>) {
+function normalizeDraft(value: unknown, fallback: ReturnType<typeof fallbackDraft>, currentAd: RsaDraftInput["currentAd"]) {
   const draft = record(value);
   const headlines = unique(draft.headlines, 30, 15);
   const descriptions = unique(draft.descriptions, 90, 4);
-  return {
+  const normalized = {
     headlines: headlines.length >= 3 ? headlines : fallback.headlines,
     descriptions: descriptions.length >= 2 ? descriptions : fallback.descriptions,
   };
+  return sameList(normalized.headlines, currentAd.headlines) && sameList(normalized.descriptions, currentAd.descriptions) ? fallback : normalized;
 }
 
 function prompt(input: RsaDraftInput) {
@@ -129,14 +135,16 @@ export async function generateGoogleAdsRsaDraft(input: RsaDraftInput): Promise<R
   const geminiKey = String(process.env.GEMINI_API_KEY || "").trim();
   if (openAiKey) {
     try {
-      const draft = normalizeDraft(await openAiDraft(input, openAiKey), fallback);
-      return { ...draft, provider: "openai", generatedWithAi: true, fallbackUsed: false };
+      const draft = normalizeDraft(await openAiDraft(input, openAiKey), fallback, input.currentAd);
+      const fallbackUsed = sameList(draft.headlines, fallback.headlines) && sameList(draft.descriptions, fallback.descriptions);
+      return { ...draft, provider: fallbackUsed ? "automatic" : "openai", generatedWithAi: !fallbackUsed, fallbackUsed };
     } catch { /* tenta o provedor secundário */ }
   }
   if (geminiKey) {
     try {
-      const draft = normalizeDraft(await geminiDraft(input, geminiKey), fallback);
-      return { ...draft, provider: "gemini", generatedWithAi: true, fallbackUsed: false };
+      const draft = normalizeDraft(await geminiDraft(input, geminiKey), fallback, input.currentAd);
+      const fallbackUsed = sameList(draft.headlines, fallback.headlines) && sameList(draft.descriptions, fallback.descriptions);
+      return { ...draft, provider: fallbackUsed ? "automatic" : "gemini", generatedWithAi: !fallbackUsed, fallbackUsed };
     } catch { /* mantém um rascunho local e editável */ }
   }
   return { ...fallback, provider: "automatic", generatedWithAi: false, fallbackUsed: true };
