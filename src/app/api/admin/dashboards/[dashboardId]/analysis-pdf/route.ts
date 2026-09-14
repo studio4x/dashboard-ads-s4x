@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { enforceRateLimit } from "@/lib/security/request-guards";
 import { apiErrorResponse } from "@/lib/security/api-safety";
-import { getLatestSharePdf } from "@/lib/share-pdf";
+import { getLatestSharePdf } from "@/lib/share-pdf-storage";
 import { findAvailableAnalysisPdf, getUsableAnalysisPdfLinks } from "@/lib/analysis-pdf-lookup";
 
 export const dynamic = "force-dynamic";

@@ -8,7 +8,7 @@ import {
   buildSharePdfStoragePath,
   getCachedSharePdf,
   normalizePdfPeriodPart,
-} from "@/lib/share-pdf";
+} from "@/lib/share-pdf-storage";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

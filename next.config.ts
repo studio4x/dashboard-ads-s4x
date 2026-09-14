@@ -42,20 +42,6 @@ const fullVersion = commitCount !== "0" ? `${baseVersion}.${commitCount}` : base
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
-  outputFileTracingIncludes: {
-    "/api/admin/automations/report-dispatch": [
-      "./node_modules/@sparticuz/chromium/**/*",
-      "./node_modules/@sparticuz/chromium/bin/**/*",
-    ],
-    "/api/cron/report-dispatch": [
-      "./node_modules/@sparticuz/chromium/**/*",
-      "./node_modules/@sparticuz/chromium/bin/**/*",
-    ],
-    "/api/share/*/*": [
-      "./node_modules/@sparticuz/chromium/**/*",
-      "./node_modules/@sparticuz/chromium/bin/**/*",
-    ],
-  },
   env: {
     NEXT_PUBLIC_APP_VERSION: fullVersion,
     NEXT_PUBLIC_GIT_HASH: getGitHash(),
