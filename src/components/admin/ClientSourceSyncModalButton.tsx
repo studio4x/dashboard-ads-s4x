@@ -6,8 +6,21 @@ import { useToast } from "@/components/ui/Toast";
 
 type SourceLike = {
   id: string;
+  type?: "google_sheets" | "google_ads" | "meta_ads" | string | null;
   name?: string | null;
-  google_sheet_sources?: any;
+  google_sheet_sources?: SourceConfig | SourceConfig[] | null;
+  google_ads_sources?: SourceConfig | SourceConfig[] | null;
+  meta_ad_sources?: SourceConfig | SourceConfig[] | null;
+};
+
+type SourceConfig = {
+  spreadsheet_id?: string | null;
+  customer_id?: string | null;
+  last_import_at?: string | null;
+  last_import_status?: string | null;
+  meta_validation_status?: string | null;
+  meta_validation_notes?: Record<string, unknown> | null;
+  meta_ad_source_accounts?: Array<{ ad_account_id?: string | null }> | null;
 };
 
 interface ClientSourceSyncModalButtonProps {
@@ -18,10 +31,22 @@ interface ClientSourceSyncModalButtonProps {
   triggerVariant?: "inline" | "card";
 }
 
-function getGSheetConfig(source: SourceLike) {
-  return Array.isArray(source.google_sheet_sources)
-    ? source.google_sheet_sources[0]
-    : source.google_sheet_sources;
+function relation<T>(value: T | T[] | null | undefined): T | null {
+  return Array.isArray(value) ? value[0] || null : value || null;
+}
+
+function getSourceType(source: SourceLike) {
+  if (source.type) return source.type;
+  if (source.google_ads_sources) return "google_ads";
+  if (source.meta_ad_sources) return "meta_ads";
+  return "google_sheets";
+}
+
+function getSourceConfig(source: SourceLike) {
+  const sourceType = getSourceType(source);
+  if (sourceType === "google_ads") return relation(source.google_ads_sources);
+  if (sourceType === "meta_ads") return relation(source.meta_ad_sources);
+  return relation(source.google_sheet_sources);
 }
 
 function getValidationLabel(status: string | null | undefined) {
@@ -41,21 +66,47 @@ export function ClientSourceSyncModalButton({
   const [isOpen, setIsOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const config = useMemo(() => getGSheetConfig(source), [source]);
+  const sourceType = getSourceType(source);
+  const config = useMemo(() => getSourceConfig(source), [source]);
+
+  const sourceTypeLabel = sourceType === "google_ads"
+    ? "Google Ads API"
+    : sourceType === "meta_ads"
+      ? "Meta Marketing API"
+      : "Google Sheets";
+  const sourceIdentifierLabel = sourceType === "google_ads"
+    ? "Customer ID"
+    : sourceType === "meta_ads"
+      ? "Contas de anúncios"
+      : "Spreadsheet ID";
+  const sourceIdentifier = sourceType === "google_ads"
+    ? config?.customer_id
+    : sourceType === "meta_ads"
+      ? Array.isArray(config?.meta_ad_source_accounts)
+        ? config.meta_ad_source_accounts.map((account) => account.ad_account_id).filter(Boolean).join(", ")
+        : ""
+      : config?.spreadsheet_id;
 
   async function handleSyncNow() {
     setIsSyncing(true);
     setErrorMessage(null);
     try {
-      const response = await fetch("/api/admin/google-sheets/import", {
+      const endpoint = sourceType === "google_ads"
+        ? `/api/admin/google-ads/sources/${source.id}/sync`
+        : sourceType === "meta_ads"
+          ? `/api/admin/meta/sources/${source.id}/sync`
+          : "/api/admin/google-sheets/import";
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId,
-          dashboardId,
-          spreadsheetId: config?.spreadsheet_id,
-          dataSourceId: source.id,
-        }),
+        ...(sourceType === "google_sheets" ? {
+          body: JSON.stringify({
+            clientId,
+            dashboardId,
+            spreadsheetId: config?.spreadsheet_id,
+            dataSourceId: source.id,
+          }),
+        } : {}),
       });
 
       const result = await response.json();
@@ -107,9 +158,12 @@ export function ClientSourceSyncModalButton({
         };
 
   const validationStatus = String(config?.meta_validation_status || "not_configured");
-  const validationNotes = (config?.meta_validation_notes || {}) as any;
-  const missingByObjective = validationNotes?.missingLabelsByObjective || validationNotes?.missingByObjective || {};
+  const validationNotes = config?.meta_validation_notes || {};
+  const missingByObjective = (validationNotes.missingLabelsByObjective || validationNotes.missingByObjective || {}) as Record<string, string[]>;
   const hasMissingDetails = Object.keys(missingByObjective).length > 0;
+  const validationMessage = typeof validationNotes.message === "string"
+    ? validationNotes.message
+    : "Ainda não há informações de validação para esta fonte.";
 
   return (
     <>
@@ -136,12 +190,12 @@ export function ClientSourceSyncModalButton({
 
               <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 12px" }}>
                 <p style={{ fontSize: 12, color: "#475569" }}>Fonte</p>
-                <p style={{ fontSize: 14, color: "#0F172A", fontWeight: 700 }}>{source.name || "Fonte Google Sheets"}</p>
+                <p style={{ fontSize: 14, color: "#0F172A", fontWeight: 700 }}>{source.name || sourceTypeLabel}</p>
               </div>
 
               <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 12px" }}>
-                <p style={{ fontSize: 12, color: "#475569" }}>Spreadsheet ID</p>
-                <p style={{ fontSize: 13, color: "#0F172A", wordBreak: "break-all" }}>{config?.spreadsheet_id || "-"}</p>
+                <p style={{ fontSize: 12, color: "#475569" }}>{sourceIdentifierLabel}</p>
+                <p style={{ fontSize: 13, color: "#0F172A", wordBreak: "break-all" }}>{sourceIdentifier || "-"}</p>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -157,7 +211,7 @@ export function ClientSourceSyncModalButton({
                 </div>
               </div>
 
-              <div
+              {sourceType === "google_sheets" && <div
                 style={{
                   borderRadius: 8,
                   border: validationStatus === "missing_metrics" ? "1px solid #FDE68A" : validationStatus === "ok" ? "1px solid #BBF7D0" : "1px solid #E2E8F0",
@@ -174,10 +228,10 @@ export function ClientSourceSyncModalButton({
                   <p style={{ fontSize: 13, fontWeight: 700, color: validationStatus === "missing_metrics" ? "#92400E" : validationStatus === "ok" ? "#166534" : "#475569" }}>
                     {getValidationLabel(validationStatus)}
                   </p>
-                </div>
-                <p style={{ fontSize: 12, color: "#475569" }}>
-                  {validationNotes?.message || "Ainda não há informações de validação para esta fonte."}
-                </p>
+                  </div>
+                  <p style={{ fontSize: 12, color: "#475569" }}>
+                    {validationMessage}
+                  </p>
 
                 {hasMissingDetails && (
                   <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
@@ -188,7 +242,7 @@ export function ClientSourceSyncModalButton({
                     ))}
                   </div>
                 )}
-              </div>
+              </div>}
 
               {errorMessage && (
                 <div style={{ border: "1px solid #FECACA", background: "#FEF2F2", color: "#991B1B", borderRadius: 8, padding: "8px 10px", fontSize: 12 }}>

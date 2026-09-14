@@ -24,10 +24,16 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
 
   const { client, dashboards, dataSources, userRoles } = hubData;
   const getSourceSyncData = (source: any) => {
-    const gSheet = Array.isArray(source.google_sheet_sources) ? source.google_sheet_sources[0] : source.google_sheet_sources;
+    const relation = (value: unknown) => Array.isArray(value) ? value[0] : value;
+    const config = source.type === "google_ads"
+      ? relation(source.google_ads_sources)
+      : source.type === "meta_ads"
+        ? relation(source.meta_ad_sources)
+        : relation(source.google_sheet_sources);
+    const syncConfig = config as { last_import_status?: string | null; last_import_at?: string | null } | null | undefined;
     return {
-      lastImportStatus: gSheet?.last_import_status || null,
-      lastImportAt: gSheet?.last_import_at || null,
+      lastImportStatus: syncConfig?.last_import_status || null,
+      lastImportAt: syncConfig?.last_import_at || null,
     };
   };
 
@@ -194,7 +200,7 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
                     ? "Sucesso"
                     : sync.lastImportStatus === "success_with_warnings"
                       ? "Sucesso com avisos"
-                      : sync.lastImportStatus === "error"
+                      : sync.lastImportStatus === "error" || sync.lastImportStatus === "failed"
                         ? "Erro"
                         : "Pendente";
                   return (
@@ -211,7 +217,7 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
                       </div>
                       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 12, color: "#64748B" }}>
-                          Última imp.: {hasSyncedAtLeastOnce ? new Date(sync.lastImportAt).toLocaleString("pt-BR") : "Nunca"}
+                            Última imp.: {hasSyncedAtLeastOnce ? new Date(sync.lastImportAt as string).toLocaleString("pt-BR") : "Nunca"}
                         </span>
                         {hasSyncedAtLeastOnce && (
                           <span style={{ fontSize: 12, color: "#64748B" }}>
