@@ -33,7 +33,7 @@ export function SharedDashboardHeader({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { rangePreset, includeToday, updateRange, from, to, data, refresh } = useDashboard();
+  const { rangePreset, includeToday, updateRange, from, to, data, loading, refresh } = useDashboard();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isRefreshingData, setIsRefreshingData] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -377,6 +377,16 @@ export function SharedDashboardHeader({
           {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
         </button>
       </div>
+
+      {loading && (
+        <div className="border-t border-blue-100 bg-blue-50" role="status" aria-live="polite">
+          <div className="shared-dashboard-box flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-blue-800 sm:px-6 lg:px-8">
+            <Loader2 size={16} className="shrink-0 animate-spin text-blue-600" />
+            <span>Carregando métricas...</span>
+            <span className="hidden text-xs font-normal text-blue-700 sm:inline">Aguarde enquanto preparamos os dados do dashboard.</span>
+          </div>
+        </div>
+      )}
 
       {isMobileMenuOpen && (
         <div className="shared-dashboard-box dashboard-mobile-menu-panel" style={{ borderTop: "1px solid #E2E8F0", padding: "10px 16px 12px", display: "none", gap: 8 }}>
