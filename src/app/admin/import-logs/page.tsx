@@ -3,12 +3,18 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { ImportStatusBadge } from "@/components/admin/ImportStatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { History, ChevronDown, ChevronUp, ExternalLink, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, History, ChevronDown, ChevronUp, ExternalLink, Search, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import type { ImportStatus } from "@/types/data-sources";
 
 const ITEMS_PER_PAGE = 10;
 type ImportStatusExtended = ImportStatus | "pending" | "failed" | "success_with_warnings" | "never_imported";
+type ImportIssue = string | {
+  sheet?: unknown;
+  field?: unknown;
+  message?: unknown;
+  code?: unknown;
+};
 type ImportLogItem = {
   id: string;
   status: ImportStatusExtended;
@@ -18,40 +24,67 @@ type ImportLogItem = {
   warnings?: number | null;
   errors?: number | null;
   error_details?: unknown;
+  details?: {
+    errors?: ImportIssue[];
+    warnings?: ImportIssue[];
+  } | null;
   clients?: { id?: string; name?: string | null } | null;
   dashboards?: { id?: string; name?: string | null } | null;
 };
 
+function issueMessage(issue: ImportIssue) {
+  if (typeof issue === "string") return issue;
+  if (typeof issue.message === "string" && issue.message.trim()) return issue.message;
+  return "Detalhe não informado.";
+}
+
+function issueContext(issue: ImportIssue) {
+  if (typeof issue === "string") return "";
+  return [
+    issue.sheet ? `Aba: ${String(issue.sheet)}` : "",
+    issue.field ? `Campo: ${String(issue.field)}` : "",
+    issue.code ? `Código: ${String(issue.code)}` : "",
+  ].filter(Boolean).join(" · ");
+}
+
+function IssueList({ title, issues, color, background, border }: { title: string; issues: ImportIssue[]; color: string; background: string; border: string }) {
+  if (issues.length === 0) return null;
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+        {title === "Avisos" && <AlertTriangle size={14} />}
+        {title} da sincronização ({issues.length})
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {issues.map((issue, index) => {
+          const context = issueContext(issue);
+          return (
+            <div key={`${title}-${index}`} style={{ padding: 10, borderRadius: 6, background, border: `1px solid ${border}`, fontSize: 12 }}>
+              <p style={{ fontWeight: 600, color }}>{issueMessage(issue)}</p>
+              {context && <p style={{ fontSize: 11, color, marginTop: 2 }}>{context}</p>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function ImportLogsPage() {
   const { toast } = useToast();
   const [logs, setLogs] = useState<ImportLogItem[]>([]);
-  const [filteredLogs, setFilteredLogs] = useState<ImportLogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("");
-  const [clientFilter, setClientFilter] = useState("");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     fetchLogs();
   }, []);
-
-  useEffect(() => {
-    let result = logs;
-    if (statusFilter) result = result.filter(log => log.status === statusFilter);
-    if (clientFilter) result = result.filter(log => log.clients?.name?.toLowerCase().includes(clientFilter.toLowerCase()));
-    if (search) {
-      result = result.filter(log => 
-        log.dashboards?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        log.clients?.name?.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    setFilteredLogs(result);
-    setCurrentPage(1);
-  }, [logs, statusFilter, clientFilter, search]);
 
   async function fetchLogs() {
     setIsLoading(true);
@@ -87,8 +120,20 @@ export default function ImportLogsPage() {
     }
   }
 
+  const filteredLogs = useMemo(() => {
+    let result = logs;
+    if (statusFilter) result = result.filter(log => log.status === statusFilter);
+    if (search) {
+      result = result.filter(log =>
+        log.dashboards?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        log.clients?.name?.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+    return result;
+  }, [logs, statusFilter, search]);
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const visiblePage = Math.min(currentPage, totalPages);
+  const startIndex = (visiblePage - 1) * ITEMS_PER_PAGE;
   const paginatedLogs = filteredLogs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   const observability = useMemo(() => {
     const total = logs.length;
@@ -135,13 +180,13 @@ export default function ImportLogsPage() {
             type="text" 
             placeholder="Buscar por dashboard ou cliente..." 
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             style={{ width: "100%", padding: "8px 12px 8px 36px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14 }}
           />
         </div>
         <select 
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
           style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 14, background: "white", color: "#475569" }}
         >
           <option value="">Todos os status</option>
@@ -203,7 +248,12 @@ export default function ImportLogsPage() {
                 </td>
               </tr>
             ) : (
-              paginatedLogs.map((log) => (
+              paginatedLogs.map((log) => {
+                const detailedWarnings = Array.isArray(log.details?.warnings) ? log.details.warnings : [];
+                const detailedErrors = Array.isArray(log.details?.errors) ? log.details.errors : [];
+                const hasDetailedIssues = detailedWarnings.length > 0 || detailedErrors.length > 0;
+
+                return (
                 <React.Fragment key={log.id}>
                   <tr style={{ borderBottom: expandedId === log.id ? "none" : "1px solid #F1F5F9", cursor: "pointer", background: expandedId === log.id ? "#F8FAFC" : "transparent" }} onClick={() => toggleExpand(log.id)}>
                     <td style={{ padding: "12px 16px", color: "#0F172A" }}>
@@ -234,14 +284,36 @@ export default function ImportLogsPage() {
                     <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #F1F5F9" }}>
                       <td colSpan={6} style={{ padding: "16px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                          {/* JSON error details */}
-                          {Boolean(log.error_details) && (
+                          <IssueList
+                            title="Avisos"
+                            issues={detailedWarnings}
+                            color="#92400E"
+                            background="#FFFBEB"
+                            border="#FEF3C7"
+                          />
+                          <IssueList
+                            title="Erros"
+                            issues={detailedErrors}
+                            color="#991B1B"
+                            background="#FEF2F2"
+                            border="#FECACA"
+                          />
+
+                          {/* Mantém a mensagem simples para logs antigos sem a lista estruturada. */}
+                          {Boolean(log.error_details) && !hasDetailedIssues && (
                             <div>
                               <p style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", marginBottom: 6 }}>Detalhes do Processamento:</p>
                               <pre style={{ margin: 0, padding: 12, background: "#1E293B", color: "#F8FAFC", borderRadius: 8, fontSize: 12, overflowX: "auto" }}>
-                                {JSON.stringify(log.error_details, null, 2)}
+                                {typeof log.error_details === "string" ? log.error_details : JSON.stringify(log.error_details, null, 2)}
                               </pre>
                             </div>
+                          )}
+                          {!hasDetailedIssues && !log.error_details && (
+                            <p style={{ fontSize: 12, color: "#64748B" }}>
+                              {Number(log.warnings || 0) > 0
+                                ? `Este log registra ${Number(log.warnings)} aviso(s), mas a lista detalhada não foi registrada.`
+                                : "Não há detalhes registrados para este log."}
+                            </p>
                           )}
                           <div style={{ display: "flex", gap: 12 }}>
                             {log.dashboards?.id && (
@@ -260,7 +332,8 @@ export default function ImportLogsPage() {
                     </tr>
                   )}
                 </React.Fragment>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
@@ -274,14 +347,14 @@ export default function ImportLogsPage() {
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
+              disabled={visiblePage === 1}
               style={{
                 padding: "6px 10px",
                 borderRadius: 8,
                 border: "1px solid #E2E8F0",
-                background: currentPage === 1 ? "#F8FAFC" : "white",
-                color: currentPage === 1 ? "#94A3B8" : "#334155",
-                cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                background: visiblePage === 1 ? "#F8FAFC" : "white",
+                color: visiblePage === 1 ? "#94A3B8" : "#334155",
+                cursor: visiblePage === 1 ? "not-allowed" : "pointer",
                 fontSize: 12,
                 fontWeight: 600,
               }}
@@ -289,18 +362,18 @@ export default function ImportLogsPage() {
               Anterior
             </button>
             <span style={{ padding: "6px 10px", fontSize: 12, color: "#334155", fontWeight: 600 }}>
-              Página {currentPage} de {totalPages}
+              Página {visiblePage} de {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              disabled={visiblePage === totalPages}
               style={{
                 padding: "6px 10px",
                 borderRadius: 8,
                 border: "1px solid #E2E8F0",
-                background: currentPage === totalPages ? "#F8FAFC" : "white",
-                color: currentPage === totalPages ? "#94A3B8" : "#334155",
-                cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                background: visiblePage === totalPages ? "#F8FAFC" : "white",
+                color: visiblePage === totalPages ? "#94A3B8" : "#334155",
+                cursor: visiblePage === totalPages ? "not-allowed" : "pointer",
                 fontSize: 12,
                 fontWeight: 600,
               }}
