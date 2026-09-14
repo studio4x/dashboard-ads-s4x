@@ -598,6 +598,7 @@ export const GoogleAdsService = {
         started_at: startedAt, finished_at: finishedAt,
         duration_ms: new Date(finishedAt).getTime() - new Date(startedAt).getTime(),
         tabs_read: Object.keys(rowCounts), rows_read: rowsRead, warnings: queried.warnings.length, errors: 0,
+        details: { errors: [], warnings: queried.warnings },
         metadata: { date_start: dateStart, date_end: dateEnd, api_version: apiVersion, customer_id: config.customer_id, request_ids: queried.requestIds.slice(0, 30) },
       });
       return {
@@ -619,6 +620,7 @@ export const GoogleAdsService = {
         source_type: "google_ads", status: "failed", started_at: startedAt, finished_at: finishedAt,
         duration_ms: new Date(finishedAt).getTime() - new Date(startedAt).getTime(), tabs_read: [], rows_read: 0,
         warnings: 0, errors: 1, error_details: message.slice(0, 1000),
+        details: { errors: [{ severity: "blocking", stage: "connection", message: message.slice(0, 1000) }], warnings: [] },
         metadata: error instanceof GoogleAdsApiError ? { request_id: error.requestId, error_code: error.errorCode } : {},
       }).catch(() => undefined);
       throw error;
