@@ -109,7 +109,7 @@ const tooltipFormatter = (value: any, name?: any) => {
 };
 
 export default function ExecutiveSummaryPage() {
-  const { data } = useDashboard();
+  const { data, isShared } = useDashboard();
 
   if (!data) return null;
 
@@ -922,7 +922,7 @@ export default function ExecutiveSummaryPage() {
           ))}
         </div>
 
-        <FinancialStatusSection googleStatus={googleFinancialStatus} metaStatuses={metaFinancialStatuses} />
+        <FinancialStatusSection googleStatus={googleFinancialStatus} metaStatuses={metaFinancialStatuses} isPublic={isShared} />
 
         {/* Middle Charts Section */}
         {executiveWidgetRows.length > 0 ? (

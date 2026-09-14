@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { AlertTriangle, CheckCircle2, CircleHelp, Info, WalletCards } from "lucide-react";
 import type { AdsFinancialStatus } from "@/lib/ads-financial";
 
@@ -40,7 +41,7 @@ function statusPresentation(status: AdsFinancialStatus) {
   return { label: status.outstandingBalanceLabel || "Valor de faturamento", value: status.outstandingBalance, tone: "neutral" };
 }
 
-function FinancialCard({ status }: { status: FinancialStatusWithConfiguredAlert }) {
+function FinancialCard({ status, isPublic }: { status: FinancialStatusWithConfiguredAlert; isPublic: boolean }) {
   const presentation = statusPresentation(status);
   const isCritical = status.alertStatus === "critical";
   const isAttention = status.alertStatus === "attention";
@@ -58,14 +59,14 @@ function FinancialCard({ status }: { status: FinancialStatusWithConfiguredAlert 
     && Number.isFinite(configuredDays);
   const isBelowAmount = hasConfiguredThreshold && presentation.value !== null && presentation.value < configuredThreshold;
   const isBelowDays = hasConfiguredDays && status.estimatedDaysRemaining !== null && status.estimatedDaysRemaining < configuredDays;
-  const isBelowConfiguredThreshold = status.configuredFinancialAlertState === "below_threshold" || isBelowAmount || isBelowDays;
+  const isBelowConfiguredThreshold = !isPublic && (status.configuredFinancialAlertState === "below_threshold" || isBelowAmount || isBelowDays);
   const Icon = status.status === "error" ? AlertTriangle : status.status === "available" ? (isCritical || isAttention || isBelowConfiguredThreshold ? AlertTriangle : CheckCircle2) : CircleHelp;
   const toneColor = status.status === "error" || isCritical || isBelowConfiguredThreshold ? "#B91C1C" : isAttention ? "#B45309" : "#2563EB";
   const tooltip = status.provider === "google_ads"
     ? "A Google Ads API não disponibiliza um saldo financeiro universal para todos os modelos de faturamento. Este valor representa o orçamento de conta disponível quando esse recurso é aplicável."
     : "A interpretação do valor financeiro depende do modelo de cobrança da conta. O Dashboard ADS diferencia saldo, faturamento e limite de gastos quando a API fornece informações suficientes.";
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" title={tooltip}>
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" title={tooltip}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -87,7 +88,7 @@ function FinancialCard({ status }: { status: FinancialStatusWithConfiguredAlert 
           {status.amountSpent !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">Gasto acumulado: <strong>{formatMoney(status.amountSpent, status.currency)}</strong></div>}
           {status.outstandingBalance !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">{status.outstandingBalanceLabel || "Valor de faturamento"}: <strong>{formatMoney(status.outstandingBalance, status.currency)}</strong></div>}
           {status.estimatedDaysRemaining !== null && <div className="mt-2 text-xs font-semibold text-slate-600">Cobertura estimada: {status.estimatedDaysRemaining.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias</div>}
-          {(hasConfiguredThreshold || hasConfiguredDays) && (
+          {!isPublic && (hasConfiguredThreshold || hasConfiguredDays) && (
             <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-600">
               {hasConfiguredThreshold && <div>Alerta por valor abaixo de {formatMoney(configuredThreshold, status.currency)}</div>}
               {hasConfiguredDays && <div>Alerta por cobertura abaixo de {configuredDays.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias</div>}
@@ -106,12 +107,77 @@ function FinancialCard({ status }: { status: FinancialStatusWithConfiguredAlert 
   );
 }
 
+function getBudgetBreakdown(status: FinancialStatusWithConfiguredAlert) {
+  const rawLimit = status.provider === "google_ads" ? status.accountBudgetLimit : status.spendingLimit;
+  const rawConsumed = status.provider === "google_ads" ? status.accountBudgetConsumed : status.amountSpent;
+  const limit = rawLimit !== null ? Number(rawLimit) : NaN;
+  const consumed = rawConsumed !== null ? Number(rawConsumed) : NaN;
+  if (!Number.isFinite(limit) || !Number.isFinite(consumed) || limit <= 0 || consumed < 0) return null;
+
+  const consumedAmount = Math.min(consumed, limit);
+  const remainingAmount = Math.max(limit - consumedAmount, 0);
+  const consumedPercent = Math.min(Math.max((consumedAmount / limit) * 100, 0), 100);
+  const remainingPercent = Math.max(100 - consumedPercent, 0);
+  return { limit, consumedAmount, remainingAmount, consumedPercent, remainingPercent };
+}
+
+function BudgetChartCard({ status }: { status: FinancialStatusWithConfiguredAlert }) {
+  const breakdown = getBudgetBreakdown(status);
+  const remainingColor = breakdown && breakdown.remainingPercent <= 10 ? "#F59E0B" : "#16A34A";
+  const providerLabel = status.provider === "google_ads" ? "Google Ads" : "Meta Ads";
+
+  return (
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div>
+        <h3 className="text-sm font-bold text-slate-800">Leitura do orçamento</h3>
+        <p className="mt-1 text-xs text-slate-500">Distribuição do limite informado pela {providerLabel}.</p>
+      </div>
+      {breakdown ? (
+        <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row sm:items-center">
+          <div
+            className="relative flex h-36 w-36 shrink-0 items-center justify-center rounded-full"
+            style={{ background: `conic-gradient(${remainingColor} 0 ${breakdown.remainingPercent}%, #2563EB ${breakdown.remainingPercent}% 100%)` }}
+            role="img"
+            aria-label={`${breakdown.remainingPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do orçamento restante`}
+          >
+            <div className="flex h-24 w-24 flex-col items-center justify-center rounded-full bg-white text-center">
+              <strong className="text-xl font-extrabold text-slate-900">
+                {breakdown.remainingPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+              </strong>
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">restante</span>
+            </div>
+          </div>
+          <div className="min-w-0 flex-1 space-y-3">
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="flex items-center gap-2 text-slate-500"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" />Consumido</span>
+              <strong className="text-slate-800">{formatMoney(breakdown.consumedAmount, status.currency)}</strong>
+            </div>
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="flex items-center gap-2 text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ background: remainingColor }} />Restante</span>
+              <strong className="text-slate-800">{formatMoney(breakdown.remainingAmount, status.currency)}</strong>
+            </div>
+            <div className="border-t border-slate-100 pt-3 text-xs text-slate-500">
+              Limite total: <strong className="text-slate-700">{formatMoney(breakdown.limit, status.currency)}</strong>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 flex min-h-36 items-center justify-center rounded-xl bg-slate-50 px-5 text-center text-xs text-slate-500">
+          A plataforma não informou limite e consumo suficientes para montar o gráfico.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function FinancialStatusSection({
   googleStatus,
   metaStatuses,
+  isPublic = false,
 }: {
   googleStatus?: FinancialStatusWithConfiguredAlert | null;
   metaStatuses?: FinancialStatusWithConfiguredAlert[];
+  isPublic?: boolean;
 }) {
   const statuses = [googleStatus, ...(metaStatuses || [])].filter((status): status is FinancialStatusWithConfiguredAlert => Boolean(status));
   if (!statuses.length) return null;
@@ -122,7 +188,12 @@ export function FinancialStatusSection({
         <p className="mt-1 text-xs text-slate-500">Os conceitos são exibidos separadamente por plataforma e não são somados.</p>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {statuses.map((status, index) => <FinancialCard key={`${status.provider}-${status.accountId || index}`} status={status} />)}
+        {statuses.map((status, index) => (
+          <Fragment key={`${status.provider}-${status.accountId || index}`}>
+            <FinancialCard status={status} isPublic={isPublic} />
+            <BudgetChartCard status={status} />
+          </Fragment>
+        ))}
       </div>
     </section>
   );

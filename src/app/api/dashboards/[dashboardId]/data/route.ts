@@ -85,7 +85,9 @@ export async function GET(
         to: to || undefined,
         bypassRls: Boolean(shareToken),
       }),
-      EnhancedFinancialAlertService.getDashboardPublicSettings(dashboardId).catch(() => []),
+      shareToken
+        ? Promise.resolve([])
+        : EnhancedFinancialAlertService.getDashboardPublicSettings(dashboardId).catch(() => []),
     ]);
 
     if (!data && process.env.GOOGLE_SHEETS_USE_MOCKS !== "true") {
@@ -95,8 +97,11 @@ export async function GET(
       }, { status: 404 });
     }
 
-    const enrichedData = attachFinancialAlerts(data, financialAlertSettings);
-    return NextResponse.json({ ...enrichedData, viewerRole, financialAlertSettings });
+    // Alert thresholds are administrative configuration and must not be exposed
+    // to viewers accessing a dashboard through a public share link.
+    const exposedFinancialAlertSettings = shareToken ? [] : financialAlertSettings;
+    const enrichedData = shareToken ? data : attachFinancialAlerts(data, financialAlertSettings);
+    return NextResponse.json({ ...enrichedData, viewerRole, financialAlertSettings: exposedFinancialAlertSettings });
   } catch (error: any) {
     console.error("Dashboard Data API Error:", error);
     return apiErrorResponse(error, "Erro ao carregar dados do dashboard.");
