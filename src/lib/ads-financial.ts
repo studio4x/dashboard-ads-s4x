@@ -9,6 +9,11 @@ export type AdsFinancialStatusKind =
 
 export type AdsFinancialAlertStatus = "healthy" | "attention" | "critical" | "unknown";
 
+export interface AdsCampaignSchedule {
+  campaignId: string | null;
+  dayOfWeek: string;
+}
+
 export interface AdsFinancialStatus {
   provider: AdsFinancialProvider;
   accountId?: string | null;
@@ -32,6 +37,7 @@ export interface AdsFinancialStatus {
   updatedAt: string | null;
   averageDailySpend: number | null;
   estimatedDaysRemaining: number | null;
+  estimatedEndDate: string | null;
   alertStatus: AdsFinancialAlertStatus;
 }
 
@@ -127,6 +133,14 @@ export function metaMoneyToCurrency(valueInAccountCurrency: unknown) {
 }
 
 export function calculateAverageDailySpend(rows: unknown[], days = 7) {
+  return calculateDailySpendAverage(rows, days);
+}
+
+function calculateDailySpendAverage(
+  rows: unknown[],
+  days: number,
+  schedules: AdsCampaignSchedule[] = [],
+) {
   const validRows = rows.filter((row): row is Record<string, unknown> => Boolean(row && typeof row === "object"));
   const dates = validRows
     .map((row) => String(row.date || "").slice(0, 10))
@@ -141,11 +155,71 @@ export function calculateAverageDailySpend(rows: unknown[], days = 7) {
   for (const row of validRows) {
     const date = String(row.date || "").slice(0, 10);
     if (date < start || date > dates[dates.length - 1]) continue;
+    if (!isCampaignScheduledOnDate(row, date, schedules)) continue;
     const cost = finiteNumber(row.cost);
     if (cost !== null && cost > 0) daily.set(date, (daily.get(date) || 0) + cost);
   }
   const positiveDays = Array.from(daily.values()).filter((value) => value > 0);
   return positiveDays.length ? round(positiveDays.reduce((sum, value) => sum + value, 0) / positiveDays.length, 4) : null;
+}
+
+export function calculateScheduledAverageDailySpend(rows: unknown[], schedules: AdsCampaignSchedule[] = [], days = 7) {
+  const scheduledAverage = calculateDailySpendAverage(rows, days, schedules);
+  return scheduledAverage === null && schedules.length ? calculateDailySpendAverage(rows, days) : scheduledAverage;
+}
+
+const GOOGLE_DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+
+function campaignIdFromRow(row: Record<string, unknown>) {
+  if (row.campaignId !== null && row.campaignId !== undefined && row.campaignId !== "") return String(row.campaignId);
+  const campaign = row.campaign;
+  return campaign && typeof campaign === "object" && "id" in campaign
+    ? String((campaign as Record<string, unknown>).id || "") || null
+    : null;
+}
+
+function isCampaignScheduledOnDate(row: Record<string, unknown>, date: string, schedules: AdsCampaignSchedule[]) {
+  if (!schedules.length) return true;
+  const dateValue = new Date(`${date}T12:00:00Z`);
+  if (Number.isNaN(dateValue.getTime())) return true;
+  const dayOfWeek = GOOGLE_DAYS[dateValue.getUTCDay()];
+  const campaignId = campaignIdFromRow(row);
+  const campaignSchedules = schedules.filter((schedule) => schedule.campaignId === campaignId);
+  if (campaignSchedules.length) return campaignSchedules.some((schedule) => schedule.dayOfWeek === dayOfWeek);
+  if (!campaignId) return schedules.some((schedule) => schedule.dayOfWeek === dayOfWeek);
+  // A campaign without an explicit AD_SCHEDULE runs every day by default.
+  return true;
+}
+
+export function calculateEstimatedEndDate(params: {
+  remainingAmount: unknown;
+  averageDailySpend: unknown;
+  rows?: unknown[];
+  schedules?: AdsCampaignSchedule[];
+  asOfDate?: string | null;
+}) {
+  const remaining = finiteNumber(params.remainingAmount);
+  const average = finiteNumber(params.averageDailySpend);
+  if (remaining === null || remaining <= 0 || average === null || average <= 0) return null;
+
+  const validDates = (params.rows || [])
+    .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === "object"))
+    .map((row) => String(row.date || "").slice(0, 10))
+    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .sort();
+  const startDate = String(params.asOfDate || validDates[validDates.length - 1] || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
+
+  const cursor = new Date(`${startDate}T12:00:00Z`);
+  let projectedSpend = 0;
+  for (let day = 0; day < 3660; day += 1) {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    const date = cursor.toISOString().slice(0, 10);
+    if (!isCampaignScheduledOnDate({}, date, params.schedules || [])) continue;
+    projectedSpend += average;
+    if (projectedSpend >= remaining) return date;
+  }
+  return null;
 }
 
 export function calculateEstimatedDaysRemaining(remainingAmount: unknown, averageDailySpend: unknown) {
@@ -188,6 +262,7 @@ function finish(base: FinancialBase, values: Partial<AdsFinancialStatus>): AdsFi
     updatedAt: base.updatedAt ?? null,
     averageDailySpend: null,
     estimatedDaysRemaining: null,
+    estimatedEndDate: null,
     alertStatus: "unknown" as AdsFinancialAlertStatus,
     ...values,
   };
@@ -206,6 +281,9 @@ export function buildGoogleAdsFinancialStatus(params: {
   currency?: string | null;
   updatedAt?: string | null;
   averageDailySpend?: number | null;
+  spendRows?: unknown[];
+  schedules?: AdsCampaignSchedule[];
+  asOfDate?: string | null;
   error?: string | null;
   accountId?: string | null;
   accountName?: string | null;
@@ -272,7 +350,7 @@ export function buildGoogleAdsFinancialStatus(params: {
   }
 
   const remaining = Math.max(limit - consumed, 0);
-  return finish(base, {
+  const result = finish(base, {
     accountId: params.accountId,
     accountName: params.accountName,
     billingMode: "account_budget",
@@ -288,6 +366,14 @@ export function buildGoogleAdsFinancialStatus(params: {
     notes: ["Orçamento de conta restante não é um saldo financeiro universal ou pré-pago."],
     averageDailySpend: params.averageDailySpend ?? null,
   });
+  result.estimatedEndDate = calculateEstimatedEndDate({
+    remainingAmount: result.remainingUntilLimit,
+    averageDailySpend: result.averageDailySpend,
+    rows: params.spendRows,
+    schedules: params.schedules,
+    asOfDate: params.asOfDate,
+  });
+  return result;
 }
 
 export function buildMetaAdsFinancialStatus(params: {

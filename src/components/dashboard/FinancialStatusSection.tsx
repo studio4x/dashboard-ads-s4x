@@ -28,6 +28,13 @@ function updatedAtLabel(value: string | null) {
   }).format(date)}`;
 }
 
+function estimatedEndDateLabel(value: string | null) {
+  if (!value) return null;
+  const date = new Date(`${value.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(date);
+}
+
 function statusPresentation(status: AdsFinancialStatus) {
   if (status.status === "unlimited") return { label: "Sem limite de orçamento de conta definido", value: null, tone: "neutral" };
   if (status.status === "error") return { label: "Informação financeira temporariamente indisponível", value: null, tone: "warning" };
@@ -82,12 +89,13 @@ function FinancialCard({ status, isPublic }: { status: FinancialStatusWithConfig
         <div className="min-w-0">
           <div className="text-sm font-semibold text-slate-700">{presentation.label}</div>
           {presentation.value !== null && <div className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">{formatMoney(presentation.value, status.currency)}</div>}
-          {status.accountBudgetLimit !== null && <div className="mt-2 text-xs text-slate-500">Limite: <strong>{formatMoney(status.accountBudgetLimit, status.currency)}</strong></div>}
-          {status.accountBudgetConsumed !== null && <div className="text-xs text-slate-500">Consumido: <strong>{formatMoney(status.accountBudgetConsumed, status.currency)}</strong></div>}
+          {!isPublic && status.accountBudgetLimit !== null && <div className="mt-2 text-xs text-slate-500">Limite: <strong>{formatMoney(status.accountBudgetLimit, status.currency)}</strong></div>}
+          {!isPublic && status.accountBudgetConsumed !== null && <div className="text-xs text-slate-500">Consumido: <strong>{formatMoney(status.accountBudgetConsumed, status.currency)}</strong></div>}
           {status.spendingLimit !== null && status.provider === "meta_ads" && <div className="mt-2 text-xs text-slate-500">Limite: <strong>{formatMoney(status.spendingLimit, status.currency)}</strong></div>}
           {status.amountSpent !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">Gasto acumulado: <strong>{formatMoney(status.amountSpent, status.currency)}</strong></div>}
           {status.outstandingBalance !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">{status.outstandingBalanceLabel || "Valor de faturamento"}: <strong>{formatMoney(status.outstandingBalance, status.currency)}</strong></div>}
           {status.estimatedDaysRemaining !== null && <div className="mt-2 text-xs font-semibold text-slate-600">Cobertura estimada: {status.estimatedDaysRemaining.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias</div>}
+          {estimatedEndDateLabel(status.estimatedEndDate) && <div className="text-xs font-semibold text-slate-600">Data estimada de término: {estimatedEndDateLabel(status.estimatedEndDate)}</div>}
           {!isPublic && (hasConfiguredThreshold || hasConfiguredDays) && (
             <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-600">
               {hasConfiguredThreshold && <div>Alerta por valor abaixo de {formatMoney(configuredThreshold, status.currency)}</div>}
@@ -101,7 +109,7 @@ function FinancialCard({ status, isPublic }: { status: FinancialStatusWithConfig
       </div>
       <div className="mt-3 flex items-center gap-1 text-[10px] text-slate-400">
         <span>{updatedAtLabel(status.updatedAt) || "Data de atualização não informada"}</span>
-        {status.estimatedDaysRemaining !== null && <span title="Estimativa baseada no gasto médio diário recente. Não representa garantia de entrega.">· estimativa baseada no gasto médio diário recente</span>}
+        {status.estimatedDaysRemaining !== null && <span title="Estimativa baseada no gasto médio diário recente e na programação de veiculação. Não representa garantia de entrega.">· estimativa baseada no gasto médio e na programação recente</span>}
       </div>
     </div>
   );

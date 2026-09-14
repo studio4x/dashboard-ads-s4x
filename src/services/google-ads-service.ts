@@ -25,7 +25,7 @@ type SourceCreateInput = {
 };
 
 type DatasetName = "dailyRows" | "campaignRows" | "adGroupRows" | "keywordRows" | "searchTermRows"
-  | "campaignNegativeRows" | "sharedNegativeRows" | "campaignSharedSetRows" | "adRows" | "adAssetRows" | "pmaxAssetRows" | "accountBudgetRows";
+  | "campaignNegativeRows" | "sharedNegativeRows" | "campaignSharedSetRows" | "adRows" | "adAssetRows" | "pmaxAssetRows" | "accountBudgetRows" | "adScheduleRows";
 
 type AnalyticsQueryResult = {
   rows: Record<GoogleAdsAnalyticDataset, GoogleAdsApiRow[]>;
@@ -117,6 +117,7 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
   ];
   const optional: Array<[DatasetName, string]> = [
     ["accountBudgetRows", googleAdsQueries.accountBudget],
+    ["adScheduleRows", googleAdsQueries.adSchedules],
     ["campaignNegativeRows", googleAdsQueries.campaignNegatives],
     ["sharedNegativeRows", googleAdsQueries.sharedNegatives],
     ["campaignSharedSetRows", googleAdsQueries.campaignSharedSets],
@@ -128,6 +129,7 @@ async function queryDatasets(client: GoogleAdsRestClient, customerId: string, lo
     dailyRows: [], campaignRows: [], adGroupRows: [], keywordRows: [], searchTermRows: [],
     campaignNegativeRows: [], sharedNegativeRows: [], campaignSharedSetRows: [],
     adRows: [], adAssetRows: [], pmaxAssetRows: [], accountBudgetRows: [],
+    adScheduleRows: [],
   };
   const requestIds: string[] = [];
   const warnings: string[] = [];

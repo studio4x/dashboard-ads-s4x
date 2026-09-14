@@ -288,6 +288,13 @@ function pdfMoney(value: unknown, currency: unknown) {
   }
 }
 
+function pdfDate(value: unknown) {
+  if (!value) return null;
+  const date = new Date(`${String(value).slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(date);
+}
+
 function renderFinancialStatuses(statuses: Array<Record<string, unknown>> | undefined) {
   if (!statuses?.length) return "";
   const cards = statuses.map((status) => {
@@ -309,12 +316,11 @@ function renderFinancialStatuses(statuses: Array<Record<string, unknown>> | unde
                 ? "Saldo financeiro não disponibilizado pela Google Ads API para este modelo de faturamento"
                 : "Informação financeira não disponibilizada de forma conclusiva pela Meta API";
     const details = [
-      status.accountBudgetLimit !== null && status.accountBudgetLimit !== undefined ? `Limite: ${pdfMoney(status.accountBudgetLimit, status.currency)}` : null,
-      status.accountBudgetConsumed !== null && status.accountBudgetConsumed !== undefined ? `Consumido: ${pdfMoney(status.accountBudgetConsumed, status.currency)}` : null,
       !isGoogle && status.spendingLimit !== null && status.spendingLimit !== undefined ? `Limite: ${pdfMoney(status.spendingLimit, status.currency)}` : null,
       !isGoogle && status.amountSpent !== null && status.amountSpent !== undefined ? `Gasto acumulado: ${pdfMoney(status.amountSpent, status.currency)}` : null,
       !isGoogle && status.outstandingBalance !== null && status.outstandingBalance !== undefined ? `${status.outstandingBalanceLabel || "Valor de faturamento"}: ${pdfMoney(status.outstandingBalance, status.currency)}` : null,
       status.estimatedDaysRemaining !== null && status.estimatedDaysRemaining !== undefined ? `Cobertura estimada: ${status.estimatedDaysRemaining} dias` : null,
+      pdfDate(status.estimatedEndDate) ? `Data estimada de término: ${pdfDate(status.estimatedEndDate)}` : null,
     ].filter(Boolean).join(" · ");
     const updated = status.updatedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(String(status.updatedAt))) : "Data de atualização não informada";
     return `<div class="financial-card"><div class="financial-provider">${escapeHtml(provider)}${status.accountName ? ` · ${escapeHtml(status.accountName)}` : ""}</div><div class="financial-label">${escapeHtml(label)}</div>${mainValue !== null ? `<div class="financial-value">${escapeHtml(pdfMoney(mainValue, status.currency) || "")}</div>` : ""}${details ? `<div class="financial-details">${escapeHtml(details)}</div>` : ""}<div class="financial-updated">${escapeHtml(updated)}</div></div>`;

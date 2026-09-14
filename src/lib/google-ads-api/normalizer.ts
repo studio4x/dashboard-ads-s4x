@@ -1,5 +1,5 @@
 import { MetricsHelper } from "../google-sheets/metrics-helper.ts";
-import { buildGoogleAdsFinancialStatus, calculateAverageDailySpend, microsToCurrency } from "../ads-financial.ts";
+import { buildGoogleAdsFinancialStatus, calculateScheduledAverageDailySpend, microsToCurrency, type AdsCampaignSchedule } from "../ads-financial.ts";
 import type {
   GoogleAdsS4XAdAsset,
   GoogleAdsS4XAdGroup,
@@ -97,6 +97,13 @@ export function normalizeDailyPerformance(row: GoogleAdsApiRow): GoogleAdsS4XDai
     aggregationScope: "CAMPAIGN_DATE", ...calculated,
     aiKey: stableKey("campaign_date", campaignId, text(row.segments, "date")),
   };
+}
+
+function normalizeCampaignSchedule(row: GoogleAdsApiRow): AdsCampaignSchedule | null {
+  const schedule = record(record(row.campaignCriterion).adSchedule);
+  const dayOfWeek = text(schedule, "dayOfWeek").toUpperCase();
+  if (!dayOfWeek) return null;
+  return { campaignId: text(row.campaign, "id") || null, dayOfWeek };
 }
 
 export function normalizeCampaign(row: GoogleAdsApiRow): GoogleAdsS4XCampaign {
@@ -281,6 +288,7 @@ export function buildGoogleAdsApiPayload(params: {
   adAssetRows: GoogleAdsApiRow[];
   pmaxAssetRows: GoogleAdsApiRow[];
   accountBudgetRows?: GoogleAdsApiRow[];
+  adScheduleRows?: GoogleAdsApiRow[];
   financialError?: string | null;
   currency?: string | null;
   warnings?: string[];
@@ -292,6 +300,7 @@ export function buildGoogleAdsApiPayload(params: {
   };
 }): GoogleAdsS4XPayload {
   const dailyPerformance = params.dailyRows.map(normalizeDailyPerformance);
+  const schedules = (params.adScheduleRows || []).map(normalizeCampaignSchedule).filter((schedule): schedule is AdsCampaignSchedule => Boolean(schedule));
   const campaigns = params.campaignRows.map(normalizeCampaign);
   const adGroups = params.adGroupRows.map(normalizeAdGroup);
   const keywords = params.keywordRows.map(normalizeKeyword);
@@ -310,7 +319,10 @@ export function buildGoogleAdsApiPayload(params: {
     rows: params.accountBudgetRows?.map((row) => row.accountBudget || row) || [],
     currency: params.currency,
     updatedAt: now,
-    averageDailySpend: calculateAverageDailySpend(dailyPerformance),
+    averageDailySpend: calculateScheduledAverageDailySpend(dailyPerformance, schedules),
+    spendRows: dailyPerformance,
+    schedules,
+    asOfDate: params.dateEnd,
     error: params.financialError,
     accountId: params.customerId,
     accountName: params.customerName,

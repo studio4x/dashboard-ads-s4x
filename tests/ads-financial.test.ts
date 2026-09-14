@@ -4,7 +4,9 @@ import {
   buildGoogleAdsFinancialStatus,
   buildMetaAdsFinancialStatus,
   calculateAverageDailySpend,
+  calculateEstimatedEndDate,
   calculateEstimatedDaysRemaining,
+  calculateScheduledAverageDailySpend,
   metaMoneyToCurrency,
   microsToCurrency,
   resolveAdsFinancialStatuses,
@@ -55,6 +57,35 @@ test("calcula média recente apenas nos dias com gasto positivo", () => {
   assert.equal(average, 200);
   assert.equal(calculateEstimatedDaysRemaining(0, 200), 0);
   assert.equal(calculateEstimatedDaysRemaining(1000, 0), null);
+});
+
+test("calcula média e término considerando a programação da campanha", () => {
+  const rows = [
+    { date: "2026-09-14", campaignId: "1", cost: 10 },
+    { date: "2026-09-15", campaignId: "1", cost: 20 },
+    { date: "2026-09-19", campaignId: "1", cost: 100 },
+  ];
+  const schedules = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"].map((dayOfWeek) => ({ campaignId: "1", dayOfWeek }));
+  assert.equal(calculateScheduledAverageDailySpend(rows, schedules), 15);
+  assert.equal(calculateEstimatedEndDate({
+    remainingAmount: 100,
+    averageDailySpend: 20,
+    rows,
+    schedules,
+    asOfDate: "2026-09-14",
+  }), "2026-09-21");
+});
+
+test("Google financeiro grava a data estimada de término", () => {
+  const schedules = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"].map((dayOfWeek) => ({ campaignId: "1", dayOfWeek }));
+  const status = buildGoogleAdsFinancialStatus({
+    rows: [{ accountBudget: { status: "APPROVED", adjustedSpendingLimitMicros: "200000000", amountServedMicros: "100000000" } }],
+    averageDailySpend: 20,
+    spendRows: [{ date: "2026-09-14", campaignId: "1", cost: 20 }],
+    schedules,
+    asOfDate: "2026-09-14",
+  });
+  assert.equal(status.estimatedEndDate, "2026-09-21");
 });
 
 test("Meta calcula disponibilidade até spend cap", () => {
