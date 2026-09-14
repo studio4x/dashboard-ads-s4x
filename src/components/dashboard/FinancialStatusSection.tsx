@@ -91,34 +91,34 @@ function FinancialCard({ status, isPublic }: { status: FinancialStatusWithConfig
             <WalletCards size={15} className="text-blue-600" />
             {status.provider === "google_ads" ? "Google Ads" : "Meta Ads"}
           </div>
-          {status.accountName && <div className="mt-1 text-xs text-slate-400">{status.accountName}</div>}
+          {status.accountName && <div className="mt-1 text-xs leading-[1.5em] text-slate-400">{status.accountName}</div>}
         </div>
         <Info size={16} className="shrink-0 text-slate-400" aria-label="Sobre os dados financeiros" />
       </div>
       <div className="mt-4 flex items-start gap-3">
         <Icon size={18} color={toneColor} className="mt-1 shrink-0" />
         <div className="min-w-0 leading-[1.5em]">
-          <div className="text-sm font-semibold text-slate-700">{presentation.label}</div>
-          {presentation.value !== null && <div className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">{formatMoney(presentation.value, status.currency)}</div>}
-          {!isPublic && status.accountBudgetLimit !== null && <div className="mt-2 text-xs text-slate-500">Limite: <strong>{formatMoney(status.accountBudgetLimit, status.currency)}</strong></div>}
-          {!isPublic && status.accountBudgetConsumed !== null && <div className="text-xs text-slate-500">Consumido: <strong>{formatMoney(status.accountBudgetConsumed, status.currency)}</strong></div>}
-          {status.spendingLimit !== null && status.provider === "meta_ads" && <div className="mt-2 text-xs text-slate-500">Limite: <strong>{formatMoney(status.spendingLimit, status.currency)}</strong></div>}
-          {status.amountSpent !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">Gasto acumulado: <strong>{formatMoney(status.amountSpent, status.currency)}</strong></div>}
-          {status.outstandingBalance !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">{status.outstandingBalanceLabel || "Valor de faturamento"}: <strong>{formatMoney(status.outstandingBalance, status.currency)}</strong></div>}
-          {status.estimatedDaysRemaining !== null && <div className="mt-2 text-xs font-semibold text-slate-600">Cobertura estimada: {status.estimatedDaysRemaining.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias</div>}
-          {estimatedEndDateLabel(estimatedEndDate) && <div className="text-xs font-semibold text-slate-600">Data estimada de término: {estimatedEndDateLabel(estimatedEndDate)}</div>}
+          <div className="text-sm font-semibold leading-[1.5em] text-slate-700">{presentation.label}</div>
+          {presentation.value !== null && <div className="mt-1 text-2xl font-extrabold leading-[1.5em] tracking-tight text-slate-900">{formatMoney(presentation.value, status.currency)}</div>}
+          {!isPublic && status.accountBudgetLimit !== null && <div className="mt-2 text-xs leading-[1.5em] text-slate-500">Limite: <strong>{formatMoney(status.accountBudgetLimit, status.currency)}</strong></div>}
+          {!isPublic && status.accountBudgetConsumed !== null && <div className="text-xs leading-[1.5em] text-slate-500">Consumido: <strong>{formatMoney(status.accountBudgetConsumed, status.currency)}</strong></div>}
+          {status.spendingLimit !== null && status.provider === "meta_ads" && <div className="mt-2 text-xs leading-[1.5em] text-slate-500">Limite: <strong>{formatMoney(status.spendingLimit, status.currency)}</strong></div>}
+          {status.amountSpent !== null && status.provider === "meta_ads" && <div className="text-xs leading-[1.5em] text-slate-500">Gasto acumulado: <strong>{formatMoney(status.amountSpent, status.currency)}</strong></div>}
+          {status.outstandingBalance !== null && status.provider === "meta_ads" && <div className="text-xs leading-[1.5em] text-slate-500">{status.outstandingBalanceLabel || "Valor de faturamento"}: <strong>{formatMoney(status.outstandingBalance, status.currency)}</strong></div>}
+          {status.estimatedDaysRemaining !== null && <div className="mt-2 text-xs font-semibold leading-[1.5em] text-slate-600">Cobertura estimada: {status.estimatedDaysRemaining.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias</div>}
+          {estimatedEndDateLabel(estimatedEndDate) && <div className="mt-1 text-xs font-semibold leading-[1.5em] text-slate-600">Data estimada de término: {estimatedEndDateLabel(estimatedEndDate)}</div>}
           {!isPublic && (hasConfiguredThreshold || hasConfiguredDays) && (
-            <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-600">
+            <div className="mt-2 space-y-0.5 text-xs font-semibold leading-[1.5em] text-slate-600">
               {hasConfiguredThreshold && <div>Alerta por valor abaixo de {formatMoney(configuredThreshold, status.currency)}</div>}
               {hasConfiguredDays && <div>Alerta por cobertura abaixo de {configuredDays.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias</div>}
             </div>
           )}
-          {isBelowConfiguredThreshold && <div className="mt-1 text-xs font-semibold text-red-700">⚠ Abaixo de um dos limites de alerta configurados</div>}
-          {isCritical && <div className="mt-1 text-xs font-semibold text-red-700">Verba estimada para menos de 3 dias</div>}
-          {isAttention && <div className="mt-1 text-xs font-semibold text-amber-700">Verba estimada para menos de 7 dias</div>}
+          {isBelowConfiguredThreshold && <div className="mt-1 text-xs font-semibold leading-[1.5em] text-red-700">⚠ Abaixo de um dos limites de alerta configurados</div>}
+          {isCritical && <div className="mt-1 text-xs font-semibold leading-[1.5em] text-red-700">Verba estimada para menos de 3 dias</div>}
+          {isAttention && <div className="mt-1 text-xs font-semibold leading-[1.5em] text-amber-700">Verba estimada para menos de 7 dias</div>}
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-1 text-[10px] text-slate-400">
+      <div className="mt-3 flex items-center gap-1 text-[10px] leading-[1.5em] text-slate-400">
         <span>{updatedAtLabel(status.updatedAt) || "Data de atualização não informada"}</span>
         {status.estimatedDaysRemaining !== null && <span title="Estimativa baseada no gasto médio diário recente e na programação de veiculação. Não representa garantia de entrega.">· estimativa baseada no gasto médio e na programação recente</span>}
       </div>
@@ -148,8 +148,8 @@ function BudgetChartCard({ status }: { status: FinancialStatusWithConfiguredAler
   return (
     <div className="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div>
-        <h3 className="text-sm font-bold text-slate-800">Leitura do orçamento</h3>
-        <p className="mt-1 text-xs text-slate-500">Distribuição do limite informado pela {providerLabel}.</p>
+        <h3 className="text-sm font-bold leading-[1.5em] text-slate-800">Leitura do orçamento</h3>
+        <p className="mt-1 text-xs leading-[1.5em] text-slate-500">Distribuição do limite informado pela {providerLabel}.</p>
       </div>
       {breakdown ? (
         <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row sm:items-center">
@@ -167,21 +167,21 @@ function BudgetChartCard({ status }: { status: FinancialStatusWithConfiguredAler
             </div>
           </div>
           <div className="min-w-0 flex-1 space-y-3 leading-[1.5em]">
-            <div className="flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center justify-between gap-3 text-xs leading-[1.5em]">
               <span className="flex items-center gap-2 text-slate-500"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" />Consumido</span>
               <strong className="text-slate-800">{formatMoney(breakdown.consumedAmount, status.currency)}</strong>
             </div>
-            <div className="flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center justify-between gap-3 text-xs leading-[1.5em]">
               <span className="flex items-center gap-2 text-slate-500"><span className="h-2.5 w-2.5 rounded-full" style={{ background: remainingColor }} />Restante</span>
               <strong className="text-slate-800">{formatMoney(breakdown.remainingAmount, status.currency)}</strong>
             </div>
-            <div className="border-t border-slate-100 pt-3 text-xs text-slate-500">
+            <div className="border-t border-slate-100 pt-3 text-xs leading-[1.5em] text-slate-500">
               Limite total: <strong className="text-slate-700">{formatMoney(breakdown.limit, status.currency)}</strong>
             </div>
           </div>
         </div>
       ) : (
-        <div className="mt-5 flex min-h-36 items-center justify-center rounded-xl bg-slate-50 px-5 text-center text-xs text-slate-500">
+        <div className="mt-5 flex min-h-36 items-center justify-center rounded-xl bg-slate-50 px-5 text-center text-xs leading-[1.5em] text-slate-500">
           A plataforma não informou limite e consumo suficientes para montar o gráfico.
         </div>
       )}
