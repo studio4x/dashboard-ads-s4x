@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { AlertTriangle, CheckCircle2, CircleHelp, Info, WalletCards } from "lucide-react";
-import type { AdsFinancialStatus } from "@/lib/ads-financial";
+import { calculateEstimatedEndDate, type AdsFinancialStatus } from "@/lib/ads-financial";
 
 type FinancialStatusWithConfiguredAlert = AdsFinancialStatus & {
   alertThresholdAmount?: number | null;
@@ -35,6 +35,16 @@ function estimatedEndDateLabel(value: string | null) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(date);
 }
 
+function estimatedEndDateValue(status: AdsFinancialStatus) {
+  if (status.estimatedEndDate) return status.estimatedEndDate;
+  if (status.provider !== "google_ads") return null;
+  return calculateEstimatedEndDate({
+    remainingAmount: status.remainingUntilLimit ?? status.accountBudgetRemaining ?? status.availableAmount,
+    averageDailySpend: status.averageDailySpend,
+    asOfDate: status.updatedAt?.slice(0, 10),
+  });
+}
+
 function statusPresentation(status: AdsFinancialStatus) {
   if (status.status === "unlimited") return { label: "Sem limite de orçamento de conta definido", value: null, tone: "neutral" };
   if (status.status === "error") return { label: "Informação financeira temporariamente indisponível", value: null, tone: "warning" };
@@ -67,6 +77,7 @@ function FinancialCard({ status, isPublic }: { status: FinancialStatusWithConfig
   const isBelowAmount = hasConfiguredThreshold && presentation.value !== null && presentation.value < configuredThreshold;
   const isBelowDays = hasConfiguredDays && status.estimatedDaysRemaining !== null && status.estimatedDaysRemaining < configuredDays;
   const isBelowConfiguredThreshold = !isPublic && (status.configuredFinancialAlertState === "below_threshold" || isBelowAmount || isBelowDays);
+  const estimatedEndDate = estimatedEndDateValue(status);
   const Icon = status.status === "error" ? AlertTriangle : status.status === "available" ? (isCritical || isAttention || isBelowConfiguredThreshold ? AlertTriangle : CheckCircle2) : CircleHelp;
   const toneColor = status.status === "error" || isCritical || isBelowConfiguredThreshold ? "#B91C1C" : isAttention ? "#B45309" : "#2563EB";
   const tooltip = status.provider === "google_ads"
@@ -86,7 +97,7 @@ function FinancialCard({ status, isPublic }: { status: FinancialStatusWithConfig
       </div>
       <div className="mt-4 flex items-start gap-3">
         <Icon size={18} color={toneColor} className="mt-1 shrink-0" />
-        <div className="min-w-0">
+        <div className="min-w-0 leading-[1.5em]">
           <div className="text-sm font-semibold text-slate-700">{presentation.label}</div>
           {presentation.value !== null && <div className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">{formatMoney(presentation.value, status.currency)}</div>}
           {!isPublic && status.accountBudgetLimit !== null && <div className="mt-2 text-xs text-slate-500">Limite: <strong>{formatMoney(status.accountBudgetLimit, status.currency)}</strong></div>}
@@ -95,7 +106,7 @@ function FinancialCard({ status, isPublic }: { status: FinancialStatusWithConfig
           {status.amountSpent !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">Gasto acumulado: <strong>{formatMoney(status.amountSpent, status.currency)}</strong></div>}
           {status.outstandingBalance !== null && status.provider === "meta_ads" && <div className="text-xs text-slate-500">{status.outstandingBalanceLabel || "Valor de faturamento"}: <strong>{formatMoney(status.outstandingBalance, status.currency)}</strong></div>}
           {status.estimatedDaysRemaining !== null && <div className="mt-2 text-xs font-semibold text-slate-600">Cobertura estimada: {status.estimatedDaysRemaining.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias</div>}
-          {estimatedEndDateLabel(status.estimatedEndDate) && <div className="text-xs font-semibold text-slate-600">Data estimada de término: {estimatedEndDateLabel(status.estimatedEndDate)}</div>}
+          {estimatedEndDateLabel(estimatedEndDate) && <div className="text-xs font-semibold text-slate-600">Data estimada de término: {estimatedEndDateLabel(estimatedEndDate)}</div>}
           {!isPublic && (hasConfiguredThreshold || hasConfiguredDays) && (
             <div className="mt-2 space-y-0.5 text-xs font-semibold text-slate-600">
               {hasConfiguredThreshold && <div>Alerta por valor abaixo de {formatMoney(configuredThreshold, status.currency)}</div>}
@@ -155,7 +166,7 @@ function BudgetChartCard({ status }: { status: FinancialStatusWithConfiguredAler
               <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">restante</span>
             </div>
           </div>
-          <div className="min-w-0 flex-1 space-y-3">
+          <div className="min-w-0 flex-1 space-y-3 leading-[1.5em]">
             <div className="flex items-center justify-between gap-3 text-xs">
               <span className="flex items-center gap-2 text-slate-500"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" />Consumido</span>
               <strong className="text-slate-800">{formatMoney(breakdown.consumedAmount, status.currency)}</strong>
