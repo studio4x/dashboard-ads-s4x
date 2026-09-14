@@ -201,7 +201,7 @@ export function FinancialStatusSection({
   const statuses = [googleStatus, ...(metaStatuses || [])].filter((status): status is FinancialStatusWithConfiguredAlert => Boolean(status));
   if (!statuses.length) return null;
   return (
-    <section aria-label="Informações financeiras e orçamentárias" className="space-y-3">
+    <section aria-label="Informações financeiras e orçamentárias" className="space-y-5">
       <div>
         <h2 className="text-lg font-bold text-slate-900">Orçamento e informações financeiras</h2>
         <p className="mt-1 text-xs text-slate-500">Os conceitos são exibidos separadamente por plataforma e não são somados.</p>
