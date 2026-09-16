@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Activity, AlertTriangle, CheckCircle2, CircleAlert, Clock3, Database, ExternalLink, Loader2, RefreshCw, ServerCog, ShieldCheck, WalletCards } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, CircleAlert, Clock3, Database, ExternalLink, Loader2, Play, RefreshCw, ServerCog, ShieldCheck, WalletCards } from "lucide-react";
+import { formatAutomationDateKey, getAutomationReferenceDate, normalizeAutomationPeriodPreset, resolveAutomationPeriodRange } from "@/lib/dashboard/automation-period";
 
 type Snapshot = any;
 
@@ -30,6 +31,9 @@ export default function PlatformHealthPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "attention">("attention");
+  const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
+  const [runningDashboardId, setRunningDashboardId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -47,6 +51,49 @@ export default function PlatformHealthPage() {
   }
 
   useEffect(() => { void load(); }, []);
+
+  async function forceAutomation(automation: any) {
+    const referenceDate = getAutomationReferenceDate(new Date(), "America/Sao_Paulo");
+    const preset = normalizeAutomationPeriodPreset(automation.periodPreset);
+    const period = resolveAutomationPeriodRange(preset, Boolean(automation.includeToday), referenceDate);
+    const from = formatAutomationDateKey(period.from, "America/Sao_Paulo");
+    const to = formatAutomationDateKey(period.to, "America/Sao_Paulo");
+
+    if (automation.diagnosis === "pending_completion") {
+      setActionMessage("Essa automação já foi disparada e ainda aguarda a confirmação de conclusão. Um novo disparo não foi feito para evitar duplicidade.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Forçar a execução de "${automation.dashboardName}" agora?\n\nProgramação: ${automation.scheduleLabel}.\nPeríodo: ${from} a ${to}.\nIsso enviará o relatório ao webhook de produção do n8n.`
+    );
+    if (!confirmed) return;
+
+    setRunningDashboardId(automation.dashboardId);
+    setActionMessage(null);
+    try {
+      const response = await fetch("/api/admin/automations/report-dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dashboardId: automation.dashboardId,
+          from,
+          to,
+          source: "manual",
+          reportMode: automation.reportMode || "both",
+          automationPeriod: { preset, includeToday: Boolean(automation.includeToday) },
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json?.success) throw new Error(json?.error || "Não foi possível forçar a execução.");
+      setActionMessage(`Execução de "${automation.dashboardName}" enviada ao n8n. Atualize novamente após a conclusão para confirmar o retorno.`);
+      await load();
+    } catch (actionError) {
+      setActionMessage(actionError instanceof Error ? actionError.message : "Erro ao forçar a execução.");
+    } finally {
+      setRunningDashboardId(null);
+    }
+  }
 
   const clients = useMemo(() => {
     const list = snapshot?.clients || [];
@@ -67,6 +114,7 @@ export default function PlatformHealthPage() {
       </div>
 
       {error && <div style={{ marginBottom: 16, padding: 11, borderRadius: 8, background: "#FEF2F2", color: "#991B1B", fontSize: 12, display: "flex", gap: 7, alignItems: "center" }}><AlertTriangle size={15} />{error}</div>}
+      {actionMessage && <div style={{ marginBottom: 16, padding: 11, borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", fontSize: 12 }}>{actionMessage}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 11, marginBottom: 18 }}>
         {[
@@ -99,7 +147,49 @@ export default function PlatformHealthPage() {
 
       <div className="card" style={{ overflow: "auto", marginBottom: 18 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, minWidth: 760 }}><thead><tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0", textAlign: "left" }}><th style={{ padding: 11 }}>Cliente</th><th style={{ padding: 11 }}>Status</th><th style={{ padding: 11 }}>Pontos de atenção</th><th style={{ padding: 11 }}></th></tr></thead><tbody>
-          {clients.length === 0 ? <tr><td colSpan={4} style={{ padding: 30, textAlign: "center", color: "#64748B" }}>Nenhum cliente neste filtro.</td></tr> : clients.map((client: any) => <tr key={client.id} style={{ borderBottom: "1px solid #F1F5F9" }}><td style={{ padding: 11, fontWeight: 700, color: "#0F172A" }}>{client.name}</td><td style={{ padding: 11 }}><Badge status={client.status} /></td><td style={{ padding: 11 }}>{client.issues?.length ? <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>{client.issues.slice(0, 4).map((issue: any, index: number) => <span key={`${issue.type}-${index}`} style={{ background: issue.severity === "critical" ? "#FEF2F2" : "#FFF7ED", color: issue.severity === "critical" ? "#B91C1C" : "#B45309", borderRadius: 6, padding: "3px 6px", fontSize: 9 }}>{issue.label}</span>)}{client.issues.length > 4 && <span style={{ fontSize: 9, color: "#64748B" }}>+{client.issues.length - 4}</span>}</div> : <span style={{ color: "#94A3B8" }}>Nenhum</span>}</td><td style={{ padding: 11 }}><Link href={`/admin/clients/${client.id}`} style={{ color: "#2563EB", display: "inline-flex" }}><ExternalLink size={14} /></Link></td></tr>)}
+          {clients.length === 0 ? <tr><td colSpan={4} style={{ padding: 30, textAlign: "center", color: "#64748B" }}>Nenhum cliente neste filtro.</td></tr> : clients.map((client: any) => {
+            const expanded = expandedClientId === client.id;
+            return <Fragment key={client.id}>
+              <tr key={client.id} style={{ borderBottom: expanded ? "0" : "1px solid #F1F5F9" }}>
+                <td style={{ padding: 11, fontWeight: 700, color: "#0F172A" }}>{client.name}</td>
+                <td style={{ padding: 11 }}><Badge status={client.status} /></td>
+                <td style={{ padding: 11 }}>{client.issues?.length ? <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>{client.issues.slice(0, 4).map((issue: any, index: number) => <span key={`${issue.type}-${index}`} style={{ background: issue.severity === "critical" ? "#FEF2F2" : "#FFF7ED", color: issue.severity === "critical" ? "#B91C1C" : "#B45309", borderRadius: 6, padding: "3px 6px", fontSize: 9 }}>{issue.label}</span>)}{client.issues.length > 4 && <span style={{ fontSize: 9, color: "#64748B" }}>+{client.issues.length - 4}</span>}</div> : <span style={{ color: "#94A3B8" }}>Nenhum</span>}</td>
+                <td style={{ padding: 11, whiteSpace: "nowrap" }}>
+                  <button type="button" onClick={() => setExpandedClientId(expanded ? null : client.id)} aria-expanded={expanded} title={expanded ? "Ocultar diagnóstico" : "Ver diagnóstico"} style={{ display: "inline-flex", alignItems: "center", gap: 3, marginRight: 8, border: 0, background: "transparent", color: "#2563EB", cursor: "pointer", fontSize: 10, fontWeight: 700 }}>{expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} Detalhes</button>
+                  <Link href={`/admin/clients/${client.id}`} style={{ color: "#2563EB", display: "inline-flex" }} title="Abrir cliente"><ExternalLink size={14} /></Link>
+                </td>
+              </tr>
+              {expanded && <tr key={`${client.id}-details`} style={{ borderBottom: "1px solid #E2E8F0", background: "#F8FAFC" }}><td colSpan={4} style={{ padding: 13 }}>
+                <div style={{ display: "grid", gap: 9 }}>
+                  {client.issues?.map((issue: any, index: number) => {
+                    const details = issue.details;
+                    const isAutomation = issue.type === "automation" && details;
+                    return <div key={`${issue.type}-${index}`} style={{ padding: 11, borderRadius: 8, border: "1px solid #E2E8F0", background: "#FFF" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <div>
+                          <strong style={{ color: issue.severity === "critical" ? "#B91C1C" : "#92400E", fontSize: 11 }}>{issue.label}</strong>
+                          {isAutomation && <div style={{ marginTop: 7, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: "5px 14px", color: "#475569", fontSize: 10 }}>
+                            <span><strong>Diagnóstico:</strong> {details.diagnosisLabel}</span>
+                            <span><strong>Programação:</strong> {details.scheduleLabel}</span>
+                            <span><strong>Último início:</strong> {formatDate(details.lastStartedAt)}</span>
+                            <span><strong>Último disparo:</strong> {formatDate(details.lastDispatchedAt)}</span>
+                            <span><strong>Última conclusão:</strong> {formatDate(details.lastCompletedAt)}</span>
+                            <span><strong>Status retornado:</strong> {details.lastCompletionStatus || details.lastExecutionStatus || "Pendente"}</span>
+                            {details.lastExecutionPeriodFrom && <span><strong>Período enviado:</strong> {details.lastExecutionPeriodFrom} a {details.lastExecutionPeriodTo || "..."}</span>}
+                          </div>}
+                          {isAutomation && details.lastCompletionMessage && <p style={{ marginTop: 7, color: "#B91C1C", fontSize: 10 }}><strong>Mensagem:</strong> {details.lastCompletionMessage}</p>}
+                        </div>
+                        {isAutomation && <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap" }}>
+                          <Link href={`/app/dashboards/${details.dashboardId}/executive-summary`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 8px", borderRadius: 7, background: "#EFF6FF", color: "#1D4ED8", fontSize: 10, fontWeight: 700, textDecoration: "none" }}><ExternalLink size={12} /> Abrir dashboard</Link>
+                          {details.diagnosis !== "pending_completion" && <button type="button" onClick={() => void forceAutomation(details)} disabled={runningDashboardId === details.dashboardId} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 8px", border: 0, borderRadius: 7, background: runningDashboardId === details.dashboardId ? "#93C5FD" : "#2563EB", color: "#FFF", fontSize: 10, fontWeight: 700, cursor: runningDashboardId === details.dashboardId ? "wait" : "pointer" }}>{runningDashboardId === details.dashboardId ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />} Forçar execução</button>}
+                        </div>}
+                      </div>
+                    </div>;
+                  })}
+                </div>
+              </td></tr>}
+            </Fragment>;
+          })}
         </tbody></table>
       </div>
 

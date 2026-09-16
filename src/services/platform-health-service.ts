@@ -24,6 +24,24 @@ function errorMessage(error: unknown) {
   return String(error);
 }
 
+const WEEK_DAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+
+function formatSchedule(dashboard: any) {
+  const hour = String(Number(dashboard?.automation_hour ?? 8)).padStart(2, "0");
+  const minute = String(Number(dashboard?.automation_minute ?? 0)).padStart(2, "0");
+  if (dashboard?.automation_frequency === "daily") return `Diária às ${hour}:${minute}`;
+  const day = WEEK_DAYS[Number(dashboard?.automation_day_of_week ?? 1)] || "segunda-feira";
+  return `Semanal, ${day}, às ${hour}:${minute}`;
+}
+
+function completionStatus(value: unknown) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["error", "failed", "failure"].includes(normalized)) return "error";
+  if (["partial", "warning", "success_with_warnings"].includes(normalized)) return "partial";
+  if (["success", "ok", "completed", "done"].includes(normalized)) return "success";
+  return normalized || "pending";
+}
+
 export const PlatformHealthService = {
   async getSnapshot() {
     const supabase = await createAdminClient({ actor: "api_admin", action: "read_platform_health" });
@@ -33,7 +51,7 @@ export const PlatformHealthService = {
     // one optional monitoring module is temporarily unavailable or its schema cache is stale.
     const queries = await Promise.all([
       supabase.from("clients").select("id,name,status").eq("status", "active").order("name"),
-      supabase.from("dashboards").select("id,client_id,name,status,automation_enabled,automation_frequency,automation_last_completed_at,automation_last_completion_status,automation_last_completion_message").eq("status", "active"),
+      supabase.from("dashboards").select("id,client_id,name,status,automation_enabled,automation_frequency,automation_day_of_week,automation_hour,automation_minute,automation_period_preset,automation_include_today,automation_report_mode,automation_last_dispatched_at,automation_last_completed_at,automation_last_completion_status,automation_last_completion_message").eq("status", "active"),
       supabase.from("data_sources").select("id,client_id,dashboard_id,type,name,status,sync_interval").eq("status", "active"),
       supabase.from("google_sheet_sources").select("data_source_id,last_import_at,last_import_status"),
       supabase.from("google_ads_sources").select("data_source_id,last_import_at,last_import_status,last_error"),
@@ -46,6 +64,7 @@ export const PlatformHealthService = {
       supabase.from("source_monitoring_events").select("id,client_id,dashboard_id,error_message,created_at").eq("notification_status", "error").gte("created_at", since),
       supabase.from("performance_anomaly_events").select("id,client_id,dashboard_id,error_message,created_at").eq("notification_status", "error").gte("created_at", since),
       supabase.from("ads_financial_alert_runs").select("id,status,error_count,error_message,started_at").gte("started_at", since).in("status", ["partial_error", "error"]),
+      supabase.from("automation_execution_logs").select("id,client_id,dashboard_id,source,status,started_at,dispatched_at,completed_at,period_from,period_to,report_mode,message,workflow_run_id").order("started_at", { ascending: false }).limit(500),
     ]);
 
     const [
@@ -63,6 +82,7 @@ export const PlatformHealthService = {
       sourceDeliveryErrorsResult,
       anomalyDeliveryErrorsResult,
       financialRunsResult,
+      automationHistoryResult,
     ] = queries;
 
     const queryNames = [
@@ -80,6 +100,7 @@ export const PlatformHealthService = {
       "source_monitoring_events",
       "performance_anomaly_events",
       "ads_financial_alert_runs",
+      "automation_execution_logs",
     ];
 
     const queryWarnings = queries.flatMap((result: any, index) => {
@@ -100,6 +121,7 @@ export const PlatformHealthService = {
     const monitoringData = monitoringResult.error ? [] : monitoringResult.data || [];
     const financialData = financialResult.error ? [] : financialResult.data || [];
     const anomalyStatesData = anomalyStatesResult.error ? [] : anomalyStatesResult.data || [];
+    const automationHistoryData = automationHistoryResult.error ? [] : automationHistoryResult.data || [];
 
     const clientsById = new Map(clientsData.map((row: any) => [row.id, row]));
     const dashboardsById = new Map(dashboardsData.map((row: any) => [row.id, row]));
@@ -107,6 +129,10 @@ export const PlatformHealthService = {
     const googleAdsBySource = new Map(googleAdsData.map((row: any) => [row.data_source_id, row]));
     const metaAdsBySource = new Map(metaAdsData.map((row: any) => [row.data_source_id, row]));
     const monitoringBySource = new Map(monitoringData.map((row: any) => [row.data_source_id, row]));
+    const latestAutomationByDashboard = new Map<string, any>();
+    for (const row of automationHistoryData) {
+      if (!latestAutomationByDashboard.has(row.dashboard_id)) latestAutomationByDashboard.set(row.dashboard_id, row);
+    }
 
     const sourceItems = sourcesData.map((source: any) => {
       const googleSheet: any = googleSheetsBySource.get(source.id);
@@ -149,10 +175,35 @@ export const PlatformHealthService = {
     const automationItems = dashboardsData
       .filter((dashboard: any) => dashboard.automation_enabled)
       .map((dashboard: any) => {
-        const last = dashboard.automation_last_completed_at;
-        const lastAge = ageMinutes(last);
-        const stale = !last || (lastAge !== null && lastAge > 8 * 24 * 60);
-        const failed = ["error", "failed"].includes(String(dashboard.automation_last_completion_status || "").toLowerCase());
+        const latestExecution = latestAutomationByDashboard.get(dashboard.id);
+        const lastCompletedAt = dashboard.automation_last_completed_at || latestExecution?.completed_at || null;
+        const lastDispatchedAt = dashboard.automation_last_dispatched_at || latestExecution?.dispatched_at || null;
+        const lastStartedAt = latestExecution?.started_at || null;
+        const latestExecutionStatus = completionStatus(latestExecution?.status);
+        const lastCompletionStatus = completionStatus(dashboard.automation_last_completion_status || latestExecution?.status);
+        const lastAge = ageMinutes(lastCompletedAt);
+        const staleAfterMinutes = dashboard.automation_frequency === "daily" ? 2 * 24 * 60 : 8 * 24 * 60;
+        const pending = Boolean(latestExecution && ["running", "dispatched"].includes(latestExecutionStatus) && !latestExecution.completed_at);
+        const failed = lastCompletionStatus === "error" || latestExecutionStatus === "error";
+        const stale = !lastCompletedAt || (lastAge !== null && lastAge > staleAfterMinutes);
+        const diagnosis = failed
+          ? "error"
+          : pending
+            ? "pending_completion"
+            : !lastCompletedAt
+              ? "never_completed"
+              : stale
+                ? "stale"
+                : "healthy";
+        const diagnosisLabel = diagnosis === "error"
+          ? "Automação com erro"
+          : diagnosis === "pending_completion"
+            ? "Disparada, aguardando conclusão"
+            : diagnosis === "never_completed"
+              ? "Nenhuma conclusão registrada"
+              : diagnosis === "stale"
+                ? "Sem execução recente"
+                : "Execução recente";
         const client: any = clientsById.get(dashboard.client_id);
         return {
           dashboardId: dashboard.id,
@@ -160,9 +211,29 @@ export const PlatformHealthService = {
           clientName: client?.name || "Cliente",
           dashboardName: dashboard.name,
           frequency: dashboard.automation_frequency,
-          lastCompletedAt: last,
-          status: failed ? "error" : stale ? "attention" : "healthy",
-          message: dashboard.automation_last_completion_message,
+          dayOfWeek: Number(dashboard.automation_day_of_week ?? 1),
+          hour: Number(dashboard.automation_hour ?? 8),
+          minute: Number(dashboard.automation_minute ?? 0),
+          scheduleLabel: formatSchedule(dashboard),
+          periodPreset: dashboard.automation_period_preset || "last_7_days",
+          includeToday: Boolean(dashboard.automation_include_today),
+          reportMode: dashboard.automation_report_mode || "both",
+          lastStartedAt,
+          lastDispatchedAt,
+          lastCompletedAt,
+          lastCompletionStatus,
+          lastCompletionMessage: dashboard.automation_last_completion_message || latestExecution?.message || null,
+          lastExecutionStatus: latestExecutionStatus,
+          lastExecutionId: latestExecution?.id || null,
+          lastExecutionPeriodFrom: latestExecution?.period_from || null,
+          lastExecutionPeriodTo: latestExecution?.period_to || null,
+          lastExecutionWorkflowRunId: latestExecution?.workflow_run_id || null,
+          lastCompletionAgeMinutes: lastAge,
+          staleAfterMinutes,
+          diagnosis,
+          diagnosisLabel,
+          status: failed ? "error" : stale || pending ? "attention" : "healthy",
+          message: dashboard.automation_last_completion_message || latestExecution?.message || null,
         };
       });
 
@@ -172,8 +243,8 @@ export const PlatformHealthService = {
     }));
     const anomalyItems = anomalyStatesData;
 
-    const issuesByClient = new Map<string, Array<{ type: string; label: string; severity: string }>>();
-    const addIssue = (clientId: string, issue: { type: string; label: string; severity: string }) => {
+    const issuesByClient = new Map<string, Array<{ type: string; label: string; severity: string; details?: Record<string, unknown> }>>();
+    const addIssue = (clientId: string, issue: { type: string; label: string; severity: string; details?: Record<string, unknown> }) => {
       if (!issuesByClient.has(clientId)) issuesByClient.set(clientId, []);
       issuesByClient.get(clientId)!.push(issue);
     };
@@ -191,8 +262,9 @@ export const PlatformHealthService = {
       if (item.status !== "healthy") {
         addIssue(item.clientId, {
           type: "automation",
-          label: `${item.dashboardName}: automação ${item.status === "error" ? "com erro" : "sem execução recente"}`,
+          label: `${item.dashboardName}: ${item.diagnosisLabel.toLowerCase()}`,
           severity: item.status === "error" ? "critical" : "warning",
+          details: item,
         });
       }
     }
