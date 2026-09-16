@@ -5,8 +5,10 @@ import Link from "next/link";
 import {
   AlertTriangle,
   BellRing,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Clock3,
   ExternalLink,
   History,
@@ -234,6 +236,8 @@ export default function FinancialAlertsHistoryPage() {
   const [cleanupTo, setCleanupTo] = useState("");
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
+  const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>({});
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
   const load = async () => {
     setLoading(true);
@@ -296,6 +300,8 @@ export default function FinancialAlertsHistoryPage() {
 
   useEffect(() => {
     setClientPage(1);
+    setExpandedClients({});
+    setExpandedDays({});
   }, [tab, normalizedSearch, clientId, provider, statusFilter]);
 
   const runs = payload.runs;
@@ -341,6 +347,24 @@ export default function FinancialAlertsHistoryPage() {
     } finally {
       setCleanupLoading(false);
     }
+  };
+
+  const clientExpansionKey = (client: { clientId: string }) => `${tab}:client:${client.clientId}`;
+  const dayExpansionKey = (client: { clientId: string }, dayKey: string) => `${tab}:day:${client.clientId}:${dayKey}`;
+  const expandAllGroups = () => {
+    const nextClients: Record<string, boolean> = {};
+    const nextDays: Record<string, boolean> = {};
+    for (const group of activeClientGroups) {
+      nextClients[clientExpansionKey(group)] = true;
+      for (const day of group.days) nextDays[dayExpansionKey(group, day.key)] = true;
+    }
+    setExpandedClients(nextClients);
+    setExpandedDays(nextDays);
+  };
+
+  const collapseAllGroups = () => {
+    setExpandedClients({});
+    setExpandedDays({});
   };
 
   return (
@@ -442,6 +466,17 @@ export default function FinancialAlertsHistoryPage() {
         ))}
       </div>
 
+      {tab !== "runs" && activeClientGroups.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 10 }}>
+          <button type="button" onClick={expandAllGroups} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 9px", border: "1px solid #E2E8F0", borderRadius: 7, background: "#FFF", color: "#475569", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            <ChevronDown size={13} /> Expandir tudo
+          </button>
+          <button type="button" onClick={collapseAllGroups} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 9px", border: "1px solid #E2E8F0", borderRadius: 7, background: "#FFF", color: "#475569", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            <ChevronUp size={13} /> Recolher tudo
+          </button>
+        </div>
+      )}
+
       <div className="card admin-table-wrap" style={{ overflow: "auto" }}>
         {loading && payload.checks.length === 0 && payload.events.length === 0 && payload.runs.length === 0 ? (
           <div style={{ padding: 48, textAlign: "center", color: "#64748B" }}><Loader2 className="animate-spin" size={22} style={{ margin: "0 auto 8px" }} /> Carregando histórico...</div>
@@ -449,19 +484,33 @@ export default function FinancialAlertsHistoryPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 980 }}>
             <thead><tr style={{ textAlign: "left", background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}><th style={{ padding: 12 }}>Analisado em</th><th style={{ padding: 12 }}>Cliente / Conta</th><th style={{ padding: 12 }}>Plataforma</th><th style={{ padding: 12 }}>Valor observado</th><th style={{ padding: 12 }}>Limite</th><th style={{ padding: 12 }}>Decisão</th><th style={{ padding: 12 }}>Alerta</th><th style={{ padding: 12 }}></th></tr></thead>
             <tbody>
-              {groupedCheckRows.length === 0 ? <tr><td colSpan={8} style={{ padding: 42, textAlign: "center", color: "#64748B" }}><History size={22} style={{ margin: "0 auto 8px" }} />Nenhuma análise registrada com estes filtros.</td></tr> : visibleCheckRows.map((group) => (
-                <Fragment key={`check-group-${group.clientId}`}>
-                  <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+              {groupedCheckRows.length === 0 ? <tr><td colSpan={8} style={{ padding: 42, textAlign: "center", color: "#64748B" }}><History size={22} style={{ margin: "0 auto 8px" }} />Nenhuma análise registrada com estes filtros.</td></tr> : visibleCheckRows.map((group) => {
+                const groupKey = clientExpansionKey(group);
+                const clientExpanded = Boolean(expandedClients[groupKey]);
+                return <Fragment key={`check-group-${group.clientId}`}>
+                  <tr style={{ background: clientExpanded ? "#F8FAFC" : "#FFF", borderBottom: "1px solid #E2E8F0" }}>
                     <td colSpan={8} style={{ padding: "10px 12px", color: "#0F172A", fontWeight: 800 }}>
-                      Cliente: {group.clientName} <span style={{ color: "#64748B", fontWeight: 600 }}>· {group.items.length} análise(s)</span>
+                      <button type="button" onClick={() => setExpandedClients((current) => ({ ...current, [groupKey]: !clientExpanded }))} aria-expanded={clientExpanded} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: 0, background: "transparent", color: "inherit", textAlign: "left", cursor: "pointer", padding: 0 }}>
+                        {clientExpanded ? <ChevronDown size={16} color="#2563EB" /> : <ChevronRight size={16} color="#64748B" />}
+                        <span>Cliente: {group.clientName}</span>
+                        <span style={{ color: "#64748B", fontWeight: 600 }}>· {group.items.length} análise(s) · {group.days.length} dia(s)</span>
+                      </button>
                     </td>
                   </tr>
-                  {group.days.map((day) => (
-                    <Fragment key={`check-day-${group.clientId}-${day.key}`}>
+                  {clientExpanded && group.days.map((day) => {
+                    const currentDayKey = dayExpansionKey(group, day.key);
+                    const dayExpanded = Boolean(expandedDays[currentDayKey]);
+                    return <Fragment key={`check-day-${group.clientId}-${day.key}`}>
                       <tr style={{ background: "#FFF", borderBottom: "1px solid #E2E8F0" }}>
-                        <td colSpan={8} style={{ padding: "8px 12px", color: "#475569", fontWeight: 800 }}>Dia: {day.label} <span style={{ color: "#94A3B8", fontWeight: 600 }}>· {day.items.length} análise(s)</span></td>
+                        <td colSpan={8} style={{ padding: "8px 12px 8px 34px", color: "#475569", fontWeight: 800 }}>
+                          <button type="button" onClick={() => setExpandedDays((current) => ({ ...current, [currentDayKey]: !dayExpanded }))} aria-expanded={dayExpanded} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", border: 0, background: "transparent", color: "inherit", textAlign: "left", cursor: "pointer", padding: 0 }}>
+                            {dayExpanded ? <ChevronDown size={14} color="#64748B" /> : <ChevronRight size={14} color="#94A3B8" />}
+                            <span>Dia: {day.label}</span>
+                            <span style={{ color: "#94A3B8", fontWeight: 600 }}>· {day.items.length} análise(s)</span>
+                          </button>
+                        </td>
                       </tr>
-                      {day.items.map((item) => {
+                      {dayExpanded && day.items.map((item) => {
                         const dashboard = relation(item.dashboards);
                         return <tr key={item.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
                           <td style={{ padding: 12, whiteSpace: "nowrap" }}>{formatDate(item.observed_at)}</td>
@@ -474,29 +523,43 @@ export default function FinancialAlertsHistoryPage() {
                           <td style={{ padding: 12 }}>{item.dashboard_id && <Link href={`/app/dashboards/${item.dashboard_id}/executive-summary`} target="_blank" style={{ color: "#2563EB", display: "inline-flex" }} title="Abrir dashboard"><ExternalLink size={15} /></Link>}</td>
                         </tr>;
                       })}
-                    </Fragment>
-                  ))}
-                </Fragment>
-              ))}
+                    </Fragment>;
+                  })}
+                </Fragment>;
+              })}
             </tbody>
           </table>
         ) : tab === "events" ? (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 980 }}>
             <thead><tr style={{ textAlign: "left", background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}><th style={{ padding: 12 }}>Detectado em</th><th style={{ padding: 12 }}>Cliente / Conta</th><th style={{ padding: 12 }}>Plataforma</th><th style={{ padding: 12 }}>Valor</th><th style={{ padding: 12 }}>Limite</th><th style={{ padding: 12 }}>Status do envio</th><th style={{ padding: 12 }}>Enviado em</th><th style={{ padding: 12 }}>Detalhes</th></tr></thead>
             <tbody>
-              {groupedEventRows.length === 0 ? <tr><td colSpan={8} style={{ padding: 42, textAlign: "center", color: "#64748B" }}><BellRing size={22} style={{ margin: "0 auto 8px" }} />Nenhuma notificação registrada com estes filtros.</td></tr> : visibleEventRows.map((group) => (
-                <Fragment key={`event-group-${group.clientId}`}>
-                  <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+              {groupedEventRows.length === 0 ? <tr><td colSpan={8} style={{ padding: 42, textAlign: "center", color: "#64748B" }}><BellRing size={22} style={{ margin: "0 auto 8px" }} />Nenhuma notificação registrada com estes filtros.</td></tr> : visibleEventRows.map((group) => {
+                const groupKey = clientExpansionKey(group);
+                const clientExpanded = Boolean(expandedClients[groupKey]);
+                return <Fragment key={`event-group-${group.clientId}`}>
+                  <tr style={{ background: clientExpanded ? "#F8FAFC" : "#FFF", borderBottom: "1px solid #E2E8F0" }}>
                     <td colSpan={8} style={{ padding: "10px 12px", color: "#0F172A", fontWeight: 800 }}>
-                      Cliente: {group.clientName} <span style={{ color: "#64748B", fontWeight: 600 }}>· {group.items.length} envio(s)</span>
+                      <button type="button" onClick={() => setExpandedClients((current) => ({ ...current, [groupKey]: !clientExpanded }))} aria-expanded={clientExpanded} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: 0, background: "transparent", color: "inherit", textAlign: "left", cursor: "pointer", padding: 0 }}>
+                        {clientExpanded ? <ChevronDown size={16} color="#2563EB" /> : <ChevronRight size={16} color="#64748B" />}
+                        <span>Cliente: {group.clientName}</span>
+                        <span style={{ color: "#64748B", fontWeight: 600 }}>· {group.items.length} envio(s) · {group.days.length} dia(s)</span>
+                      </button>
                     </td>
                   </tr>
-                  {group.days.map((day) => (
-                    <Fragment key={`event-day-${group.clientId}-${day.key}`}>
+                  {clientExpanded && group.days.map((day) => {
+                    const currentDayKey = dayExpansionKey(group, day.key);
+                    const dayExpanded = Boolean(expandedDays[currentDayKey]);
+                    return <Fragment key={`event-day-${group.clientId}-${day.key}`}>
                       <tr style={{ background: "#FFF", borderBottom: "1px solid #E2E8F0" }}>
-                        <td colSpan={8} style={{ padding: "8px 12px", color: "#475569", fontWeight: 800 }}>Dia: {day.label} <span style={{ color: "#94A3B8", fontWeight: 600 }}>· {day.items.length} envio(s)</span></td>
+                        <td colSpan={8} style={{ padding: "8px 12px 8px 34px", color: "#475569", fontWeight: 800 }}>
+                          <button type="button" onClick={() => setExpandedDays((current) => ({ ...current, [currentDayKey]: !dayExpanded }))} aria-expanded={dayExpanded} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", border: 0, background: "transparent", color: "inherit", textAlign: "left", cursor: "pointer", padding: 0 }}>
+                            {dayExpanded ? <ChevronDown size={14} color="#64748B" /> : <ChevronRight size={14} color="#94A3B8" />}
+                            <span>Dia: {day.label}</span>
+                            <span style={{ color: "#94A3B8", fontWeight: 600 }}>· {day.items.length} envio(s)</span>
+                          </button>
+                        </td>
                       </tr>
-                      {day.items.map((item) => {
+                      {dayExpanded && day.items.map((item) => {
                         const setting = relation(item.setting);
                         return <tr key={item.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
                           <td style={{ padding: 12, whiteSpace: "nowrap" }}>{formatDate(item.detected_at)}</td>
@@ -509,10 +572,10 @@ export default function FinancialAlertsHistoryPage() {
                           <td style={{ padding: 12 }}>{item.error_message ? <span style={{ color: "#B91C1C" }}>{item.error_message}</span> : <span style={{ color: "#64748B" }}>{item.decision}</span>}</td>
                         </tr>;
                       })}
-                    </Fragment>
-                  ))}
-                </Fragment>
-              ))}
+                    </Fragment>;
+                  })}
+                </Fragment>;
+              })}
             </tbody>
           </table>
         ) : (
