@@ -30,6 +30,13 @@ const AUTOMATION_COMPLETION_BADGE: Record<string, { label: string; bg: string; c
   error: { label: "Erro", bg: "#FEF2F2", color: "#991B1B", border: "#FECACA" },
   pending: { label: "Pendente", bg: "#F8FAFC", color: "#475569", border: "#E2E8F0" },
 };
+const AUTOMATION_EXECUTION_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  running: { label: "Em execução", bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
+  dispatched: { label: "Disparado", bg: "#FFF7ED", color: "#9A3412", border: "#FED7AA" },
+  success: { label: "Concluído", bg: "#F0FDF4", color: "#166534", border: "#BBF7D0" },
+  partial: { label: "Parcial", bg: "#FFFBEB", color: "#92400E", border: "#FDE68A" },
+  error: { label: "Erro", bg: "#FEF2F2", color: "#991B1B", border: "#FECACA" },
+};
 const ANALYSIS_GENERATION_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
   generating: { label: "Gerando", bg: "#EFF6FF", color: "#1D4ED8", border: "#BFDBFE" },
   success: { label: "Disponível", bg: "#F0FDF4", color: "#166534", border: "#BBF7D0" },
@@ -77,6 +84,54 @@ function formatAutomationCompletionKey(value: string | null | undefined) {
 function formatAutomationCompletionAtLabel(value: string | null | undefined) {
   if (!value) return "Aguardando retorno do n8n";
   return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
+function formatAutomationExecutionStatusKey(value: string | null | undefined) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["running", "started", "processing"].includes(normalized)) return "running";
+  if (["dispatched", "sent", "queued"].includes(normalized)) return "dispatched";
+  if (["success", "ok", "completed", "done"].includes(normalized)) return "success";
+  if (["partial", "warning", "success_with_warnings"].includes(normalized)) return "partial";
+  if (["error", "failed", "failure"].includes(normalized)) return "error";
+  return "dispatched";
+}
+
+function getLatestAutomationTracking(dashboard: any) {
+  const latestExecution = dashboard?.automation_last_execution;
+  const dispatchedAt = dashboard?.automation_last_dispatched_at || null;
+  const latestExecutionAt = latestExecution?.started_at || latestExecution?.created_at || null;
+  const dispatchIsNewerThanLog = Boolean(
+    dispatchedAt && (!latestExecutionAt || new Date(dispatchedAt).getTime() > new Date(latestExecutionAt).getTime())
+  );
+
+  if (dispatchIsNewerThanLog) {
+    return {
+      kind: "missing_log",
+      label: "Disparo sem conclusão rastreada",
+      message: "O webhook recebeu o disparo, mas não há log de processamento correspondente. A confirmação final pode não ter retornado pelo callback do n8n.",
+      dispatchedAt,
+      latestExecution,
+    };
+  }
+
+  if (latestExecution) {
+    const statusKey = formatAutomationExecutionStatusKey(latestExecution.status);
+    return {
+      kind: statusKey,
+      label: AUTOMATION_EXECUTION_BADGE[statusKey]?.label || "Disparo registrado",
+      message: latestExecution.message || null,
+      dispatchedAt: latestExecution.dispatched_at || dispatchedAt,
+      latestExecution,
+    };
+  }
+
+  return {
+    kind: dispatchedAt ? "missing_log" : "unknown",
+    label: dispatchedAt ? "Disparo sem histórico detalhado" : "Sem execução registrada",
+    message: dispatchedAt ? "Existe um timestamp de disparo, mas nenhum evento detalhado foi persistido para este dashboard." : "Ainda não há eventos de execução para este dashboard.",
+    dispatchedAt,
+    latestExecution: null,
+  };
 }
 
 function formatAnalysisGenerationKey(value: string | null | undefined) {
@@ -1547,6 +1602,71 @@ export default function AdminDashboardsPage() {
                           <span style={{ fontSize: 12, color: "#64748B" }}>{d.automation_last_completion_message}</span>
                         ) : null}
                       </div>
+
+                      {(() => {
+                        const tracking = getLatestAutomationTracking(d);
+                        const trackingKey = tracking.kind === "missing_log" ? "error" : tracking.kind;
+                        const trackingCfg = AUTOMATION_EXECUTION_BADGE[trackingKey] || {
+                          label: tracking.label,
+                          bg: "#F8FAFC",
+                          color: "#475569",
+                          border: "#E2E8F0",
+                        };
+                        const latestExecution = tracking.latestExecution;
+                        return (
+                          <div
+                            style={{
+                              marginTop: 8,
+                              padding: "10px 12px",
+                              borderRadius: 8,
+                              border: `1px solid ${tracking.kind === "missing_log" ? "#FECACA" : "#E2E8F0"}`,
+                              background: tracking.kind === "missing_log" ? "#FFF7F7" : "#FFFFFF",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 12, color: "#334155", fontWeight: 700 }}>Rastreamento da execução</span>
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    padding: "4px 8px",
+                                    borderRadius: 999,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: trackingCfg.color,
+                                    background: trackingCfg.bg,
+                                    border: `1px solid ${trackingCfg.border}`,
+                                  }}
+                                >
+                                  {tracking.label}
+                                </span>
+                              </div>
+                              {tracking.dispatchedAt ? (
+                                <span style={{ fontSize: 12, color: "#475569" }}>
+                                  Último disparo: {formatAutomationCompletionAtLabel(tracking.dispatchedAt)}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div style={{ marginTop: 6, fontSize: 12, color: tracking.kind === "missing_log" ? "#991B1B" : "#64748B" }}>
+                              {tracking.message}
+                            </div>
+
+                            {latestExecution ? (
+                              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 7, fontSize: 11, color: "#64748B" }}>
+                                <span>Início: {formatAutomationCompletionAtLabel(latestExecution.started_at)}</span>
+                                {latestExecution.dispatched_at ? <span>Webhook: {formatAutomationCompletionAtLabel(latestExecution.dispatched_at)}</span> : null}
+                                {latestExecution.completed_at ? <span>Conclusão: {formatAutomationCompletionAtLabel(latestExecution.completed_at)}</span> : null}
+                                {latestExecution.workflow_run_id ? <span>Workflow: {latestExecution.workflow_run_id}</span> : null}
+                                {latestExecution.period_from || latestExecution.period_to ? (
+                                  <span>Período: {latestExecution.period_from || "?"} a {latestExecution.period_to || "?"}</span>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                     </div>
                       </>
                     )}

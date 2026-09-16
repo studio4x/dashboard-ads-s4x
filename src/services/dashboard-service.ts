@@ -17,10 +17,37 @@ export const DashboardService = {
       .order('name')
     
     if (error) throw error
+
+    const dashboardIds = (data || []).map((dashboard: any) => dashboard.id).filter(Boolean)
+    const automationLogsByDashboard = new Map<string, any>()
+    if (dashboardIds.length > 0) {
+      const adminSupabase = await createAdminClient({ actor: "api_admin", action: "list_dashboard_automation_history" })
+      const { data: automationLogs, error: automationLogsError } = await adminSupabase
+        .from('automation_execution_logs')
+        .select('id,client_id,dashboard_id,source,status,started_at,dispatched_at,completed_at,period_from,period_to,report_mode,workflow_run_id,message,details,created_at')
+        .in('dashboard_id', dashboardIds)
+        .order('started_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1000)
+
+      if (automationLogsError) {
+        // O card continua funcional caso a migration de histórico ainda não tenha
+        // chegado a algum ambiente; o timestamp de disparo do dashboard permanece
+        // disponível como fallback de diagnóstico.
+        console.warn('Não foi possível carregar o histórico de automações:', automationLogsError.message)
+      } else {
+        for (const log of automationLogs || []) {
+          if (!automationLogsByDashboard.has(log.dashboard_id)) {
+            automationLogsByDashboard.set(log.dashboard_id, log)
+          }
+        }
+      }
+    }
     
     // Processamos os relacionamentos para retornar dados úteis e não arrays enormes
     return data.map((d: any) => ({
       ...d,
+      automation_last_execution: automationLogsByDashboard.get(d.id) || null,
       pages_count: d.dashboard_pages?.[0]?.count || 0,
       latest_snapshot_date: d.dashboard_data_snapshots?.length > 0 
         ? d.dashboard_data_snapshots.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at 
