@@ -153,10 +153,12 @@ export const DashboardService = {
    */
   async saveSnapshot(snapshot: any) {
     const supabase = await createAdminClient()
+    // Avoid echoing the complete payload_json in the response. Google Ads
+    // snapshots can be hundreds of KB and callers only need the metadata.
     const { data, error } = await supabase
       .from('dashboard_data_snapshots')
       .insert([snapshot])
-      .select()
+      .select('id,client_id,dashboard_id,data_source_id,period_start,period_end,source_type,imported_at,created_at')
       .single()
     
     if (error) throw error

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { describeUnknownError } from "@/lib/errors";
 
 export function apiErrorResponse(error: unknown, fallbackMessage = "Erro interno do servidor.") {
   const err = error as any;
@@ -6,8 +7,9 @@ export function apiErrorResponse(error: unknown, fallbackMessage = "Erro interno
     console.error("[API_ERROR]", err);
   } else {
     console.error("[API_ERROR]", {
-      message: String(err?.message || fallbackMessage),
+      message: describeUnknownError(error, fallbackMessage),
       name: err?.name || null,
+      code: err?.code || null,
     });
   }
   return NextResponse.json({ error: fallbackMessage }, { status: 500 });

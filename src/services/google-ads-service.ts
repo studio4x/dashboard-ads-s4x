@@ -11,6 +11,7 @@ import { analyticsRowKey, normalizeAnalyticsRows, normalizeChangeEvents, normali
 import { getGoogleAdsSettings, resolveGoogleAdsApiVersion } from "@/lib/google-ads-api/settings";
 import { readGoogleAdsRefreshToken } from "@/lib/google-ads-api/token-vault";
 import { buildIntegratedAdsPayload } from "@/lib/dashboard/integrated-payload";
+import { describeUnknownError } from "@/lib/errors";
 import type { GoogleAdsAccessibleAccount, GoogleAdsApiRow } from "@/types/google-ads-api";
 
 type SourceCreateInput = {
@@ -78,16 +79,7 @@ function describeGoogleAdsError(error: unknown) {
 }
 
 function describeAnyError(error: unknown) {
-  if (error instanceof Error) return error.message;
-  if (error && typeof error === "object") {
-    const candidate = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
-    const message = typeof candidate.message === "string" ? candidate.message : JSON.stringify(error);
-    const extras = [candidate.code, candidate.details, candidate.hint]
-      .filter(Boolean)
-      .map((value) => typeof value === "string" ? value : JSON.stringify(value));
-    return [message, ...extras].join(" | ").slice(0, 1800);
-  }
-  return "erro desconhecido";
+  return describeUnknownError(error, "erro desconhecido");
 }
 
 function normalizeCustomerId(value: unknown) {
@@ -515,6 +507,7 @@ export const GoogleAdsService = {
   async syncSource(sourceId: string) {
     const startedAt = new Date().toISOString();
     const logId = randomUUID();
+    let stage = "load_source";
     const supabase = await createAdminClient({ actor: "system", action: "sync_google_ads_source" });
     const { data: source, error: sourceError } = await supabase
       .from("data_sources")
@@ -528,13 +521,16 @@ export const GoogleAdsService = {
     if (!config || !dashboard || !connection || connection.status !== "active") throw new Error("Conexão Google Ads inválida ou expirada.");
 
     try {
+      stage = "load_settings";
       const settings = await getGoogleAdsSettings();
       const apiVersion = resolveGoogleAdsApiVersion(settings);
       const historyDays = Number(config.history_days || settings.default_history_days);
       const dateStart = daysAgo(historyDays - 1);
       const dateEnd = isoDate(new Date());
       const client = new GoogleAdsRestClient(settings, await readGoogleAdsRefreshToken(connection.id));
+      stage = "query_google_ads";
       const queried = await queryDatasets(client, config.customer_id, config.manager_customer_id, dateStart, dateEnd);
+      stage = "build_payload";
       const payload = buildGoogleAdsApiPayload({
         customerId: config.customer_id, customerName: config.customer_name,
         managerCustomerId: config.manager_customer_id, timezone: config.timezone, apiVersion, dateStart, dateEnd,
@@ -547,6 +543,7 @@ export const GoogleAdsService = {
         },
         financialError: queried.financialError,
       });
+      stage = "persist_analytics";
       const persistedAnalytics = await persistAnalytics(
         supabase,
         { id: source.id, customer_id: config.customer_id, manager_customer_id: config.manager_customer_id },
@@ -560,6 +557,7 @@ export const GoogleAdsService = {
         payload.diagnostics.warnings.push(...persistedAnalytics.persistenceWarnings.map((warning) => `analytics persistence: ${warning}`));
         if (payload.diagnostics.googleAdsAnalytics) payload.diagnostics.googleAdsAnalytics.warnings.push(...persistedAnalytics.persistenceWarnings);
       }
+      stage = "resolve_snapshot_source";
       const preferredIds = await DataSourceService.getPreferredSnapshotSourceIds(
         source.dashboard_id,
         dashboard.dashboard_type,
@@ -569,9 +567,11 @@ export const GoogleAdsService = {
           metaAdsSourceId: dashboard.meta_metrics_source_id,
         },
       );
+      stage = "read_previous_snapshot";
       const previousSnapshot = await DashboardService.getLatestSnapshot(source.dashboard_id, {
         bypassRls: true, dataSourceIds: preferredIds.length ? preferredIds : undefined,
       });
+      stage = "build_snapshot";
       const snapshotPayload = dashboard.dashboard_type === "google_meta_ads_s4x"
         ? buildIntegratedAdsPayload({
           sourceRole: "google_ads", importedPayload: payload, previousPayload: previousSnapshot?.payload_json,
@@ -579,10 +579,12 @@ export const GoogleAdsService = {
         })
         : payload;
       const finishedAt = new Date().toISOString();
+      stage = "save_snapshot";
       await DashboardService.saveSnapshot({
         client_id: source.client_id, dashboard_id: source.dashboard_id, data_source_id: source.id,
         period_start: dateStart, period_end: dateEnd, source_type: "google_ads", payload_json: snapshotPayload, imported_at: finishedAt,
       });
+      stage = "mark_source_success";
       await supabase.from("google_ads_sources").update({ last_import_at: finishedAt, last_import_status: "success", last_error: null }).eq("data_source_id", source.id);
       if (dashboard.dashboard_type !== "google_meta_ads_s4x") {
         await supabase.from("dashboards").update({ metrics_source_id: source.id }).eq("id", source.dashboard_id);
@@ -594,6 +596,7 @@ export const GoogleAdsService = {
       }
       const rowCounts = payload.diagnostics.rowCounts;
       const rowsRead = Object.values(rowCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+      stage = "save_import_log";
       await DataSourceService.saveImportLog({
         id: logId, client_id: source.client_id, dashboard_id: source.dashboard_id, data_source_id: source.id,
         source_type: "google_ads", status: queried.warnings.length ? "success_with_warnings" : "success",
@@ -609,7 +612,7 @@ export const GoogleAdsService = {
       };
     } catch (error) {
       const finishedAt = new Date().toISOString();
-      const message = error instanceof Error ? error.message : "Erro desconhecido ao sincronizar Google Ads.";
+      const message = `${stage}: ${error instanceof GoogleAdsApiError ? describeGoogleAdsError(error) : describeUnknownError(error, "Erro desconhecido ao sincronizar Google Ads.")}`.slice(0, 1800);
       await supabase.from("google_ads_sources").update({
         last_import_at: finishedAt, last_import_status: "failed", last_error: message.slice(0, 1000),
       }).eq("data_source_id", source.id);
@@ -622,8 +625,11 @@ export const GoogleAdsService = {
         source_type: "google_ads", status: "failed", started_at: startedAt, finished_at: finishedAt,
         duration_ms: new Date(finishedAt).getTime() - new Date(startedAt).getTime(), tabs_read: [], rows_read: 0,
         warnings: 0, errors: 1, error_details: message.slice(0, 1000),
-        details: { errors: [{ severity: "blocking", stage: "connection", message: message.slice(0, 1000) }], warnings: [] },
-        metadata: error instanceof GoogleAdsApiError ? { request_id: error.requestId, error_code: error.errorCode } : {},
+        details: { errors: [{ severity: "blocking", stage, message: message.slice(0, 1000) }], warnings: [] },
+        metadata: {
+          stage,
+          ...(error instanceof GoogleAdsApiError ? { request_id: error.requestId, error_code: error.errorCode } : {}),
+        },
       }).catch(() => undefined);
       throw error;
     }

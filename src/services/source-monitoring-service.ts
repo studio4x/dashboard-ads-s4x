@@ -28,7 +28,7 @@ async function fetchSources(clientId?: string) {
   const supabase = await createAdminClient({ actor: "system", action: "read_source_monitoring_sources" });
   let query = supabase
     .from("data_sources")
-    .select("id,client_id,dashboard_id,type,name,status,clients(name),dashboards(name),google_sheet_sources(last_import_at,last_import_status),google_ads_sources(last_import_at,last_import_status,last_error),meta_ad_sources(last_import_at,last_import_status,last_error)")
+    .select("id,client_id,dashboard_id,type,name,status,clients(name),dashboards:dashboards!data_sources_dashboard_id_fkey(name),google_sheet_sources(last_import_at,last_import_status),google_ads_sources(last_import_at,last_import_status,last_error),meta_ad_sources(last_import_at,last_import_status,last_error)")
     .eq("status", "active");
   if (clientId) query = query.eq("client_id", clientId);
   const { data, error } = await query;
