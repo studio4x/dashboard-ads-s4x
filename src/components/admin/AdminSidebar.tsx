@@ -18,7 +18,15 @@ const iconMap: Record<string, React.ElementType> = {
   Clock3, Share2, Search, BellRing, HeartPulse, FileClock,
 };
 
-const navItems = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  exact?: boolean;
+  children?: Array<{ href: string; label: string; icon: string }>;
+};
+
+const navItems: NavItem[] = [
   { href: "/admin", label: "Visão Geral", icon: "LayoutDashboard", exact: true },
   { href: "/admin/health", label: "Central de Saúde", icon: "HeartPulse" },
   { href: "/admin/activity", label: "Atividade Operacional", icon: "FileClock" },
@@ -27,10 +35,16 @@ const navItems = [
   { href: "/admin/automations", label: "Automações", icon: "Send" },
   { href: "/admin/financial-alerts", label: "Alertas Financeiros", icon: "BellRing" },
   { href: "/admin/scheduled-tasks", label: "Monitor Agendamentos", icon: "Clock3" },
-  { href: "/admin/data-sources", label: "Fontes de Dados", icon: "Database" },
-  { href: "/admin/google-sheets", label: "Google Sheets", icon: "FileSpreadsheet" },
-  { href: "/admin/google-ads-api", label: "Google Ads API", icon: "Search" },
-  { href: "/admin/meta-marketing", label: "Meta Marketing API", icon: "Share2" },
+  {
+    href: "/admin/data-sources",
+    label: "Fontes de Dados",
+    icon: "Database",
+    children: [
+      { href: "/admin/google-sheets", label: "Google Sheets", icon: "FileSpreadsheet" },
+      { href: "/admin/google-ads-api", label: "Google Ads API", icon: "Search" },
+      { href: "/admin/meta-marketing", label: "Meta Marketing API", icon: "Share2" },
+    ],
+  },
   { href: "/admin/templates", label: "Templates", icon: "LayoutTemplate" },
   { href: "/admin/import-logs", label: "Logs de Importação", icon: "ScrollText" },
   { href: "/admin/settings", label: "Configurações", icon: "Settings" },
@@ -49,9 +63,32 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
       <div style={{ padding: "12px 20px 4px" }}><p style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em" }}>Administração</p></div>
       <nav style={{ flex: 1, padding: "4px 12px 12px" }}>
         {navItems.map((item) => {
-          const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+          const childIsActive = item.children?.some((child) => pathname.startsWith(child.href)) || false;
+          const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href) || childIsActive;
           const Icon = iconMap[item.icon] || LayoutDashboard;
-          return <Link key={item.href} href={item.href} className={cn("sidebar-link", isActive && "active")} style={{ marginBottom: 2 }}><Icon size={16} /><span style={{ flex: 1 }}>{item.label}</span>{isActive && <ChevronRight size={14} style={{ opacity: 0.5 }} />}</Link>;
+          return (
+            <div key={item.href}>
+              <Link href={item.href} className={cn("sidebar-link", isActive && "active")} style={{ marginBottom: 2 }}>
+                <Icon size={16} />
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {item.children ? <ChevronRight size={14} style={{ opacity: 0.5 }} /> : isActive && <ChevronRight size={14} style={{ opacity: 0.5 }} />}
+              </Link>
+              {item.children && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 2 }}>
+                  {item.children.map((child) => {
+                    const ChildIcon = iconMap[child.icon] || LayoutDashboard;
+                    const childActive = pathname.startsWith(child.href);
+                    return (
+                      <Link key={child.href} href={child.href} className={cn("sidebar-submenu-link", childActive && "active")}>
+                        <ChildIcon size={15} />
+                        <span>{child.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
         })}
       </nav>
       <div style={{ padding: "12px 20px", borderTop: "1px solid #F1F5F9" }}>
