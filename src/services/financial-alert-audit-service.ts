@@ -19,6 +19,28 @@ function finiteOrNull(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function parseDateOnly(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(`${value}T00:00:00-03:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) return null;
+  return date;
+}
+
+export function parseFinancialAlertDateRange(startDate: string, endDate: string) {
+  const start = parseDateOnly(startDate);
+  const end = parseDateOnly(endDate);
+  if (!start || !end || start > end) return null;
+
+  const endExclusive = new Date(end.getTime());
+  endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+  return {
+    start: start.toISOString(),
+    endExclusive: endExclusive.toISOString(),
+  };
+}
+
 export const FinancialAlertAuditService = {
   async recordRun(params: {
     startedAt: string;
@@ -164,6 +186,43 @@ export const FinancialAlertAuditService = {
     return {
       cutoff,
       retentionDays: safeRetentionDays,
+      events: eventsResult.count || 0,
+      checks: checksResult.count || 0,
+      runs: runsResult.count || 0,
+    };
+  },
+
+  async purgeBetweenDates(startDate: string, endDate: string) {
+    const range = parseFinancialAlertDateRange(startDate, endDate);
+    if (!range) throw new Error("Período inválido para limpeza do histórico.");
+
+    const supabase = await createAdminClient({ actor: "api_admin", action: "purge_financial_alert_audit_history_by_period" });
+
+    // Events are removed first because checks keep an optional reference to them.
+    const eventsResult = await supabase
+      .from("ads_financial_alert_events")
+      .delete({ count: "exact" })
+      .gte("detected_at", range.start)
+      .lt("detected_at", range.endExclusive);
+    if (eventsResult.error) throw eventsResult.error;
+
+    const checksResult = await supabase
+      .from("ads_financial_alert_checks")
+      .delete({ count: "exact" })
+      .gte("observed_at", range.start)
+      .lt("observed_at", range.endExclusive);
+    if (checksResult.error) throw checksResult.error;
+
+    const runsResult = await supabase
+      .from("ads_financial_alert_runs")
+      .delete({ count: "exact" })
+      .gte("started_at", range.start)
+      .lt("started_at", range.endExclusive);
+    if (runsResult.error) throw runsResult.error;
+
+    return {
+      startDate,
+      endDate,
       events: eventsResult.count || 0,
       checks: checksResult.count || 0,
       runs: runsResult.count || 0,
