@@ -114,7 +114,7 @@ function CopyBlock({
   );
 }
 
-export default function AdminAutomationsPage() {
+export default function AdminAutomationsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { toast } = useToast();
   const defaultTestRange = getDateRangePreset("last_30_days", undefined, false);
   const [testRangePreset, setTestRangePreset] = useState<DateRangePreset>("last_30_days");
@@ -414,7 +414,7 @@ export default function AdminAutomationsPage() {
   );
 
   return (
-    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1080 }}>
+    <div className="admin-page" style={embedded ? { maxWidth: 1080 } : { padding: "clamp(14px, 3vw, 32px)", maxWidth: 1080 }}>
       <div className="admin-page-header" style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Automações (n8n)</h1>
         <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>

@@ -12,6 +12,7 @@ import { DashboardMetricFiltersModal } from "@/components/admin/DashboardMetricF
 import { DateRangeSelector } from "@/components/dashboard/DateRangeSelector";
 import { DateRangePreset, formatDateISO, getDateRangePreset } from "@/lib/dashboard/date-utils";
 import { resolveAutomationPeriodDays, resolveAutomationPeriodPresetFromDays, normalizeAutomationPeriodPreset, formatAutomationPeriodSummary } from "@/lib/dashboard/automation-period";
+import { getDashboardPlatformLabel } from "@/lib/dashboard/platform-label";
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
 type MetaObjective = (typeof META_ADS_OBJECTIVES)[number]["id"];
 const META_TEMPLATE_ID = "meta_ads_s4x";
@@ -283,6 +284,12 @@ export default function AdminDashboardsPage() {
     if (source?.type === "ga4") return "GA4";
     if (source?.type === "search_console") return "Search Console";
     return "Fonte de dados";
+  };
+
+  const getSourceDisplayLabel = (source: any) => {
+    if (source?.type === "meta_ads") return "Meta: Meta Marketing API";
+    if (source?.type === "google_ads") return "Google: Google Ads API";
+    return `Atual: ${source?.name || "Fonte ativa"} · ${getSourceTypeLabel(source)}`;
   };
 
   const getEffectivePlatformSource = (dashboard: any, role: "google_ads" | "meta_ads", connectedSources?: any[]) => {
@@ -1008,12 +1015,24 @@ export default function AdminDashboardsPage() {
               const automationEnabled = Boolean(
                 automationForms[d.id]?.enabled ?? d.automation_enabled
               );
-              const dashboardTypeBadge = DASHBOARD_TYPE_BADGE[d.dashboard_type] || {
-                label: d.dashboard_type || "Custom",
-                bg: "#F1F5F9",
-                color: "#475569",
-                border: "#E2E8F0",
-              };
+              const dashboardPlatformLabel = getDashboardPlatformLabel(
+                d.platform && d.platform !== "custom"
+                  ? d.platform
+                  : templates.find((template) => template.id === d.dashboard_type)?.platform,
+                d.dashboard_type,
+              );
+              const dashboardTypeBadge = dashboardPlatformLabel
+                ? dashboardPlatformLabel === "Google + Meta Ads"
+                  ? DASHBOARD_TYPE_BADGE.google_meta_ads_s4x
+                  : dashboardPlatformLabel === "Meta Ads"
+                    ? DASHBOARD_TYPE_BADGE.meta_ads_s4x
+                    : DASHBOARD_TYPE_BADGE.google_ads_s4x
+                : DASHBOARD_TYPE_BADGE[d.dashboard_type] || {
+                    label: d.dashboard_type || "Custom",
+                    bg: "#F1F5F9",
+                    color: "#475569",
+                    border: "#E2E8F0",
+                  };
               const isOrphanTemplate = Boolean(d.dashboard_type) && !availableTemplateIds.has(d.dashboard_type);
               return (
             <div 
@@ -1191,8 +1210,8 @@ export default function AdminDashboardsPage() {
                         </div>
                         <span style={{ fontSize: 11, color: "#166534", fontWeight: 600, flexShrink: 0, textAlign: "right" }}>
                           {googleSource && metaSource
-                            ? `Google: ${googleSource.name} · Meta: ${metaSource.name}`
-                            : `Atual: ${currentSource?.name || "Fonte ativa"} · ${getSourceTypeLabel(currentSource)}`}
+                            ? `${getSourceDisplayLabel(googleSource)} · ${getSourceDisplayLabel(metaSource)}`
+                            : getSourceDisplayLabel(currentSource)}
                         </span>
                       </div>
                     );

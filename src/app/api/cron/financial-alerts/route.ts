@@ -13,6 +13,12 @@ export async function POST(request: Request) {
   }
 
   const startedAt = new Date().toISOString();
+  let cleanup: { cutoff: string; retentionDays: number; events: number; checks: number; runs: number } | null = null;
+  try {
+    cleanup = await FinancialAlertAuditService.purgeOlderThanDays(14);
+  } catch (cleanupError) {
+    console.error("[FINANCIAL_ALERT_RETENTION_ERROR]", { message: cleanupError instanceof Error ? cleanupError.message : "unknown" });
+  }
   const missing = [
     !String(process.env.N8N_FINANCIAL_ALERT_WEBHOOK_URL || "").trim() && "N8N_FINANCIAL_ALERT_WEBHOOK_URL",
     !String(process.env.N8N_FINANCIAL_ALERT_WEBHOOK_TOKEN || "").trim() && "N8N_FINANCIAL_ALERT_WEBHOOK_TOKEN",
@@ -35,7 +41,7 @@ export async function POST(request: Request) {
     } catch (auditError) {
       console.error("[FINANCIAL_ALERT_CONFIG_AUDIT_ERROR]", { message: auditError instanceof Error ? auditError.message : "unknown" });
     }
-    return NextResponse.json({ error: "Configuração de alerta financeiro incompleta.", missing }, { status: 503 });
+    return NextResponse.json({ error: "Configuração de alerta financeiro incompleta.", missing, cleanup }, { status: 503 });
   }
 
   try {
@@ -51,7 +57,7 @@ export async function POST(request: Request) {
       console.error("[FINANCIAL_ALERT_AUDIT_ERROR]", { message: warning });
     }
 
-    return NextResponse.json({ message: "Avaliação de alertas financeiros finalizada.", summary, audit });
+    return NextResponse.json({ message: "Avaliação de alertas financeiros finalizada.", summary, audit, cleanup });
   } catch (error) {
     const finishedAt = new Date().toISOString();
     console.error("[FINANCIAL_ALERT_CRON_FATAL]", { message: error instanceof Error ? error.message : "unknown" });

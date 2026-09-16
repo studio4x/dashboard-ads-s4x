@@ -20,8 +20,8 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const limit = Number(searchParams.get("limit") || 500);
-    const history = await FinancialAlertAuditService.getHistory(limit);
-    return NextResponse.json({ success: true, ...history });
+    const history = await FinancialAlertAuditService.getHistory(limit, 14);
+    return NextResponse.json({ success: true, retentionDays: 14, ...history });
   } catch (error) {
     return apiErrorResponse(error, "Erro ao carregar o histórico de alertas financeiros.");
   }

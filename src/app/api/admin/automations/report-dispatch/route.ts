@@ -10,7 +10,9 @@ import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
 import { PROMPT_ANALISE_IA_TEMPLATE } from "@/lib/ai/prompt-analise-ia";
 import { createShareLinkToken } from "@/lib/share-link-token";
 import { resolveAdsFinancialStatuses } from "@/lib/ads-financial";
+import { getDashboardPlatformLabel } from "@/lib/dashboard/platform-label";
 import { AutomationExecutionService } from "@/services/automation-execution-service";
+import { DashboardTemplateCatalogService } from "@/services/dashboard-template-catalog-service";
 import {
   buildPdfPeriodPart,
   buildSharePdfFilename,
@@ -1028,6 +1030,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Dashboard não encontrado." }, { status: 404 });
     }
 
+    const templateDefinition = await DashboardTemplateCatalogService.getTemplateDefinition(dashboard.dashboard_type).catch(() => null);
+    const dashboardPlatformLabel = getDashboardPlatformLabel(
+      dashboard.platform && dashboard.platform !== "custom"
+        ? dashboard.platform
+        : templateDefinition?.platform,
+      dashboard.dashboard_type,
+    );
+    const notificationTemplateId = templateDefinition?.isCustom && dashboardPlatformLabel
+      ? dashboardPlatformLabel
+      : dashboard.dashboard_type;
+
     const data = await getDashboardData(dashboardId, {
       from: body.from || undefined,
       to: body.to || undefined,
@@ -1225,7 +1238,9 @@ export async function POST(request: Request) {
       dashboard: {
         id: dashboard.id,
         name: dashboard.name,
-        templateId: dashboard.dashboard_type,
+        templateId: notificationTemplateId,
+        templateKey: dashboard.dashboard_type,
+        platform: dashboardPlatformLabel,
         clientId: dashboard.client_id,
         clientName: dashboard.clients?.name || null,
         url: shareUrlWithRange,

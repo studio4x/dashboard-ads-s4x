@@ -71,7 +71,7 @@ function IssueList({ title, issues, color, background, border }: { title: string
   );
 }
 
-export default function ImportLogsPage() {
+export default function ImportLogsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { toast } = useToast();
   const [logs, setLogs] = useState<ImportLogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -146,7 +146,7 @@ export default function ImportLogsPage() {
   }, [logs]);
 
   return (
-    <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1200 }}>
+    <div className="admin-page" style={embedded ? { maxWidth: 1200 } : { padding: "clamp(14px, 3vw, 32px)", maxWidth: 1200 }}>
       <div className="admin-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28, gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A" }}>Logs de Importação</h1>

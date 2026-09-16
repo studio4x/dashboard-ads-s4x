@@ -122,17 +122,51 @@ export const FinancialAlertAuditService = {
     return data;
   },
 
-  async getHistory(limit = 500) {
+  async getHistory(limit = 500, retentionDays = 14) {
     const safeLimit = Math.min(1000, Math.max(50, Number(limit) || 500));
+    const safeRetentionDays = Math.min(365, Math.max(1, Number(retentionDays) || 14));
+    const cutoff = new Date(Date.now() - safeRetentionDays * 24 * 60 * 60 * 1000).toISOString();
     const supabase = await createAdminClient({ actor: "api_admin", action: "read_financial_alert_audit_history" });
     const [runsResult, checksResult, eventsResult] = await Promise.all([
-      supabase.from("ads_financial_alert_runs").select("*").order("started_at", { ascending: false }).limit(Math.min(200, safeLimit)),
-      supabase.from("ads_financial_alert_checks").select("*,clients(id,name),dashboards(id,name)").order("observed_at", { ascending: false }).limit(safeLimit),
-      supabase.from("ads_financial_alert_events").select("*,clients(id,name),dashboards(id,name),setting:ads_financial_alert_settings!ads_financial_alert_events_setting_id_fkey(account_name)").order("detected_at", { ascending: false }).limit(safeLimit),
+      supabase.from("ads_financial_alert_runs").select("*").gte("started_at", cutoff).order("started_at", { ascending: false }).limit(Math.min(200, safeLimit)),
+      supabase.from("ads_financial_alert_checks").select("*,clients(id,name),dashboards(id,name)").gte("observed_at", cutoff).order("observed_at", { ascending: false }).limit(safeLimit),
+      supabase.from("ads_financial_alert_events").select("*,clients(id,name),dashboards(id,name),setting:ads_financial_alert_settings!ads_financial_alert_events_setting_id_fkey(account_name)").gte("detected_at", cutoff).order("detected_at", { ascending: false }).limit(safeLimit),
     ]);
     if (runsResult.error) throw runsResult.error;
     if (checksResult.error) throw checksResult.error;
     if (eventsResult.error) throw eventsResult.error;
     return { runs: runsResult.data || [], checks: checksResult.data || [], events: eventsResult.data || [] };
+  },
+
+  async purgeOlderThanDays(retentionDays = 14) {
+    const safeRetentionDays = Math.min(365, Math.max(1, Number(retentionDays) || 14));
+    const cutoff = new Date(Date.now() - safeRetentionDays * 24 * 60 * 60 * 1000).toISOString();
+    const supabase = await createAdminClient({ actor: "cron", action: "purge_financial_alert_audit_history" });
+
+    const eventsResult = await supabase
+      .from("ads_financial_alert_events")
+      .delete({ count: "exact" })
+      .lt("detected_at", cutoff);
+    if (eventsResult.error) throw eventsResult.error;
+
+    const checksResult = await supabase
+      .from("ads_financial_alert_checks")
+      .delete({ count: "exact" })
+      .lt("observed_at", cutoff);
+    if (checksResult.error) throw checksResult.error;
+
+    const runsResult = await supabase
+      .from("ads_financial_alert_runs")
+      .delete({ count: "exact" })
+      .lt("started_at", cutoff);
+    if (runsResult.error) throw runsResult.error;
+
+    return {
+      cutoff,
+      retentionDays: safeRetentionDays,
+      events: eventsResult.count || 0,
+      checks: checksResult.count || 0,
+      runs: runsResult.count || 0,
+    };
   },
 };

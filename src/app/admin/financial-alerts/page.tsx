@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   BellRing,
-  CheckCircle2,
   Clock3,
   ExternalLink,
   History,
@@ -14,7 +13,6 @@ import {
   Search,
   ShieldCheck,
   WalletCards,
-  XCircle,
 } from "lucide-react";
 
 type Relation = { id?: string; name?: string | null } | null;
@@ -85,8 +83,33 @@ type HistoryPayload = {
 
 type Tab = "checks" | "events" | "runs";
 
+type ClientGroup<T> = {
+  clientId: string;
+  clientName: string;
+  items: T[];
+};
+
 function relation<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] || null : value || null;
+}
+
+function groupByClient<T extends { client_id: string; clients?: Relation | Relation[] }>(items: T[]): ClientGroup<T>[] {
+  const groups = new Map<string, ClientGroup<T>>();
+  for (const item of items) {
+    const client = relation(item.clients);
+    const clientId = item.client_id || "unknown-client";
+    const existing = groups.get(clientId);
+    if (existing) {
+      existing.items.push(item);
+      continue;
+    }
+    groups.set(clientId, {
+      clientId,
+      clientName: client?.name || "Cliente não identificado",
+      items: [item],
+    });
+  }
+  return Array.from(groups.values());
 }
 
 function formatDate(value?: string | null) {
@@ -166,7 +189,7 @@ export default function FinancialAlertsHistoryPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/financial-alerts/history?limit=700", { cache: "no-store" });
+      const response = await fetch("/api/admin/financial-alerts/history?limit=700&days=14", { cache: "no-store" });
       const json = await response.json();
       if (!response.ok || !json?.success) throw new Error(json?.error || "Não foi possível carregar o histórico.");
       setPayload(json);
@@ -213,6 +236,9 @@ export default function FinancialAlertsHistoryPage() {
     return [client?.name, dashboard?.name, setting?.account_name, item.account_id, item.notification_status]
       .some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
   }), [payload.events, clientId, provider, statusFilter, normalizedSearch]);
+
+  const groupedCheckRows = useMemo(() => groupByClient(checkRows), [checkRows]);
+  const groupedEventRows = useMemo(() => groupByClient(eventRows), [eventRows]);
 
   const runs = payload.runs;
   const lastRun = runs[0] || null;
@@ -308,40 +334,56 @@ export default function FinancialAlertsHistoryPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 980 }}>
             <thead><tr style={{ textAlign: "left", background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}><th style={{ padding: 12 }}>Analisado em</th><th style={{ padding: 12 }}>Cliente / Conta</th><th style={{ padding: 12 }}>Plataforma</th><th style={{ padding: 12 }}>Valor observado</th><th style={{ padding: 12 }}>Limite</th><th style={{ padding: 12 }}>Decisão</th><th style={{ padding: 12 }}>Alerta</th><th style={{ padding: 12 }}></th></tr></thead>
             <tbody>
-              {checkRows.length === 0 ? <tr><td colSpan={8} style={{ padding: 42, textAlign: "center", color: "#64748B" }}><History size={22} style={{ margin: "0 auto 8px" }} />Nenhuma análise registrada com estes filtros.</td></tr> : checkRows.map((item) => {
-                const client = relation(item.clients);
-                const dashboard = relation(item.dashboards);
-                return <tr key={item.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                  <td style={{ padding: 12, whiteSpace: "nowrap" }}>{formatDate(item.observed_at)}</td>
-                  <td style={{ padding: 12 }}><strong style={{ color: "#0F172A" }}>{client?.name || "Cliente"}</strong><div style={{ color: "#64748B", marginTop: 2 }}>{item.account_name || item.account_id}</div><div style={{ color: "#94A3B8", marginTop: 2 }}>{dashboard?.name || "Dashboard"}</div></td>
-                  <td style={{ padding: 12 }}>{providerLabel(item.provider)}</td>
-                  <td style={{ padding: 12, fontWeight: 700 }}>{formatMoney(item.observed_amount, item.currency)}</td>
-                  <td style={{ padding: 12 }}>{formatMoney(item.threshold, item.currency)}</td>
-                  <td style={{ padding: 12 }}><DecisionBadge decision={item.decision} />{item.error_message && <div style={{ marginTop: 5, color: "#B91C1C", maxWidth: 260 }}>{item.error_message}</div>}</td>
-                  <td style={{ padding: 12 }}>{item.alert_sent ? <Badge label="Disparado" bg="#F0FDF4" color="#15803D" /> : <span style={{ color: "#94A3B8" }}>—</span>}</td>
-                  <td style={{ padding: 12 }}>{item.dashboard_id && <Link href={`/app/dashboards/${item.dashboard_id}/executive-summary`} target="_blank" style={{ color: "#2563EB", display: "inline-flex" }} title="Abrir dashboard"><ExternalLink size={15} /></Link>}</td>
-                </tr>;
-              })}
+              {groupedCheckRows.length === 0 ? <tr><td colSpan={8} style={{ padding: 42, textAlign: "center", color: "#64748B" }}><History size={22} style={{ margin: "0 auto 8px" }} />Nenhuma análise registrada com estes filtros.</td></tr> : groupedCheckRows.map((group) => (
+                <Fragment key={`check-group-${group.clientId}`}>
+                  <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+                    <td colSpan={8} style={{ padding: "10px 12px", color: "#0F172A", fontWeight: 800 }}>
+                      Cliente: {group.clientName} <span style={{ color: "#64748B", fontWeight: 600 }}>· {group.items.length} análise(s)</span>
+                    </td>
+                  </tr>
+                  {group.items.map((item) => {
+                    const dashboard = relation(item.dashboards);
+                    return <tr key={item.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                      <td style={{ padding: 12, whiteSpace: "nowrap" }}>{formatDate(item.observed_at)}</td>
+                      <td style={{ padding: 12 }}><strong style={{ color: "#0F172A" }}>{group.clientName}</strong><div style={{ color: "#64748B", marginTop: 2 }}>{item.account_name || item.account_id}</div><div style={{ color: "#94A3B8", marginTop: 2 }}>{dashboard?.name || "Dashboard"}</div></td>
+                      <td style={{ padding: 12 }}>{providerLabel(item.provider)}</td>
+                      <td style={{ padding: 12, fontWeight: 700 }}>{formatMoney(item.observed_amount, item.currency)}</td>
+                      <td style={{ padding: 12 }}>{formatMoney(item.threshold, item.currency)}</td>
+                      <td style={{ padding: 12 }}><DecisionBadge decision={item.decision} />{item.error_message && <div style={{ marginTop: 5, color: "#B91C1C", maxWidth: 260 }}>{item.error_message}</div>}</td>
+                      <td style={{ padding: 12 }}>{item.alert_sent ? <Badge label="Disparado" bg="#F0FDF4" color="#15803D" /> : <span style={{ color: "#94A3B8" }}>—</span>}</td>
+                      <td style={{ padding: 12 }}>{item.dashboard_id && <Link href={`/app/dashboards/${item.dashboard_id}/executive-summary`} target="_blank" style={{ color: "#2563EB", display: "inline-flex" }} title="Abrir dashboard"><ExternalLink size={15} /></Link>}</td>
+                    </tr>;
+                  })}
+                </Fragment>
+              ))}
             </tbody>
           </table>
         ) : tab === "events" ? (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 980 }}>
             <thead><tr style={{ textAlign: "left", background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}><th style={{ padding: 12 }}>Detectado em</th><th style={{ padding: 12 }}>Cliente / Conta</th><th style={{ padding: 12 }}>Plataforma</th><th style={{ padding: 12 }}>Valor</th><th style={{ padding: 12 }}>Limite</th><th style={{ padding: 12 }}>Status do envio</th><th style={{ padding: 12 }}>Enviado em</th><th style={{ padding: 12 }}>Detalhes</th></tr></thead>
             <tbody>
-              {eventRows.length === 0 ? <tr><td colSpan={8} style={{ padding: 42, textAlign: "center", color: "#64748B" }}><BellRing size={22} style={{ margin: "0 auto 8px" }} />Nenhuma notificação registrada com estes filtros.</td></tr> : eventRows.map((item) => {
-                const client = relation(item.clients);
-                const setting = relation(item.setting);
-                return <tr key={item.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                  <td style={{ padding: 12, whiteSpace: "nowrap" }}>{formatDate(item.detected_at)}</td>
-                  <td style={{ padding: 12 }}><strong style={{ color: "#0F172A" }}>{client?.name || "Cliente"}</strong><div style={{ color: "#64748B", marginTop: 2 }}>{setting?.account_name || item.account_id}</div></td>
-                  <td style={{ padding: 12 }}>{providerLabel(item.provider)}</td>
-                  <td style={{ padding: 12, fontWeight: 700 }}>{formatMoney(item.amount, item.currency)}</td>
-                  <td style={{ padding: 12 }}>{formatMoney(item.threshold, item.currency)}</td>
-                  <td style={{ padding: 12 }}><DeliveryBadge status={item.notification_status} /></td>
-                  <td style={{ padding: 12, whiteSpace: "nowrap" }}>{formatDate(item.notified_at)}</td>
-                  <td style={{ padding: 12 }}>{item.error_message ? <span style={{ color: "#B91C1C" }}>{item.error_message}</span> : <span style={{ color: "#64748B" }}>{item.decision}</span>}</td>
-                </tr>;
-              })}
+              {groupedEventRows.length === 0 ? <tr><td colSpan={8} style={{ padding: 42, textAlign: "center", color: "#64748B" }}><BellRing size={22} style={{ margin: "0 auto 8px" }} />Nenhuma notificação registrada com estes filtros.</td></tr> : groupedEventRows.map((group) => (
+                <Fragment key={`event-group-${group.clientId}`}>
+                  <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+                    <td colSpan={8} style={{ padding: "10px 12px", color: "#0F172A", fontWeight: 800 }}>
+                      Cliente: {group.clientName} <span style={{ color: "#64748B", fontWeight: 600 }}>· {group.items.length} envio(s)</span>
+                    </td>
+                  </tr>
+                  {group.items.map((item) => {
+                    const setting = relation(item.setting);
+                    return <tr key={item.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                      <td style={{ padding: 12, whiteSpace: "nowrap" }}>{formatDate(item.detected_at)}</td>
+                      <td style={{ padding: 12 }}><strong style={{ color: "#0F172A" }}>{group.clientName}</strong><div style={{ color: "#64748B", marginTop: 2 }}>{setting?.account_name || item.account_id}</div></td>
+                      <td style={{ padding: 12 }}>{providerLabel(item.provider)}</td>
+                      <td style={{ padding: 12, fontWeight: 700 }}>{formatMoney(item.amount, item.currency)}</td>
+                      <td style={{ padding: 12 }}>{formatMoney(item.threshold, item.currency)}</td>
+                      <td style={{ padding: 12 }}><DeliveryBadge status={item.notification_status} /></td>
+                      <td style={{ padding: 12, whiteSpace: "nowrap" }}>{formatDate(item.notified_at)}</td>
+                      <td style={{ padding: 12 }}>{item.error_message ? <span style={{ color: "#B91C1C" }}>{item.error_message}</span> : <span style={{ color: "#64748B" }}>{item.decision}</span>}</td>
+                    </tr>;
+                  })}
+                </Fragment>
+              ))}
             </tbody>
           </table>
         ) : (

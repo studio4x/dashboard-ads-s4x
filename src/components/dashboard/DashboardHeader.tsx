@@ -9,6 +9,7 @@ import { DateRangeSelector } from "./DateRangeSelector";
 import { useDashboard } from "./DashboardDataContext";
 import { DASHBOARD_PAGES } from "@/lib/constants";
 import { getVisiblePages } from "@/lib/dashboard/templates";
+import { getDashboardPlatformLabel } from "@/lib/dashboard/platform-label";
 import { BrandingLogo } from "@/components/branding/BrandingLogo";
 
 interface DashboardHeaderProps {
@@ -38,6 +39,16 @@ export function DashboardHeader({
   const accountId = data?.meta?.Conta_ID || data?.meta?.conta_id || data?.meta?.Conta || null;
   const dashboardModelBadge = (() => {
     const type = String(dashboardType || "").toLowerCase();
+    const platformLabel = getDashboardPlatformLabel(data?.platform, dashboardType);
+    if (platformLabel === "Google + Meta Ads") {
+      return { label: "Google + Meta", color: "#FFFFFF", background: "#DC2626", border: "#DC2626" };
+    }
+    if (platformLabel === "Meta Ads") {
+      return { label: "Meta Ads", color: "#FFFFFF", background: "#4338CA", border: "#4338CA" };
+    }
+    if (platformLabel === "Google Ads") {
+      return { label: "Google Ads", color: "#FFFFFF", background: "#16A34A", border: "#16A34A" };
+    }
     if (type === "google_meta_ads_s4x") {
       return { label: "Google + Meta", color: "#FFFFFF", background: "#DC2626", border: "#DC2626" };
     }

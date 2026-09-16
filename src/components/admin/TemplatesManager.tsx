@@ -25,7 +25,7 @@ type TemplateItem = {
   sheetTemplateId?: string;
 };
 
-export function TemplatesManager() {
+export function TemplatesManager({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -317,7 +317,7 @@ export function TemplatesManager() {
 
   return (
     <>
-      <div className="admin-page" style={{ padding: "clamp(14px, 3vw, 32px)", maxWidth: 1180 }}>
+      <div className="admin-page" style={embedded ? { maxWidth: 1180 } : { padding: "clamp(14px, 3vw, 32px)", maxWidth: 1180 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 8 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0F172A", marginBottom: 8 }}>Templates</h1>

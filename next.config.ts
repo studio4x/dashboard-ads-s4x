@@ -47,6 +47,13 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_GIT_HASH: getGitHash(),
     NEXT_PUBLIC_BUILD_DATE: new Date().toISOString(),
   },
+  async redirects() {
+    return [
+      { source: "/admin/automations", destination: "/admin/settings/automations", permanent: false },
+      { source: "/admin/templates", destination: "/admin/settings/templates", permanent: false },
+      { source: "/admin/import-logs", destination: "/admin/settings/import-logs", permanent: false },
+    ];
+  },
   async headers() {
     return [
       {
