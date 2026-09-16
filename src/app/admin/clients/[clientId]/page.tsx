@@ -217,7 +217,7 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
                       </div>
                       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 12, color: "#64748B" }}>
-                            Última imp.: {hasSyncedAtLeastOnce ? new Date(sync.lastImportAt as string).toLocaleString("pt-BR") : "Nunca"}
+                            Última imp.: {hasSyncedAtLeastOnce ? new Date(sync.lastImportAt as string).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Nunca"}
                         </span>
                         {hasSyncedAtLeastOnce && (
                           <span style={{ fontSize: 12, color: "#64748B" }}>
