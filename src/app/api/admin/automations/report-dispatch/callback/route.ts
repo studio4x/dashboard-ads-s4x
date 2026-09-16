@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { apiErrorResponse, parseJsonObject } from "@/lib/security/api-safety";
 import { DashboardService } from "@/services/dashboard-service";
 import { createAdminClient } from "@/lib/supabase/server";
+import { AutomationExecutionService } from "@/services/automation-execution-service";
 
 export const dynamic = "force-dynamic";
 
@@ -205,6 +206,13 @@ export async function POST(request: Request) {
         completionPayload.report_mode ||
         ""
     ).trim();
+    const executionId = String(
+      payload.executionId ||
+        payload.execution_id ||
+        completionPayload.executionId ||
+        completionPayload.execution_id ||
+        ""
+    ).trim();
 
     await DashboardService.updateDashboard(dashboardId, {
       automation_last_completed_at: completedAt,
@@ -229,11 +237,26 @@ export async function POST(request: Request) {
       },
     });
 
+    await AutomationExecutionService.complete({
+      id: executionId || null,
+      dashboardId,
+      status: completionStatus,
+      completedAt,
+      message: message || null,
+      workflowRunId: workflowRunId || null,
+      details: {
+        ...details,
+        reportMode: reportMode || null,
+        source: "n8n_callback",
+      },
+    });
+
     return NextResponse.json({
       success: true,
       dashboardId,
       status: completionStatus,
       completedAt,
+      executionId: executionId || null,
     });
   } catch (error: any) {
     return apiErrorResponse(error, "Erro ao registrar conclusão da automação.");

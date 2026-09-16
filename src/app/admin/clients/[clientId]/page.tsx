@@ -9,6 +9,7 @@ import { ClientContactForm } from "@/components/admin/ClientContactForm";
 import { CreateDashboardModalButton } from "@/components/admin/CreateDashboardModalButton";
 import { ClientSourceLinker } from "@/components/admin/ClientSourceLinker";
 import { ClientSourceSyncModalButton } from "@/components/admin/ClientSourceSyncModalButton";
+import { ClientOperationalTabs } from "@/components/admin/ClientOperationalTabs";
 
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
 
@@ -75,6 +76,8 @@ export default async function ClientHubPage({ params }: { params: Promise<{ clie
           </p>
         </div>
       </div>
+
+      <ClientOperationalTabs clientId={client.id} />
 
       <div className="admin-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
         

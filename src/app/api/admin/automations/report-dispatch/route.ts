@@ -10,6 +10,7 @@ import { getDashboardData } from "@/lib/dashboard/dashboard-data-provider";
 import { PROMPT_ANALISE_IA_TEMPLATE } from "@/lib/ai/prompt-analise-ia";
 import { createShareLinkToken } from "@/lib/share-link-token";
 import { resolveAdsFinancialStatuses } from "@/lib/ads-financial";
+import { AutomationExecutionService } from "@/services/automation-execution-service";
 import {
   buildPdfPeriodPart,
   buildSharePdfFilename,
@@ -36,6 +37,7 @@ type DispatchBody = {
   forceAnalysis?: boolean;
   skipWebhook?: boolean;
   source?: "manual" | "scheduled";
+  executionId?: string;
   reportMode?: "analysis_only" | "metrics_only" | "both" | "pdf_only" | "analysis_pdf" | "both_pdf";
   webhookEnvironment?: "production" | "test";
   automationPeriod?: {
@@ -991,7 +993,12 @@ async function ensureShareUrl(params: {
 
 export async function POST(request: Request) {
   let trackedDashboardId = "";
+  let automationExecutionId: string | null = null;
   let analysisGenerationInProgress = false;
+
+  const failTrackedExecution = async (message: string, details?: Record<string, unknown>) => {
+    await AutomationExecutionService.markError(automationExecutionId, message, details);
+  };
 
   try {
     const authHeader = request.headers.get("authorization");
@@ -1037,6 +1044,17 @@ export async function POST(request: Request) {
     const reportMode = normalizeReportMode(body.reportMode || dashboard.automation_report_mode);
     const includePdf = reportMode === "pdf_only" || reportMode === "analysis_pdf" || reportMode === "both_pdf";
     const analysisRequested = reportMode !== "metrics_only";
+    if (!body.dryRun && !body.skipWebhook) {
+      automationExecutionId = await AutomationExecutionService.start({
+        clientId: dashboard.client_id,
+        dashboardId,
+        source: body.source === "scheduled" ? "scheduled" : "manual",
+        periodFrom: body.from || null,
+        periodTo: body.to || null,
+        reportMode,
+        details: { requestedExecutionId: body.executionId || null },
+      });
+    }
     if (!body.dryRun && analysisRequested) {
       analysisGenerationInProgress = true;
       await updateAnalysisGenerationStatus(dashboardId, "generating", "Gerando nova analise de IA...");
@@ -1083,6 +1101,7 @@ export async function POST(request: Request) {
       await updateAnalysisGenerationStatus(dashboardId, "error", analysisError);
       analysisGenerationInProgress = false;
       if ((includePdf || body.forceAnalysis) && !isScheduledDispatch) {
+        await failTrackedExecution("A análise não foi gerada. O PDF não foi substituído.", { analysis: aiInterpretation });
         return NextResponse.json(
           {
             success: false,
@@ -1186,6 +1205,7 @@ export async function POST(request: Request) {
           `Falha ao gerar o PDF: ${getErrorDetails(pdfWarmupError).message}`
         );
         analysisGenerationInProgress = false;
+        await failTrackedExecution("Falha ao pré-gerar PDF antes do envio do webhook.", getErrorDetails(pdfWarmupError));
         return NextResponse.json(
           {
             success: false,
@@ -1201,6 +1221,7 @@ export async function POST(request: Request) {
     const payload = {
       event: "dashboard_report_dispatch",
       dispatchedAt: new Date().toISOString(),
+      executionId: automationExecutionId,
       dashboard: {
         id: dashboard.id,
         name: dashboard.name,
@@ -1292,6 +1313,7 @@ export async function POST(request: Request) {
     const resolvedWebhook = await resolveWebhookUrl(webhookEnvironment);
     const webhookUrl = resolvedWebhook.url;
     if (!webhookUrl) {
+      await failTrackedExecution(`${WEBHOOK_ENV_KEYS[webhookEnvironment]} não configurado.`);
       return NextResponse.json(
         {
           success: false,
@@ -1355,6 +1377,7 @@ export async function POST(request: Request) {
         signal: controller.signal,
       });
     } catch (networkError) {
+      await failTrackedExecution("Falha de rede ao enviar para o webhook n8n.", getErrorDetails(networkError));
       return NextResponse.json(
         {
           success: false,
@@ -1378,6 +1401,7 @@ export async function POST(request: Request) {
     }
 
     if (!webhookResponse.ok) {
+      await failTrackedExecution("Falha ao enviar evento para o n8n.", { statusCode: webhookResponse.status, n8nResponse: parsed });
       return NextResponse.json(
         {
           success: false,
@@ -1399,6 +1423,12 @@ export async function POST(request: Request) {
       }
     }
 
+    await AutomationExecutionService.markDispatched(automationExecutionId, {
+      webhookEnvironment,
+      resolutionSource: resolvedWebhook.source,
+      n8nResponse: parsed,
+    });
+
     return NextResponse.json({
       success: true,
       message: "Disparo enviado ao n8n com sucesso.",
@@ -1412,12 +1442,14 @@ export async function POST(request: Request) {
       },
       dispatchedAt: payload.dispatchedAt,
       dashboardId,
+      executionId: automationExecutionId,
       analysisFallbackUsed,
       shareUrl: shareUrlWithRange,
       shareUrlWithRange,
       pdf: payload.pdf,
     });
   } catch (error: any) {
+    await failTrackedExecution("Erro interno no disparo de automação.", getErrorDetails(error));
     if (trackedDashboardId && analysisGenerationInProgress) {
       await updateAnalysisGenerationStatus(
         trackedDashboardId,
