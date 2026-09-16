@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Activity, FileClock, LayoutDashboard } from "lucide-react";
+import { Activity, FileClock, LayoutDashboard, Palette } from "lucide-react";
 
 export const CLIENT_PAGE_TABS = [
   { slug: "visao-geral", label: "Visão geral", Icon: LayoutDashboard },
+  { slug: "identidade-visual", label: "Identidade visual", Icon: Palette },
   { slug: "alertas-monitoramento", label: "Alertas e monitoramento", Icon: Activity },
   { slug: "automacoes", label: "Automações", Icon: FileClock },
 ] as const;

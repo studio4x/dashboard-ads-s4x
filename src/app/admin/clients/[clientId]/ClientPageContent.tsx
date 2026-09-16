@@ -4,14 +4,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { LayoutDashboard, Database, Users, CheckCircle2, Circle, ArrowLeft, Link as LinkIcon } from "lucide-react";
 import { ShareLinksManager } from "@/components/admin/ShareLinksManager";
-import { ClientLogoUploader } from "@/components/admin/ClientLogoUploader";
-import { ClientContactForm } from "@/components/admin/ClientContactForm";
 import { CreateDashboardModalButton } from "@/components/admin/CreateDashboardModalButton";
 import { ClientSourceLinker } from "@/components/admin/ClientSourceLinker";
 import { ClientSourceSyncModalButton } from "@/components/admin/ClientSourceSyncModalButton";
 import { ClientAutomationHistoryPanel } from "@/components/admin/ClientAutomationHistoryPanel";
 import { ClientOperationsContent } from "@/components/admin/ClientOperationsContent";
 import { ClientPageTabs, type ClientPageTab } from "@/components/admin/ClientPageTabs";
+import { ClientVisualIdentityContent } from "@/components/admin/ClientVisualIdentityContent";
 
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.NEXT_PUBLIC_GOOGLE_SERVICE_ACCOUNT_EMAIL || "dashboard-ads-s4x@studio-4x.iam.gserviceaccount.com";
 
@@ -297,24 +296,6 @@ export async function ClientPageContent({ clientId, activeTab }: { clientId: str
 
         {/* Sidebar: Checklist */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20, position: "sticky", top: 32 }}>
-          <ClientLogoUploader
-            clientId={client.id}
-            clientName={client.name}
-            logoUrl={client.logo_url}
-            logoSettings={client.logo_settings}
-            dashboardName={String(dashboards[0]?.title || dashboards[0]?.name || "Dados da Campanha")}
-          />
-
-          <ClientContactForm
-            clientId={client.id}
-            initialCompanyName={client.company_name}
-            initialWebsiteUrl={client.website_url}
-            initialEmail={client.email}
-            initialEmails={client.emails}
-            initialWhatsapp={client.whatsapp}
-            initialPhones={client.phones || client.phone}
-          />
-
           <div className="card" style={{ padding: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, color: "#0F172A", marginBottom: 16 }}>Onboarding</h3>
             
@@ -346,6 +327,11 @@ export async function ClientPageContent({ clientId, activeTab }: { clientId: str
           </div>
         </div>
         </div>
+      ) : activeTab === "identidade-visual" ? (
+        <ClientVisualIdentityContent
+          client={client}
+          dashboardName={String(dashboards[0]?.title || dashboards[0]?.name || "Dados da Campanha")}
+        />
       ) : activeTab === "alertas-monitoramento" ? (
         <ClientOperationsContent clientId={client.id} />
       ) : (
