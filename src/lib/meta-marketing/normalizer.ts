@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { MetricsHelper } from "@/lib/google-sheets/metrics-helper";
 import type { MetaAdsS4XDailyPerformance, MetaAdsS4XPayload } from "@/types/meta-ads-s4x";
 import type { MetaInsightAction, MetaInsightRow } from "@/types/meta-marketing";

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 export type DashboardMetricPlatform = "google_ads" | "meta_ads";
 
 export type DashboardMetricFilters = {

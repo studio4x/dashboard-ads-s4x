@@ -1,7 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-
-function incrementVersion() {
+async function incrementVersion() {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
   const pkgPath = path.join(__dirname, '..', 'package.json');
   if (!fs.existsSync(pkgPath)) {
     console.error('package.json not found');
@@ -22,4 +21,4 @@ function incrementVersion() {
   }
 }
 
-incrementVersion();
+void incrementVersion();

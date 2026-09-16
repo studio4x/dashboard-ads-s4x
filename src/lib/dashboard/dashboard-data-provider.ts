@@ -310,7 +310,7 @@ export async function getDashboardData(
     }
 
     if (templateId === "meta_ads_s4x") {
-      let mockPayload = JSON.parse(JSON.stringify(MOCK_META_ADS_S4X_PAYLOAD));
+      const mockPayload = JSON.parse(JSON.stringify(MOCK_META_ADS_S4X_PAYLOAD));
       let metaSummary = null;
       if (range) {
         metaSummary = DashboardAggregator.compare(mockPayload.dailyPerformance, range);

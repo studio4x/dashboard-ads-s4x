@@ -584,7 +584,7 @@ export default function AdminAutomationsPage() {
                 <option value="production">Produção</option>
               </select>
               <p style={{ fontSize: 11, color: "#64748B" }}>
-                O botão "Teste Real no n8n" usa este ambiente para enviar o payload.
+                O botão &quot;Teste Real no n8n&quot; usa este ambiente para enviar o payload.
               </p>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

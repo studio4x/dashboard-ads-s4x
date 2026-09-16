@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function mapIntegratedDailyRow(row: any, platform: "google_ads" | "meta_ads") {
   return {
     ...row,

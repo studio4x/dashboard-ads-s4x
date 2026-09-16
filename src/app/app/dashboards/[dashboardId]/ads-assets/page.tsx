@@ -15,15 +15,18 @@ export default function AdsAssetsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
 
-  if (!data) return null;
-
-  const baseAdsAndAssets = Array.isArray(data.adsAndAssets) ? data.adsAndAssets : [];
+  const baseAdsAndAssets = Array.isArray(data?.adsAndAssets) ? data.adsAndAssets : [];
   const adsAndAssets = normalizeGoogleAdsRowsToPeriod(
     baseAdsAndAssets,
-    Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
-    Array.isArray(data.campaigns) ? data.campaigns : [],
+    Array.isArray(data?.dailyPerformance) ? data.dailyPerformance : [],
+    Array.isArray(data?.campaigns) ? data.campaigns : [],
   );
   const hasData = adsAndAssets.length > 0;
+
+  // Filtros
+  const typeOptions = useMemo(() => Array.from(new Set(adsAndAssets.map(a => a.assetType))).sort(), [adsAndAssets]);
+
+  if (!data) return null;
 
   if (!hasData && data.source !== "mock") {
     return (
@@ -35,9 +38,6 @@ export default function AdsAssetsPage() {
       </DashboardPageShell>
     );
   }
-
-  // Filtros
-  const typeOptions = useMemo(() => Array.from(new Set(adsAndAssets.map(a => a.assetType))).sort(), [adsAndAssets]);
 
   const filteredAds = adsAndAssets.filter(a => {
     const matchesSearch = (a.assetText || "").toLowerCase().includes(searchTerm.toLowerCase()) || 

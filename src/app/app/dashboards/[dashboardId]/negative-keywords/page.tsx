@@ -14,10 +14,13 @@ export default function NegativeKeywordsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSource, setSelectedSource] = useState("all");
 
-  if (!data) return null;
-
-  const negativeKeywords = data.negativeKeywords || [];
+  const negativeKeywords = data?.negativeKeywords || [];
   const hasData = negativeKeywords.length > 0;
+
+  // Filtros
+  const sourceOptions = useMemo(() => Array.from(new Set(negativeKeywords.map(nk => nk.negativeOrigin || "N/A"))).sort(), [negativeKeywords]);
+
+  if (!data) return null;
 
   if (!hasData && data.source !== "mock") {
     return (
@@ -29,9 +32,6 @@ export default function NegativeKeywordsPage() {
       </DashboardPageShell>
     );
   }
-
-  // Filtros
-  const sourceOptions = useMemo(() => Array.from(new Set(negativeKeywords.map(nk => nk.negativeOrigin || "N/A"))).sort(), [negativeKeywords]);
 
   const filteredNegatives = negativeKeywords.filter(nk => {
     const matchesSearch = nk.negativeKeyword.toLowerCase().includes(searchTerm.toLowerCase()) || 

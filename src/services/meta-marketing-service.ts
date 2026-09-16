@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/server";
 import { DashboardService } from "@/services/dashboard-service";

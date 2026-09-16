@@ -15,15 +15,20 @@ export default function AdGroupsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCampaign, setSelectedCampaign] = useState("all");
 
-  if (!data) return null;
-
-  const baseAdGroups = Array.isArray(data.adGroups) ? data.adGroups : [];
+  const baseAdGroups = Array.isArray(data?.adGroups) ? data.adGroups : [];
   const adGroups = normalizeGoogleAdsRowsToPeriod(
     baseAdGroups,
-    Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
-    Array.isArray(data.campaigns) ? data.campaigns : [],
+    Array.isArray(data?.dailyPerformance) ? data.dailyPerformance : [],
+    Array.isArray(data?.campaigns) ? data.campaigns : [],
   );
   const hasData = adGroups.length > 0;
+
+  const campaignOptions = useMemo(() => {
+    const names = Array.from(new Set(adGroups.map(ag => ag.campaignName)));
+    return names.sort();
+  }, [adGroups]);
+
+  if (!data) return null;
 
   if (!hasData && data.source !== "mock") {
     return (
@@ -35,12 +40,6 @@ export default function AdGroupsPage() {
       </DashboardPageShell>
     );
   }
-
-  // Opções de filtro de campanha
-  const campaignOptions = useMemo(() => {
-    const names = Array.from(new Set(adGroups.map(ag => ag.campaignName)));
-    return names.sort();
-  }, [adGroups]);
 
   // Filtros
   const filteredAdGroups = adGroups.filter(ag => {

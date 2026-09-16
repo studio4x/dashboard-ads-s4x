@@ -15,15 +15,18 @@ export default function SearchTermsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCampaign, setSelectedCampaign] = useState("all");
 
-  if (!data) return null;
-
-  const baseSearchTerms = Array.isArray(data.searchTerms) ? data.searchTerms : [];
+  const baseSearchTerms = Array.isArray(data?.searchTerms) ? data.searchTerms : [];
   const searchTerms = normalizeGoogleAdsRowsToPeriod(
     baseSearchTerms,
-    Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
-    Array.isArray(data.campaigns) ? data.campaigns : [],
+    Array.isArray(data?.dailyPerformance) ? data.dailyPerformance : [],
+    Array.isArray(data?.campaigns) ? data.campaigns : [],
   );
   const hasData = searchTerms.length > 0;
+
+  // Filtros
+  const campaignOptions = useMemo(() => Array.from(new Set(searchTerms.map(st => st.campaignName))).sort(), [searchTerms]);
+
+  if (!data) return null;
 
   if (!hasData && data.source !== "mock") {
     return (
@@ -35,9 +38,6 @@ export default function SearchTermsPage() {
       </DashboardPageShell>
     );
   }
-
-  // Filtros
-  const campaignOptions = useMemo(() => Array.from(new Set(searchTerms.map(st => st.campaignName))).sort(), [searchTerms]);
 
   const filteredTerms = searchTerms.filter(st => {
     const matchesSearch = st.searchTerm.toLowerCase().includes(searchTerm.toLowerCase());

@@ -16,15 +16,19 @@ export default function KeywordsPage() {
   const [selectedCampaign, setSelectedCampaign] = useState("all");
   const [selectedMatch, setSelectedMatch] = useState("all");
 
-  if (!data) return null;
-
-  const baseKeywords = Array.isArray(data.keywords) ? data.keywords : [];
+  const baseKeywords = Array.isArray(data?.keywords) ? data.keywords : [];
   const keywords = normalizeGoogleAdsRowsToPeriod(
     baseKeywords,
-    Array.isArray(data.dailyPerformance) ? data.dailyPerformance : [],
-    Array.isArray(data.campaigns) ? data.campaigns : [],
+    Array.isArray(data?.dailyPerformance) ? data.dailyPerformance : [],
+    Array.isArray(data?.campaigns) ? data.campaigns : [],
   );
   const hasData = keywords.length > 0;
+
+  // Filtros
+  const campaignOptions = useMemo(() => Array.from(new Set(keywords.map(k => k.campaignName))).sort(), [keywords]);
+  const matchOptions = useMemo(() => Array.from(new Set(keywords.map(k => k.matchType))).sort(), [keywords]);
+
+  if (!data) return null;
 
   if (!hasData && data.source !== "mock") {
     return (
@@ -36,10 +40,6 @@ export default function KeywordsPage() {
       </DashboardPageShell>
     );
   }
-
-  // Filtros
-  const campaignOptions = useMemo(() => Array.from(new Set(keywords.map(k => k.campaignName))).sort(), [keywords]);
-  const matchOptions = useMemo(() => Array.from(new Set(keywords.map(k => k.matchType))).sort(), [keywords]);
 
   const filteredKeywords = keywords.filter(k => {
     const matchesSearch = k.keyword.toLowerCase().includes(searchTerm.toLowerCase());

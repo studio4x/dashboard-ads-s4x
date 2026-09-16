@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, BadgeCheck, Building2, Check, ExternalLink, KeyRound, Link2, Loader2, RefreshCw, Save, ShieldCheck, Trash2 } from "lucide-react";
