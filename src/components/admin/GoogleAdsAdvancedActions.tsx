@@ -191,6 +191,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
   const [confirmation, setConfirmation] = useState("");
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingActionId, setLoadingActionId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error" | "info"; text: string } | null>(null);
   const [geoResults, setGeoResults] = useState<Array<{ resourceName: string; name: string; canonicalName: string; countryCode: string; targetType?: string }>>([]);
 
@@ -304,6 +305,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
 
   async function prepare(operationType: string, target: Record<string, unknown>, action: GoogleAdsAutomationAction | null = null, origin: ChangeOrigin = action ? "S4X_ANALYSIS" : assistantOrigin) {
     setLoading(true);
+    setLoadingActionId(action?.id || null);
     setMessage(null);
     setConfirmation("");
     setExecutionError(null);
@@ -323,6 +325,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
       setActiveAction(null);
     } finally {
       setLoading(false);
+      setLoadingActionId(null);
     }
   }
 
@@ -389,8 +392,9 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
     }
   }
 
-  async function draftRsa(ad: GoogleAdsAutomationAd) {
+  async function draftRsa(ad: GoogleAdsAutomationAd, actionId: string | null = null) {
     setLoading(true);
+    setLoadingActionId(actionId);
     setMessage(null);
     selectAd(ad.id);
     try {
@@ -428,6 +432,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
       setMessage({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível gerar o rascunho." });
     } finally {
       setLoading(false);
+      setLoadingActionId(null);
     }
   }
 
@@ -461,7 +466,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
     }
     if (action.editor === "rsa_draft") {
       const ad = context.ads.find((item) => item.id === String(action.target?.adId || "") && item.adGroupId === String(action.target?.adGroupId || ""));
-      if (ad) void draftRsa(ad);
+      if (ad) void draftRsa(ad, action.id);
       return;
     }
     openAssistant(action.editor === "asset_draft" ? "assets" : "segmentation", action);
@@ -469,6 +474,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
 
   async function updateDismissal(action: GoogleAdsAutomationAction, dismissed: boolean) {
     setLoading(true);
+    setLoadingActionId(action.id);
     setMessage(null);
     try {
       const response = await fetch("/api/admin/google-ads/action-dismissals", {
@@ -484,6 +490,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
       setMessage({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível atualizar o descarte." });
     } finally {
       setLoading(false);
+      setLoadingActionId(null);
     }
   }
 
@@ -535,12 +542,13 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
         const readiness = READINESS[action.readiness];
         const batchable = !showDismissed && batchableActions.some((item) => item.id === action.id);
         const groupName = actionGroupName(action);
+        const actionLoading = loadingActionId === action.id;
         return <article key={action.id} data-s4x-smart-action={action.group} data-s4x-action-readiness={action.readiness} style={{ border: "1px solid #E2E8F0", borderRadius: 10, background: "#FFF", padding: 12, display: "grid", gap: 8, alignContent: "start" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><ActionIcon group={action.group} /><div style={{ minWidth: 0, flex: 1 }}><strong style={{ fontSize: 11.5, lineHeight: 1.35, color: "#334155" }}>{action.title}</strong>{action.campaignName ? <p style={{ marginTop: 2, fontSize: 9.5, color: "#64748B", overflowWrap: "anywhere" }}><strong>Campanha:</strong> {action.campaignName}</p> : null}{groupName ? <p style={{ marginTop: 2, fontSize: 9.5, color: "#64748B", overflowWrap: "anywhere" }}><strong>Grupo:</strong> {groupName}</p> : null}</div>{batchable ? <input type="checkbox" aria-label={`Selecionar ${action.title} para lote`} checked={selectedActionIds.includes(action.id)} onChange={() => toggleBatchAction(action.id)} style={{ width: 15, height: 15, accentColor: "#2563EB", cursor: "pointer", flex: "0 0 auto" }} /> : null}</div>
           <p style={{ fontSize: 10.5, lineHeight: 1.45, color: "#475569" }}>{action.reason}</p>
           <p style={{ fontSize: 9.5, lineHeight: 1.4, color: "#64748B", background: "#F8FAFC", borderRadius: 7, padding: "6px 7px" }}>{action.evidence}</p>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><span style={{ border: `1px solid ${readiness.border}`, background: readiness.background, color: readiness.color, borderRadius: 999, padding: "3px 6px", fontSize: 8.5, fontWeight: 850 }}>{readiness.label}</span><span style={{ fontSize: 9, color: "#64748B", fontWeight: 700 }}>{RISK_LABEL[action.riskLevel]}</span></div>
-          {showDismissed ? <button type="button" disabled={isLoading} onClick={() => void updateDismissal(action, false)} style={{ ...buttonStyle("neutral"), marginTop: 1, width: "100%", opacity: isLoading ? 0.55 : 1 }}><RotateCcw size={12} style={{ verticalAlign: "middle", marginRight: 5 }} />Restaurar sugestão</button> : <div style={{ display: "grid", gap: 6, marginTop: 1 }}><button type="button" disabled={isLoading} onClick={() => handleAction(action)} style={{ ...buttonStyle(action.readiness === "wait" ? "neutral" : "primary"), width: "100%", opacity: isLoading ? 0.55 : 1 }}>{isLoading ? "Processando…" : action.editor === "rsa_draft" ? "Gerar versão sugerida" : action.readiness === "wait" ? "Ver por que esperar" : action.operationType ? "Revisar alteração" : "Abrir configuração preenchida"}</button><button type="button" disabled={isLoading} onClick={() => void updateDismissal(action, true)} style={{ ...buttonStyle("neutral"), width: "100%", opacity: isLoading ? 0.55 : 1 }}><ArchiveX size={12} style={{ verticalAlign: "middle", marginRight: 5 }} />Descartar sugestão</button></div>}
+          {showDismissed ? <button type="button" disabled={isLoading} onClick={() => void updateDismissal(action, false)} style={{ ...buttonStyle("neutral"), marginTop: 1, width: "100%", opacity: isLoading ? 0.55 : 1 }}><RotateCcw size={12} style={{ verticalAlign: "middle", marginRight: 5 }} />Restaurar sugestão</button> : <div style={{ display: "grid", gap: 6, marginTop: 1 }}><button type="button" disabled={isLoading} onClick={() => handleAction(action)} style={{ ...buttonStyle(action.readiness === "wait" ? "neutral" : "primary"), width: "100%", opacity: isLoading ? 0.55 : 1 }}>{actionLoading ? "Processando…" : action.editor === "rsa_draft" ? "Gerar versão sugerida" : action.readiness === "wait" ? "Ver por que esperar" : action.operationType ? "Revisar alteração" : "Abrir configuração preenchida"}</button><button type="button" disabled={isLoading} onClick={() => void updateDismissal(action, true)} style={{ ...buttonStyle("neutral"), width: "100%", opacity: isLoading ? 0.55 : 1 }}><ArchiveX size={12} style={{ verticalAlign: "middle", marginRight: 5 }} />Descartar sugestão</button></div>}
         </article>;
       })}
     </div> : <div style={{ marginTop: 13, border: "1px solid #E2E8F0", background: "#F8FAFC", borderRadius: 10, padding: 12, color: "#64748B", fontSize: 11 }}>{showDismissed ? "Nenhuma sugestão descartada está disponível para este grupo." : "Nenhuma ação desse grupo foi indicada pelos dados do período."}</div>}
