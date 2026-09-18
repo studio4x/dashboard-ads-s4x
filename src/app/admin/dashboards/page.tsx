@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, PieChart, X, Loader2, Save, RefreshCw, Database, Trash2, Pencil, Copy, Send, Download, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff, Filter } from "lucide-react";
+import { Plus, PieChart, X, Loader2, Save, RefreshCw, Database, Trash2, Pencil, Copy, Send, Download, CheckCircle2, ChevronDown, ChevronUp, BellRing, BellOff, Filter, ExternalLink } from "lucide-react";
 import { META_ADS_OBJECTIVES, getMetaObjectiveLabel, normalizeMetaAdsObjectives } from "@/lib/meta-ads/objectives";
 import { useToast } from "@/components/ui/Toast";
 
@@ -1158,6 +1158,29 @@ export default function AdminDashboardsPage() {
                   >
                     {dashboardTypeBadge.label}
                   </span>
+                  <Link
+                    href={`/app/dashboards/${d.id}/executive-summary`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Visualizar dashboard"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      minHeight: 36,
+                      padding: "0 11px",
+                      borderRadius: 8,
+                      background: "#2563EB",
+                      color: "#FFFFFF",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      whiteSpace: "nowrap",
+                      boxShadow: "0 1px 2px rgba(37, 99, 235, 0.2)",
+                    }}
+                  >
+                    <ExternalLink size={14} /> Visualizar
+                  </Link>
                   <button
                     onClick={() =>
                       setExpandedCardsByDashboardId((prev) => ({ ...prev, [d.id]: !prev[d.id] }))
@@ -1904,19 +1927,6 @@ export default function AdminDashboardsPage() {
                     <Trash2 size={14} /> Excluir
                   </button>
 
-                  <Link 
-                    href={`/app/dashboards/${d.id}/executive-summary`} 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ 
-                      display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", 
-                      borderRadius: 8, background: "#2563EB", fontSize: 13, color: "white", 
-                      textDecoration: "none", fontWeight: 600, boxShadow: "0 1px 2px 0 rgba(37, 99, 235, 0.2)",
-                      transition: "all 0.2s"
-                    }}
-                  >
-                    Visualizar Dashboard →
-                  </Link>
                 </div>
               </div>
               </>
