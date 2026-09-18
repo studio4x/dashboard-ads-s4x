@@ -208,7 +208,7 @@ export async function ClientPageContent({ clientId, activeTab }: { clientId: str
                         ? "Erro"
                         : "Pendente";
                   return (
-                    <div key={s.id} style={{ padding: 16, borderRadius: 8, border: "1px solid #E2E8F0" }}>
+                    <div id={`source-${s.id}`} key={s.id} style={{ padding: 16, borderRadius: 8, border: "1px solid #E2E8F0" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         <p style={{ fontSize: 14, fontWeight: 500, color: "#0F172A" }}>{s.name}</p>
                         <ClientSourceSyncModalButton

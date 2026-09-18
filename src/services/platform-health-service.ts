@@ -26,6 +26,14 @@ function errorMessage(error: unknown) {
 
 const WEEK_DAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 
+const ANOMALY_DISPLAY_NAMES: Record<string, string> = {
+  "google_ads:spend_up_results_down": "Google Ads: investimento em alta e resultados em queda",
+};
+
+function anomalyDisplayName(key: string) {
+  return ANOMALY_DISPLAY_NAMES[key] || key;
+}
+
 function formatSchedule(dashboard: any) {
   const hour = String(Number(dashboard?.automation_hour ?? 8)).padStart(2, "0");
   const minute = String(Number(dashboard?.automation_minute ?? 0)).padStart(2, "0");
@@ -272,7 +280,7 @@ export const PlatformHealthService = {
       if (item.status === "attention") addIssue(item.client_id, { type: "financial", label: `${item.account_name || item.account_id}: abaixo do limite financeiro`, severity: "warning" });
     }
     for (const item of anomalyItems as any[]) {
-      addIssue(item.client_id, { type: "anomaly", label: `Anomalia ativa: ${item.anomaly_key}`, severity: "warning" });
+      addIssue(item.client_id, { type: "anomaly", label: `Anomalia ativa: ${anomalyDisplayName(item.anomaly_key)}`, severity: "warning" });
     }
 
     const clients = clientsData.map((client: any) => {
