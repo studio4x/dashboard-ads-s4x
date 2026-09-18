@@ -110,6 +110,8 @@ export type GoogleAdsAutomationAction = {
   riskLevel: GoogleAdsRiskLevel;
   campaignId: string | null;
   campaignName: string | null;
+  adGroupId?: string | null;
+  adGroupName?: string | null;
   operationType?: GoogleAdsPlatformOperation;
   target?: Record<string, unknown>;
   editor?: GoogleAdsAutomationEditor;
@@ -448,8 +450,10 @@ function buildActions(input: BuildInput, context: Omit<GoogleAdsAutomationContex
       riskLevel: "low",
       campaignId: term.campaignId,
       campaignName: term.campaignName,
+      adGroupId: term.adGroupId,
+      adGroupName: term.adGroupName,
       operationType: "add_campaign_negative_keyword",
-      target: { campaignId: term.campaignId, text: term.text, matchType: "EXACT" },
+      target: { campaignId: term.campaignId, adGroupId: term.adGroupId, text: term.text, matchType: "EXACT" },
     });
   }
 
@@ -465,6 +469,8 @@ function buildActions(input: BuildInput, context: Omit<GoogleAdsAutomationContex
       riskLevel: "low",
       campaignId: term.campaignId,
       campaignName: term.campaignName,
+      adGroupId: term.adGroupId,
+      adGroupName: term.adGroupName,
       operationType: "add_ad_group_keyword",
       target: { campaignId: term.campaignId, adGroupId: term.adGroupId, text: term.text, matchType: "EXACT" },
     });
@@ -481,6 +487,8 @@ function buildActions(input: BuildInput, context: Omit<GoogleAdsAutomationContex
       riskLevel: "medium",
       campaignId: keyword.campaignId,
       campaignName: keyword.campaignName,
+      adGroupId: keyword.adGroupId,
+      adGroupName: keyword.adGroupName,
       operationType: "set_keyword_status",
       target: { adGroupId: keyword.adGroupId, criterionId: keyword.criterionId, status: "PAUSED" },
     });
@@ -521,6 +529,8 @@ function buildActions(input: BuildInput, context: Omit<GoogleAdsAutomationContex
       riskLevel: "high",
       campaignId: ad.campaignId,
       campaignName: ad.campaignName,
+      adGroupId: ad.adGroupId,
+      adGroupName: ad.adGroupName,
       editor: "rsa_draft",
       target: { campaignId: ad.campaignId, adGroupId: ad.adGroupId, adId: ad.id },
     });

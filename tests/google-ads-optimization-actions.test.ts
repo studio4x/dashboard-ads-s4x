@@ -77,6 +77,7 @@ test("turns a converting search term into a prefilled exact-keyword action", () 
   const context = build({ searchRows: [row("term", { metrics: { clicks: 7, costMicros: 30_000_000, conversions: 2 } })] });
   const action = context.actions.find((item) => item.operationType === "add_ad_group_keyword");
   assert.equal(action?.readiness, "ready");
+  assert.equal(action?.adGroupName, "Serviços");
   assert.deepEqual(action?.target, { campaignId: "10", adGroupId: "20", text: "consultoria premium", matchType: "EXACT" });
 });
 
@@ -106,6 +107,7 @@ test("creates an RSA draft action from a low-quality keyword and the current res
   const context = build({ keywordRows: [keyword], adRows: [ad] });
   const action = context.actions.find((item) => item.editor === "rsa_draft");
   assert.equal(action?.readiness, "review");
+  assert.equal(action?.adGroupName, "Serviços");
   assert.equal(action?.target?.adId, "40");
   assert.deepEqual(context.ads[0].headlines, ["Título atual", "Segundo título", "Terceiro título"]);
 });

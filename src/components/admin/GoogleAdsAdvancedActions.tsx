@@ -460,6 +460,17 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
     openAssistant(action.editor === "asset_draft" ? "assets" : "segmentation", action);
   }
 
+  function actionGroupName(action: GoogleAdsAutomationAction) {
+    if (action.adGroupName) return action.adGroupName;
+    const adGroupId = String(action.adGroupId || action.target?.adGroupId || "");
+    if (adGroupId) return context.adGroups.find((item) => item.id === adGroupId)?.name || null;
+    const adId = String(action.target?.adId || "");
+    if (adId) return context.ads.find((item) => item.id === adId)?.adGroupName || null;
+    const criterionId = String(action.target?.criterionId || "");
+    if (criterionId) return context.keywords.find((item) => item.criterionId === criterionId)?.adGroupName || null;
+    return null;
+  }
+
   const isLoading = loading;
   const campaignSelect = <select value={values.campaignId} onChange={(event) => selectCampaign(event.target.value)} style={fieldStyle()}>{context.campaigns.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>;
 
@@ -495,8 +506,9 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
       {visibleActions.map((action) => {
         const readiness = READINESS[action.readiness];
         const batchable = batchableActions.some((item) => item.id === action.id);
+        const groupName = actionGroupName(action);
         return <article key={action.id} data-s4x-smart-action={action.group} data-s4x-action-readiness={action.readiness} style={{ border: "1px solid #E2E8F0", borderRadius: 10, background: "#FFF", padding: 12, display: "grid", gap: 8, alignContent: "start" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><ActionIcon group={action.group} /><div style={{ minWidth: 0, flex: 1 }}><strong style={{ fontSize: 11.5, lineHeight: 1.35, color: "#334155" }}>{action.title}</strong>{action.campaignName ? <p style={{ marginTop: 2, fontSize: 9.5, color: "#94A3B8", overflowWrap: "anywhere" }}>{action.campaignName}</p> : null}</div>{batchable ? <input type="checkbox" aria-label={`Selecionar ${action.title} para lote`} checked={selectedActionIds.includes(action.id)} onChange={() => toggleBatchAction(action.id)} style={{ width: 15, height: 15, accentColor: "#2563EB", cursor: "pointer", flex: "0 0 auto" }} /> : null}</div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><ActionIcon group={action.group} /><div style={{ minWidth: 0, flex: 1 }}><strong style={{ fontSize: 11.5, lineHeight: 1.35, color: "#334155" }}>{action.title}</strong>{action.campaignName ? <p style={{ marginTop: 2, fontSize: 9.5, color: "#64748B", overflowWrap: "anywhere" }}><strong>Campanha:</strong> {action.campaignName}</p> : null}{groupName ? <p style={{ marginTop: 2, fontSize: 9.5, color: "#64748B", overflowWrap: "anywhere" }}><strong>Grupo:</strong> {groupName}</p> : null}</div>{batchable ? <input type="checkbox" aria-label={`Selecionar ${action.title} para lote`} checked={selectedActionIds.includes(action.id)} onChange={() => toggleBatchAction(action.id)} style={{ width: 15, height: 15, accentColor: "#2563EB", cursor: "pointer", flex: "0 0 auto" }} /> : null}</div>
           <p style={{ fontSize: 10.5, lineHeight: 1.45, color: "#475569" }}>{action.reason}</p>
           <p style={{ fontSize: 9.5, lineHeight: 1.4, color: "#64748B", background: "#F8FAFC", borderRadius: 7, padding: "6px 7px" }}>{action.evidence}</p>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><span style={{ border: `1px solid ${readiness.border}`, background: readiness.background, color: readiness.color, borderRadius: 999, padding: "3px 6px", fontSize: 8.5, fontWeight: 850 }}>{readiness.label}</span><span style={{ fontSize: 9, color: "#64748B", fontWeight: 700 }}>{RISK_LABEL[action.riskLevel]}</span></div>
