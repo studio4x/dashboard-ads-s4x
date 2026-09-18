@@ -128,6 +128,7 @@ export type GoogleAdsAutomationContext = {
   assetInventoryAvailable: boolean;
   conversionActions: GoogleAdsAutomationConversionAction[];
   actions: GoogleAdsAutomationAction[];
+  dismissedActionIds?: string[];
 };
 
 type BuildInput = {

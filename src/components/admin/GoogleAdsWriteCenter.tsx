@@ -88,7 +88,7 @@ export async function GoogleAdsWriteCenter({ sourceId, from, to }: Props) {
   const end = isIsoDate(to) ? to : defaultEnd;
   const start = isIsoDate(from) && from <= end ? from : addDays(end, -29);
 
-  const [campaignRows, searchRows, keywordRows, adRows, adGroupRows, timeRows, configResult, assetInventoryResult] = await Promise.all([
+  const [campaignRows, searchRows, keywordRows, adRows, adGroupRows, timeRows, configResult, assetInventoryResult, dismissedResult] = await Promise.all([
     fetchDataset(supabase, sourceId, "campaign_daily", start, end),
     fetchDataset(supabase, sourceId, "search_terms_daily", start, end),
     fetchDataset(supabase, sourceId, "keyword_daily", start, end),
@@ -97,6 +97,7 @@ export async function GoogleAdsWriteCenter({ sourceId, from, to }: Props) {
     fetchDataset(supabase, sourceId, "time_daily", start, end),
     supabase.from("google_ads_config_history").select("config_type,resource_name,campaign_id,payload,observed_at").eq("data_source_id", sourceId).in("config_type", ["campaign_budget", "campaign_bidding", "campaign_asset", "conversion_action"]).order("observed_at", { ascending: false }).limit(3000),
     supabase.from("google_ads_analytics_runs").select("status,received_rows,created_at").eq("data_source_id", sourceId).eq("dataset", "campaignAssets").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("google_ads_action_dismissals").select("action_key").eq("data_source_id", sourceId),
   ]);
 
   const totalCost = campaignRows.reduce((sum, row) => sum + cost(row), 0);
@@ -199,10 +200,11 @@ export async function GoogleAdsWriteCenter({ sourceId, from, to }: Props) {
     },
   });
 
+  const dismissedActionIds = (dismissedResult.data || []).map((item) => String(item.action_key));
   return <>
     <GoogleAdsWriteCenterClient sourceId={sourceId} negatives={negatives} keywords={keywords} ads={ads} adGroups={adGroups} budgets={budgets} />
     <div style={{ maxWidth: 1440, width: "100%", margin: "0 auto", padding: "0 clamp(14px, 3vw, 32px)", boxSizing: "border-box" }}>
-      <GoogleAdsAdvancedActions sourceId={sourceId} context={automationContext} />
+      <GoogleAdsAdvancedActions sourceId={sourceId} context={{ ...automationContext, dismissedActionIds }} />
     </div>
   </>;
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import {
   AlertTriangle,
+  ArchiveX,
   ChevronDown,
   Clock3,
   FilePenLine,
@@ -15,6 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
   WalletCards,
+  RotateCcw,
   X,
 } from "lucide-react";
 import type {
@@ -178,6 +180,8 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
   const [recommendationLoading, setRecommendationLoading] = useState(true);
   const [activeGroup, setActiveGroup] = useState<GoogleAdsAutomationGroup | "all">("all");
   const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
+  const [showDismissed, setShowDismissed] = useState(false);
+  const [dismissedActionIds, setDismissedActionIds] = useState<string[]>(context.dismissedActionIds || []);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantSection, setAssistantSection] = useState<AssistantSection>("keywords");
   const [assistantOrigin, setAssistantOrigin] = useState<ChangeOrigin>("MANUAL");
@@ -194,11 +198,14 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
   const availableGroups = useMemo(() => context.adGroups.filter((item) => !values.campaignId || item.campaignId === values.campaignId), [context.adGroups, values.campaignId]);
   const availableAds = useMemo(() => context.ads.filter((item) => !values.adGroupId || item.adGroupId === values.adGroupId), [context.ads, values.adGroupId]);
   const selectedAd = useMemo(() => availableAds.find((item) => item.id === values.adId) || null, [availableAds, values.adId]);
-  const visibleActions = useMemo(() => context.actions.filter((item) => activeGroup === "all" || item.group === activeGroup), [activeGroup, context.actions]);
-  const actionIndex = useMemo(() => JSON.stringify(context.actions.map((item) => ({ group: item.group, readiness: item.readiness }))), [context.actions]);
-  const batchableActions = useMemo(() => context.actions.filter((item) => item.target && item.operationType && ["add_campaign_negative_keyword", "add_ad_group_keyword", "set_keyword_status"].includes(item.operationType) && item.readiness !== "wait" && item.readiness !== "manual"), [context.actions]);
+  const dismissedSet = useMemo(() => new Set(dismissedActionIds), [dismissedActionIds]);
+  const activeActions = useMemo(() => context.actions.filter((item) => !dismissedSet.has(item.id)), [context.actions, dismissedSet]);
+  const dismissedActions = useMemo(() => context.actions.filter((item) => dismissedSet.has(item.id)), [context.actions, dismissedSet]);
+  const visibleActions = useMemo(() => (showDismissed ? dismissedActions : activeActions).filter((item) => activeGroup === "all" || item.group === activeGroup), [activeGroup, activeActions, dismissedActions, showDismissed]);
+  const actionIndex = useMemo(() => JSON.stringify(activeActions.map((item) => ({ group: item.group, readiness: item.readiness }))), [activeActions]);
+  const batchableActions = useMemo(() => activeActions.filter((item) => item.target && item.operationType && ["add_campaign_negative_keyword", "add_ad_group_keyword", "set_keyword_status"].includes(item.operationType) && item.readiness !== "wait" && item.readiness !== "manual"), [activeActions]);
   const selectedBatch = batchableActions.filter((item) => selectedActionIds.includes(item.id));
-  const readyCount = context.actions.filter((item) => item.readiness === "ready").length;
+  const readyCount = activeActions.filter((item) => item.readiness === "ready").length;
   const executionBlockReason = useMemo(() => {
     if (!preview?.executable) return null;
     if (!controls) return "Verificando as travas de escrita antes de permitir a aplicação.";
@@ -460,6 +467,26 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
     openAssistant(action.editor === "asset_draft" ? "assets" : "segmentation", action);
   }
 
+  async function updateDismissal(action: GoogleAdsAutomationAction, dismissed: boolean) {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/admin/google-ads/action-dismissals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceId, actionKey: action.id, actionTitle: action.title, dismissed }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "Não foi possível atualizar o descarte.");
+      setDismissedActionIds((current) => dismissed ? Array.from(new Set([...current, action.id])) : current.filter((id) => id !== action.id));
+      setMessage({ tone: "ok", text: dismissed ? "Sugestão descartada. Ela saiu da visualização ativa." : "Sugestão restaurada na visualização ativa." });
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Não foi possível atualizar o descarte." });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function actionGroupName(action: GoogleAdsAutomationAction) {
     if (action.adGroupName) return action.adGroupName;
     const adGroupId = String(action.adGroupId || action.target?.adGroupId || "");
@@ -490,12 +517,13 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
     </div>
 
     <div style={{ marginTop: 12, display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap" }}>
-      <button type="button" onClick={() => setActiveGroup("all")} style={{ ...buttonStyle(activeGroup === "all" ? "primary" : "neutral"), minHeight: 29, padding: "4px 8px" }}>Todas · {context.actions.length}</button>
+      <button type="button" onClick={() => setActiveGroup("all")} style={{ ...buttonStyle(activeGroup === "all" ? "primary" : "neutral"), minHeight: 29, padding: "4px 8px" }}>{showDismissed ? "Descartadas" : "Todas"} · {showDismissed ? dismissedActions.length : activeActions.length}</button>
       {GROUPS.map((group) => {
-        const count = context.actions.filter((item) => item.group === group.key).length;
+        const count = activeActions.filter((item) => item.group === group.key).length;
         if (!count) return null;
         return <button key={group.key} type="button" onClick={() => setActiveGroup(group.key)} style={{ ...buttonStyle(activeGroup === group.key ? "primary" : "neutral"), minHeight: 29, padding: "4px 8px" }}>{group.label} · {count}</button>;
       })}
+      <button type="button" onClick={() => setShowDismissed((value) => !value)} style={{ ...buttonStyle(showDismissed ? "primary" : "neutral"), minHeight: 29, padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: 5 }}><ArchiveX size={12} />{showDismissed ? "Ver ativas" : `Descartadas · ${dismissedActions.length}`}</button>
       {selectedBatch.length ? <button type="button" disabled={isLoading} onClick={() => void prepare("batch_google_ads_changes", { items: selectedBatch.map((item) => ({ operationType: item.operationType, target: item.target })) }, null, "S4X_ANALYSIS")} style={{ ...buttonStyle("primary"), minHeight: 29 }}>Preparar {selectedBatch.length} em lote</button> : null}
       <button type="button" onClick={() => { setAssistantOrigin("MANUAL"); setAssistantOpen((value) => !value); }} style={{ ...buttonStyle("neutral"), minHeight: 29, marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5 }}><FilePenLine size={12} /> Configuração assistida <ChevronDown size={12} /></button>
     </div>
@@ -505,17 +533,17 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
     {visibleActions.length ? <div style={{ marginTop: 13, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(285px,1fr))", gap: 10 }}>
       {visibleActions.map((action) => {
         const readiness = READINESS[action.readiness];
-        const batchable = batchableActions.some((item) => item.id === action.id);
+        const batchable = !showDismissed && batchableActions.some((item) => item.id === action.id);
         const groupName = actionGroupName(action);
         return <article key={action.id} data-s4x-smart-action={action.group} data-s4x-action-readiness={action.readiness} style={{ border: "1px solid #E2E8F0", borderRadius: 10, background: "#FFF", padding: 12, display: "grid", gap: 8, alignContent: "start" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}><ActionIcon group={action.group} /><div style={{ minWidth: 0, flex: 1 }}><strong style={{ fontSize: 11.5, lineHeight: 1.35, color: "#334155" }}>{action.title}</strong>{action.campaignName ? <p style={{ marginTop: 2, fontSize: 9.5, color: "#64748B", overflowWrap: "anywhere" }}><strong>Campanha:</strong> {action.campaignName}</p> : null}{groupName ? <p style={{ marginTop: 2, fontSize: 9.5, color: "#64748B", overflowWrap: "anywhere" }}><strong>Grupo:</strong> {groupName}</p> : null}</div>{batchable ? <input type="checkbox" aria-label={`Selecionar ${action.title} para lote`} checked={selectedActionIds.includes(action.id)} onChange={() => toggleBatchAction(action.id)} style={{ width: 15, height: 15, accentColor: "#2563EB", cursor: "pointer", flex: "0 0 auto" }} /> : null}</div>
           <p style={{ fontSize: 10.5, lineHeight: 1.45, color: "#475569" }}>{action.reason}</p>
           <p style={{ fontSize: 9.5, lineHeight: 1.4, color: "#64748B", background: "#F8FAFC", borderRadius: 7, padding: "6px 7px" }}>{action.evidence}</p>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><span style={{ border: `1px solid ${readiness.border}`, background: readiness.background, color: readiness.color, borderRadius: 999, padding: "3px 6px", fontSize: 8.5, fontWeight: 850 }}>{readiness.label}</span><span style={{ fontSize: 9, color: "#64748B", fontWeight: 700 }}>{RISK_LABEL[action.riskLevel]}</span></div>
-          <button type="button" disabled={isLoading} onClick={() => handleAction(action)} style={{ ...buttonStyle(action.readiness === "wait" ? "neutral" : "primary"), marginTop: 1, width: "100%", opacity: isLoading ? 0.55 : 1 }}>{isLoading ? "Processando…" : action.editor === "rsa_draft" ? "Gerar versão sugerida" : action.readiness === "wait" ? "Ver por que esperar" : action.operationType ? "Revisar alteração" : "Abrir configuração preenchida"}</button>
+          {showDismissed ? <button type="button" disabled={isLoading} onClick={() => void updateDismissal(action, false)} style={{ ...buttonStyle("neutral"), marginTop: 1, width: "100%", opacity: isLoading ? 0.55 : 1 }}><RotateCcw size={12} style={{ verticalAlign: "middle", marginRight: 5 }} />Restaurar sugestão</button> : <div style={{ display: "grid", gap: 6, marginTop: 1 }}><button type="button" disabled={isLoading} onClick={() => handleAction(action)} style={{ ...buttonStyle(action.readiness === "wait" ? "neutral" : "primary"), width: "100%", opacity: isLoading ? 0.55 : 1 }}>{isLoading ? "Processando…" : action.editor === "rsa_draft" ? "Gerar versão sugerida" : action.readiness === "wait" ? "Ver por que esperar" : action.operationType ? "Revisar alteração" : "Abrir configuração preenchida"}</button><button type="button" disabled={isLoading} onClick={() => void updateDismissal(action, true)} style={{ ...buttonStyle("neutral"), width: "100%", opacity: isLoading ? 0.55 : 1 }}><ArchiveX size={12} style={{ verticalAlign: "middle", marginRight: 5 }} />Descartar sugestão</button></div>}
         </article>;
       })}
-    </div> : <div style={{ marginTop: 13, border: "1px solid #E2E8F0", background: "#F8FAFC", borderRadius: 10, padding: 12, color: "#64748B", fontSize: 11 }}>Nenhuma ação desse grupo foi indicada pelos dados do período.</div>}
+    </div> : <div style={{ marginTop: 13, border: "1px solid #E2E8F0", background: "#F8FAFC", borderRadius: 10, padding: 12, color: "#64748B", fontSize: 11 }}>{showDismissed ? "Nenhuma sugestão descartada está disponível para este grupo." : "Nenhuma ação desse grupo foi indicada pelos dados do período."}</div>}
 
     <section style={{ marginTop: 14, borderTop: "1px solid #E2E8F0", paddingTop: 12 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}><div style={{ display: "flex", alignItems: "center", gap: 7 }}><Lightbulb size={15} color="#4285F4" /><div><h3 style={{ fontSize: 12, color: "#334155" }}>Google Ads recomenda</h3><p style={{ fontSize: 9.5, color: "#94A3B8" }}>Origem externa, separada dos diagnósticos S4X.</p></div></div>{recommendationLoading ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9.5, color: "#64748B" }}><LoaderCircle size={12} className="animate-spin" /> Consultando API…</span> : <button type="button" onClick={() => void loadRecommendations()} style={{ ...buttonStyle("neutral"), minHeight: 28 }}>Atualizar</button>}</div>
