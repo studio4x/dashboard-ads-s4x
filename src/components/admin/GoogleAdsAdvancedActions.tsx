@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArchiveX,
   ChevronDown,
+  CheckCircle2,
   Clock3,
   FilePenLine,
   Lightbulb,
@@ -46,6 +47,11 @@ type Preview = {
   requiredConfirmation: string | null;
   validatedByGoogle: boolean;
   reversible?: boolean;
+};
+type SuccessNotice = {
+  description: string;
+  postWriteVerification: string | null;
+  requestId: string | null;
 };
 
 type AssistantSection = "keywords" | "ads" | "segmentation" | "budget_bidding" | "assets" | "conversions";
@@ -187,6 +193,7 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
   const [assistantOrigin, setAssistantOrigin] = useState<ChangeOrigin>("MANUAL");
   const [values, setValues] = useState<Values>(() => initialValues(context));
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [successNotice, setSuccessNotice] = useState<SuccessNotice | null>(null);
   const [activeAction, setActiveAction] = useState<GoogleAdsAutomationAction | null>(null);
   const [confirmation, setConfirmation] = useState("");
   const [executionError, setExecutionError] = useState<string | null>(null);
@@ -344,10 +351,16 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || "Não foi possível aplicar a alteração.");
+      const completedPreview = preview;
       setPreview(null);
       setActiveAction(null);
       setConfirmation("");
-      setMessage({ tone: "ok", text: "Alteração aplicada e confirmada pela leitura pós-escrita. Atualize a análise para ver o novo estado consolidado." });
+      setMessage(null);
+      setSuccessNotice({
+        description: completedPreview?.description || "A alteração foi aplicada ao Google Ads.",
+        postWriteVerification: typeof json.postWriteVerification === "string" ? json.postWriteVerification : null,
+        requestId: typeof json.requestId === "string" ? json.requestId : null,
+      });
     } catch (error) {
       setExecutionError(error instanceof Error ? error.message : "Não foi possível aplicar a alteração.");
     } finally {
@@ -591,6 +604,16 @@ export function GoogleAdsAdvancedActions({ sourceId, context }: Props) {
         {executionError ? <p role="alert" style={{ marginTop: 8, color: "#B91C1C", background: "#FEF2F2", border: "1px solid #FECACA", padding: 8, borderRadius: 7, fontSize: 10.5, lineHeight: 1.45 }}>{executionError}</p> : null}
         {preview.executable && !executionBlockReason ? <Field label={`Digite exatamente: ${preview.requiredConfirmation || "APLICAR"}`}><input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" style={{ ...fieldStyle(), marginTop: 4 }} /></Field> : null}
         <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8 }}><button type="button" onClick={() => { setPreview(null); setActiveAction(null); setConfirmation(""); setExecutionError(null); }} style={buttonStyle("neutral")}>Cancelar</button>{preview.executable && !executionBlockReason ? <button type="button" disabled={loading || confirmation !== (preview.requiredConfirmation || "APLICAR")} onClick={() => void execute()} style={{ ...buttonStyle(preview.riskLevel === "critical" || preview.riskLevel === "high" ? "danger" : "primary"), opacity: loading || confirmation !== (preview.requiredConfirmation || "APLICAR") ? 0.5 : 1 }}>{loading ? "Aplicando…" : "Confirmar e aplicar"}</button> : null}</div>
+      </div>
+    </div> : null}
+
+    {successNotice ? <div role="dialog" aria-modal="true" aria-labelledby="google-ads-success-title" style={{ position: "fixed", inset: 0, zIndex: 10002, background: "rgba(15,23,42,.58)", display: "grid", placeItems: "center", padding: 16 }}>
+      <div style={{ width: "min(520px,100%)", borderRadius: 14, background: "#FFF", padding: 22, boxShadow: "0 24px 70px rgba(15,23,42,.34)" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}><CheckCircle2 size={26} color="#059669" style={{ flex: "0 0 auto" }} /><div><h3 id="google-ads-success-title" style={{ fontSize: 16, color: "#065F46" }}>Implementação realizada com sucesso</h3><p style={{ marginTop: 8, fontSize: 11.5, lineHeight: 1.55, color: "#334155" }}>{successNotice.description}</p></div></div>
+        <div style={{ marginTop: 14, border: "1px solid #A7F3D0", background: "#ECFDF5", borderRadius: 9, padding: 10, fontSize: 10.5, lineHeight: 1.5, color: "#065F46" }}>A alteração foi enviada ao Google Ads e a solicitação foi registrada na auditoria. Atualize a análise para consultar o estado sincronizado mais recente.</div>
+        {successNotice.postWriteVerification ? <p style={{ marginTop: 9, fontSize: 9.5, color: "#64748B" }}>Verificação pós-escrita: {successNotice.postWriteVerification === "verified_by_google_readback" ? "confirmada na leitura do Google Ads" : successNotice.postWriteVerification}.</p> : null}
+        {successNotice.requestId ? <p style={{ marginTop: 4, fontSize: 9.5, color: "#94A3B8", overflowWrap: "anywhere" }}>ID da solicitação: {successNotice.requestId}</p> : null}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 17 }}><button type="button" autoFocus onClick={() => setSuccessNotice(null)} style={{ ...buttonStyle("primary"), minWidth: 120 }}>Fechar</button></div>
       </div>
     </div> : null}
   </section>;
