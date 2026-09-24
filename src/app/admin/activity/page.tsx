@@ -26,6 +26,8 @@ const typeLabels: Record<string, string> = {
   configuration: "Configuração",
 };
 
+const PAGE_SIZE = 10;
+
 function dateLabel(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
@@ -50,6 +52,7 @@ export default function ActivityPage() {
   const [clientId, setClientId] = useState("");
   const [type, setType] = useState("");
   const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
 
   async function load() {
     setLoading(true);
@@ -68,6 +71,10 @@ export default function ActivityPage() {
 
   useEffect(() => { void load(); }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, clientId, type, status]);
+
   const clients = useMemo(() => {
     const map = new Map<string, string>();
     for (const item of items) if (item.clientId) map.set(item.clientId, item.clientName);
@@ -85,6 +92,10 @@ export default function ActivityPage() {
     });
   }, [items, clientId, type, status, search]);
 
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const paginatedItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   return <div className="admin-page" style={{ padding: "clamp(14px,3vw,32px)", maxWidth: 1280 }}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 22 }}>
       <div><h1 style={{ fontSize: 22, fontWeight: 800, color: "#0F172A", display: "flex", gap: 8, alignItems: "center" }}><FileClock size={22} color="#7C3AED" /> Atividade Operacional</h1><p style={{ marginTop: 4, fontSize: 12, color: "#64748B" }}>Linha do tempo de sincronizações, automações, alertas, anomalias e configurações por cliente.</p></div>
@@ -101,11 +112,21 @@ export default function ActivityPage() {
     </div></div>
 
     <div className="card" style={{ overflow: "hidden" }}>
-      {loading && items.length === 0 ? <div style={{ padding: 42, textAlign: "center", color: "#64748B" }}><Loader2 size={20} className="animate-spin" style={{ margin: "0 auto 7px" }} />Carregando...</div> : filtered.length === 0 ? <div style={{ padding: 42, textAlign: "center", color: "#64748B" }}>Nenhum evento encontrado.</div> : filtered.map((item,index) => <div key={item.id} style={{ display: "grid", gridTemplateColumns: "150px minmax(0,1fr) auto", gap: 12, padding: "13px 15px", borderBottom: index === filtered.length - 1 ? "none" : "1px solid #F1F5F9" }}>
+      {loading && items.length === 0 ? <div style={{ padding: 42, textAlign: "center", color: "#64748B" }}><Loader2 size={20} className="animate-spin" style={{ margin: "0 auto 7px" }} />Carregando...</div> : filtered.length === 0 ? <div style={{ padding: 42, textAlign: "center", color: "#64748B" }}>Nenhum evento encontrado.</div> : <>
+        {paginatedItems.map((item,index) => <div key={item.id} style={{ display: "grid", gridTemplateColumns: "150px minmax(0,1fr) auto", gap: 12, padding: "13px 15px", borderBottom: index === paginatedItems.length - 1 ? "none" : "1px solid #F1F5F9" }}>
         <div style={{ fontSize: 9, color: "#64748B" }}>{dateLabel(item.occurredAt)}</div>
         <div><div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}><strong style={{ fontSize: 11, color: "#0F172A" }}>{item.title}</strong><span style={{ padding: "2px 6px", borderRadius: 99, background: "#F1F5F9", color: "#64748B", fontSize: 8, fontWeight: 700 }}>{typeLabels[item.type] || item.type}</span><Status value={item.status} /></div><p style={{ marginTop: 4, fontSize: 10, lineHeight: 1.45, color: "#475569" }}>{item.description}</p><p style={{ marginTop: 4, fontSize: 9, color: "#94A3B8" }}><strong style={{ color: "#64748B" }}>{item.clientName}</strong>{item.dashboardName ? ` · ${item.dashboardName}` : ""}</p></div>
         <div style={{ display: "flex", gap: 5 }}>{item.clientId && <Link href={`/admin/clients/${item.clientId}`} title="Abrir cliente" style={{ color: "#64748B" }}><ExternalLink size={12} /></Link>}{item.dashboardId && <Link href={`/app/dashboards/${item.dashboardId}/executive-summary`} target="_blank" title="Abrir dashboard" style={{ color: "#2563EB" }}><ExternalLink size={12} /></Link>}</div>
-      </div>)}
+        </div>)}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 15px", borderTop: "1px solid #E2E8F0", background: "#F8FAFC" }}>
+          <span style={{ fontSize: 10, color: "#64748B" }}>Exibindo {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} de {filtered.length} eventos</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage === 1} style={{ padding: "5px 9px", border: "1px solid #CBD5E1", borderRadius: 6, background: "#FFF", color: currentPage === 1 ? "#CBD5E1" : "#334155", fontSize: 10, fontWeight: 700, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}>Anterior</button>
+            <span aria-live="polite" style={{ minWidth: 76, textAlign: "center", fontSize: 10, color: "#475569" }}>Página {currentPage} de {pageCount}</span>
+            <button type="button" onClick={() => setPage((value) => Math.min(pageCount, value + 1))} disabled={currentPage === pageCount} style={{ padding: "5px 9px", border: "1px solid #CBD5E1", borderRadius: 6, background: "#FFF", color: currentPage === pageCount ? "#CBD5E1" : "#334155", fontSize: 10, fontWeight: 700, cursor: currentPage === pageCount ? "not-allowed" : "pointer" }}>Próxima</button>
+          </div>
+        </div>
+      </>}
     </div>
   </div>;
 }

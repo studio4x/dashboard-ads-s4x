@@ -1,6 +1,6 @@
 {
   "name": "dashboard-ads-s4x",
-  "version": "0.1.160",
+  "version": "0.1.161",
   "private": true,
   "scripts": {
     "dev": "next dev",
