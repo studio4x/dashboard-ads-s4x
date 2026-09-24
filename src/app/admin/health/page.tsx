@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Activity, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, CircleAlert, Clock3, Database, ExternalLink, Loader2, Play, RefreshCw, ServerCog, ShieldCheck, WalletCards } from "lucide-react";
 import { formatAutomationDateKey, getAutomationReferenceDate, normalizeAutomationPeriodPreset, resolveAutomationPeriodRange } from "@/lib/dashboard/automation-period";
+import { repairMojibake } from "@/lib/text/repair-mojibake";
 
 type Snapshot = any;
 
@@ -24,6 +25,15 @@ function statusBadge(status: string) {
 function Badge({ status }: { status: string }) {
   const p = statusBadge(status);
   return <span style={{ display: "inline-flex", padding: "4px 8px", borderRadius: 99, background: p.bg, color: p.color, fontSize: 10, fontWeight: 800 }}>{p.label}</span>;
+}
+
+function automationStatusLabel(status: string | null | undefined) {
+  if (status === "success") return "Sucesso";
+  if (status === "partial") return "Parcial";
+  if (status === "error") return "Erro";
+  if (status === "running") return "Em andamento";
+  if (status === "dispatched") return "Disparada";
+  return status || "Pendente";
 }
 
 function sourceHref(source: any) {
@@ -179,10 +189,10 @@ export default function PlatformHealthPage() {
                             <span><strong>Último início:</strong> {formatDate(details.lastStartedAt)}</span>
                             <span><strong>Último disparo:</strong> {formatDate(details.lastDispatchedAt)}</span>
                             <span><strong>Última conclusão:</strong> {formatDate(details.lastCompletedAt)}</span>
-                            <span><strong>Status retornado:</strong> {details.lastCompletionStatus || details.lastExecutionStatus || "Pendente"}</span>
+                            <span><strong>Status retornado:</strong> {automationStatusLabel(details.lastCompletionStatus || details.lastExecutionStatus)}</span>
                             {details.lastExecutionPeriodFrom && <span><strong>Período enviado:</strong> {details.lastExecutionPeriodFrom} a {details.lastExecutionPeriodTo || "..."}</span>}
                           </div>}
-                          {isAutomation && details.lastCompletionMessage && <p style={{ marginTop: 7, color: "#B91C1C", fontSize: 10 }}><strong>Mensagem:</strong> {details.lastCompletionMessage}</p>}
+                          {isAutomation && details.lastCompletionMessage && <p style={{ marginTop: 7, color: details.lastCompletionStatus === "error" ? "#B91C1C" : "#475569", fontSize: 10 }}><strong>Mensagem:</strong> {repairMojibake(details.lastCompletionMessage)}</p>}
                         </div>
                         {isAutomation && <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap" }}>
                           <Link href={`/app/dashboards/${details.dashboardId}/executive-summary`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 8px", borderRadius: 7, background: "#EFF6FF", color: "#1D4ED8", fontSize: 10, fontWeight: 700, textDecoration: "none" }}><ExternalLink size={12} /> Abrir dashboard</Link>

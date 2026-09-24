@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { repairMojibake } from "@/lib/text/repair-mojibake";
 
 function ageMinutes(value: string | null) {
   if (!value) return null;
@@ -191,7 +192,17 @@ export const PlatformHealthService = {
         const lastCompletionStatus = completionStatus(dashboard.automation_last_completion_status || latestExecution?.status);
         const lastAge = ageMinutes(lastCompletedAt);
         const staleAfterMinutes = dashboard.automation_frequency === "daily" ? 2 * 24 * 60 : 8 * 24 * 60;
-        const pending = Boolean(latestExecution && ["running", "dispatched"].includes(latestExecutionStatus) && !latestExecution.completed_at);
+        const completionAfterDispatch = Boolean(
+          lastCompletedAt &&
+          lastDispatchedAt &&
+          new Date(lastCompletedAt).getTime() >= new Date(lastDispatchedAt).getTime()
+        );
+        const pending = Boolean(
+          latestExecution &&
+          ["running", "dispatched"].includes(latestExecutionStatus) &&
+          !latestExecution.completed_at &&
+          !completionAfterDispatch
+        );
         const failed = lastCompletionStatus === "error" || latestExecutionStatus === "error";
         const stale = !lastCompletedAt || (lastAge !== null && lastAge > staleAfterMinutes);
         const diagnosis = failed
@@ -230,7 +241,7 @@ export const PlatformHealthService = {
           lastDispatchedAt,
           lastCompletedAt,
           lastCompletionStatus,
-          lastCompletionMessage: dashboard.automation_last_completion_message || latestExecution?.message || null,
+          lastCompletionMessage: repairMojibake(dashboard.automation_last_completion_message || latestExecution?.message),
           lastExecutionStatus: latestExecutionStatus,
           lastExecutionId: latestExecution?.id || null,
           lastExecutionPeriodFrom: latestExecution?.period_from || null,
@@ -241,7 +252,7 @@ export const PlatformHealthService = {
           diagnosis,
           diagnosisLabel,
           status: failed ? "error" : stale || pending ? "attention" : "healthy",
-          message: dashboard.automation_last_completion_message || latestExecution?.message || null,
+          message: repairMojibake(dashboard.automation_last_completion_message || latestExecution?.message),
         };
       });
 
